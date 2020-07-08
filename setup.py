@@ -13,13 +13,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='olimex',
-    maintainer_email='olimex@todo.todo',
-    description='TODO: Package description',
+    maintainer='Roza Gkliva',
+    maintainer_email='roza.gkliva@ttu.ee',
+    description='testing out serial communication between ROS2 and an Arduino',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'serialinterface = test_python_package.serial_interface:main'
         ],
     },
 )
