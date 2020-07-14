@@ -7,6 +7,7 @@ def generate_launch_description():
 			package='test_python_package', 
 			namespace='motor1',
 			executable='serial_interface',
-			name='serial_interface'
+			name='serial_interface',
+			output='screen'
 			)
 		])
