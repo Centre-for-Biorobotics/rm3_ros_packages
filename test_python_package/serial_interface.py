@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import rclpy
 
 from rclpy.node import Node
@@ -9,10 +11,10 @@ import sys
 import struct
 
 first_byte = 3
-second_byte = 2
+second_byte = 6
 
 port = "/dev/ttyACM0"
-# ser = serial.Serial(port, 115200, timeout = 1)
+
 
 class SerialInterface(Node):
 	def __init__(self):
@@ -42,27 +44,17 @@ class SerialInterface(Node):
 
 
 	def sendToArduino(self):
-		# global ser, first_byte, second_byte
-		# port = sys.argv[1]
-		# port = "/dev/ttyACM0"
-		# ser = serial.Serial(port, 115200, timeout = 0)
-		# ser_buffer = r''
 
-		# while not rospy.is_shutdown():
-		# 	data = ser.read(9999)
-		# 	messages = []
-		# 	if len(data) > 0:
-		# 		ser_buffer += data
-		# 		while True:
-		# 			old_length = len(ser_buffer)
-		# 			# ser_buffer, messages = 
-		outbuffer = r'syncsync'
-		outbuffer += str(first_byte)
-		outbuffer += str(second_byte)
-		outbuffer += '\n'
-		print("bytes sent: " + str(first_byte) + ", " + str(second_byte))
+		outbuffer = 'sync'.encode('UTF-8')
 
-		self.ser.write(outbuffer.encode("utf-8"))
+		outbuffer += struct.pack('b', first_byte)
+		outbuffer += struct.pack('b', second_byte)
+		
+		outbuffer += '\n'.encode('UTF-8')
+
+		self.get_logger().info('Sending: "%s"' % outbuffer)
+
+		self.ser.write(outbuffer) # writes to serial port
 
 
 
