@@ -1,8 +1,15 @@
 #!/usr/bin/python3
+""" Serial interface between Olimex sbc and arduino nano
+
+Handles bidirectional communications between two devices.
+
+"""
+
 
 import rclpy
 
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 
 from std_msgs.msg import String
 
@@ -13,18 +20,27 @@ import struct
 first_byte = 3
 second_byte = 6
 
-port = "/dev/ttyACM0"
+# port = "/dev/ttyACM0"
 
 
 class SerialInterface(Node):
 	def __init__(self):
 		super().__init__('serial_interface')
-		self.ser = serial.Serial('/dev/ttyACM0', 115200, timeout = 0)
+		self.declare_parameter('port')
+
+		port = self.get_parameter('port').value
+		self.motorID = int(port[11])
+		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(port), self.motorID))
+
+		
+		self.ser = serial.Serial(port, 115200, timeout = 0)
 		self.publisher_ = self.create_publisher(String, 'received_data', 10)
+
 		timer_period = 1.0 # seconds
-		print("new node")
+
 		self.timer = self.create_timer(timer_period, self.sendToArduino)
 		self.timer2 = self.create_timer(timer_period, self.readFromArduino)
+
 
 	def readFromArduino(self):
 		# if len(sys.argv) < 2:
@@ -35,11 +51,10 @@ class SerialInterface(Node):
 		msg = String()
 		data = self.ser.read(999)
 		self.get_logger().info('Received: "%s"' % data)
-    	# self.i += 1
+		# print(str(sys.argv[1]))
+
 		msg.data = str(data)
 		self.publisher_.publish(msg)
-
-		# print(data)
 
 
 
@@ -47,9 +62,9 @@ class SerialInterface(Node):
 
 		outbuffer = 'sync'.encode('UTF-8')
 
-		outbuffer += struct.pack('b', first_byte)
+		outbuffer += struct.pack('b', self.motorID)
 		outbuffer += struct.pack('b', second_byte)
-		
+
 		outbuffer += '\n'.encode('UTF-8')
 
 		self.get_logger().info('Sending: "%s"' % outbuffer)
