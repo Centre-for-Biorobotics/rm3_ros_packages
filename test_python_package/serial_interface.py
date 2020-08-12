@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """ Serial interface between Olimex sbc and arduino nano
 
-Handles bidirectional communications between two devices.
+Handles bidirectional communications between the two devices.
 
 """
 
@@ -18,7 +18,7 @@ import sys
 import struct
 
 first_byte = 3
-second_byte = 6
+# second_byte = 6
 
 # port = "/dev/ttyACM0"
 
@@ -50,6 +50,12 @@ class SerialInterface(Node):
 		# while not rospy.is_shutdown():
 		msg = String()
 		data = self.ser.read(999)
+
+		# compute checksum
+		# checksum = 0
+		# for e1 in data:
+
+
 		self.get_logger().info('Received: "%s"' % data)
 		# print(str(sys.argv[1]))
 
@@ -63,11 +69,12 @@ class SerialInterface(Node):
 		outbuffer = 'sync'.encode('UTF-8')
 
 		outbuffer += struct.pack('b', self.motorID)
-		outbuffer += struct.pack('b', second_byte)
+		outbuffer += struct.pack('b', first_byte)
 
 		outbuffer += '\n'.encode('UTF-8')
 
 		self.get_logger().info('Sending: "%s"' % outbuffer)
+		self.get_logger().info('------------------------')
 
 		self.ser.write(outbuffer) # writes to serial port
 
