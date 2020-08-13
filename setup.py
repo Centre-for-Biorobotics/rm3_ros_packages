@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'test_python_package'
+package_name = 'robominers_serial_interface'
 
 setup(
     name=package_name,
@@ -23,7 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'serial_interface = test_python_package.serial_interface:main'
+            'serial_interface = robominers_serial_interface.serial_interface:main'
         ],
     },
 )

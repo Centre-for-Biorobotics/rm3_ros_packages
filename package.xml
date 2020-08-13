@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>test_python_package</name>
+  <name>robominers_serial_interface</name>
   <version>0.0.0</version>
-  <description>testing out serial communication between ROS2 and an Arduino</description>
+  <description>handles serial communication between ROS2 and an Arduino</description>
   <maintainer email="roza.gkliva@ttu.ee">roza gkliva</maintainer>
   <license>TODO: License declaration</license>
 

@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
 	return LaunchDescription([
 		Node(
-			package='test_python_package', 
+			package='robominers_serial_interface', 
 			namespace='motor0',
 			executable='serial_interface',
 			name='serial_interface',
@@ -14,7 +14,7 @@ def generate_launch_description():
 			parameters=[{'port': '/dev/ttyACM0'}]
 			),
 		Node(
-			package='test_python_package', 
+			package='robominers_serial_interface', 
 			namespace='motor1',
 			executable='serial_interface',
 			name='serial_interface',
