@@ -17,7 +17,7 @@ import serial
 import sys
 import struct
 
-first_byte = 3
+RPM_goal = 30
 # second_byte = 6
 
 # port = "/dev/ttyACM0"
@@ -29,8 +29,8 @@ class SerialInterface(Node):
 		self.declare_parameter('port')
 
 		port = self.get_parameter('port').value
-		self.motorID = int(port[11])
-		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(port), self.motorID))
+		self.motor_ID = int(port[11])
+		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(port), self.motor_ID))
 
 		
 		self.ser = serial.Serial(port, 115200, timeout = 0)
@@ -49,18 +49,22 @@ class SerialInterface(Node):
 		# 	return
 		# while not rospy.is_shutdown():
 		msg = String()
-		data = self.ser.read(999)
+		packet = self.ser.read(999)
 
 		# compute checksum
 		# checksum = 0
-		# for e1 in data:
+		if len(packet) >3:
+			self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
+		# for data in packet[4:6]: 						# <---- set range of checksum 
+		# 	checksum ^= data(data)
 
-
-		self.get_logger().info('Received: "%s"' % data)
+		# self.get_logger().info('Received: "%s"' % packet)
+		# self.get_logger().info('Checksum: "%d"' % checksum)
 		# print(str(sys.argv[1]))
 
-		msg.data = str(data)
+		msg.data = str(packet)
 		self.publisher_.publish(msg)
+		self.get_logger().info('------------------------')
 
 
 
@@ -68,13 +72,13 @@ class SerialInterface(Node):
 
 		outbuffer = 'sync'.encode('UTF-8')
 
-		outbuffer += struct.pack('b', self.motorID)
-		outbuffer += struct.pack('b', first_byte)
+		outbuffer += struct.pack('b', self.motor_ID)
+		outbuffer += struct.pack('b', RPM_goal)
 
 		outbuffer += '\n'.encode('UTF-8')
 
 		self.get_logger().info('Sending: "%s"' % outbuffer)
-		self.get_logger().info('------------------------')
+		
 
 		self.ser.write(outbuffer) # writes to serial port
 
