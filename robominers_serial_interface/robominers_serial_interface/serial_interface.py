@@ -18,6 +18,7 @@ import sys
 import struct
 
 RPM_goal = 30
+rpm_est = 0
 # second_byte = 6
 
 # port = "/dev/ttyACM0"
@@ -54,6 +55,8 @@ class SerialInterface(Node):
 		# compute checksum
 		# checksum = 0
 		if len(packet) >3:
+			rpm_est = struct.unpack('f', packet[5:9])[0]
+			self.get_logger().info('Received estimated RPM: "%f"' % rpm_est)
 			self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
 		# for data in packet[4:6]: 						# <---- set range of checksum 
 		# 	checksum ^= data(data)
@@ -77,7 +80,8 @@ class SerialInterface(Node):
 
 		outbuffer += '\n'.encode('UTF-8')
 
-		self.get_logger().info('Sending: "%s"' % outbuffer)
+		# self.get_logger().info('Sending: "%s"' % outbuffer)
+		self.get_logger().info( 'Sending: Motor ID: %d, RPM_goal: %d' %(self.motor_ID, RPM_goal))
 		
 
 		self.ser.write(outbuffer) # writes to serial port
