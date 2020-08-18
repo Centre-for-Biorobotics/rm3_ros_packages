@@ -18,7 +18,7 @@ setup(
     zip_safe=True,
     maintainer='Roza Gkliva',
     maintainer_email='roza.gkliva@ttu.ee',
-    description='testing out serial communication between ROS2 and an Arduino',
+    description='handles serial communication between ROS2 and an Arduino',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={

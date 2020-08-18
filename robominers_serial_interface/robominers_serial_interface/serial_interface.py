@@ -39,8 +39,8 @@ class SerialInterface(Node):
 
 		timer_period = 1.0 # seconds
 
-		self.timer = self.create_timer(timer_period, self.sendToArduino)
-		self.timer2 = self.create_timer(timer_period, self.readFromArduino)
+		self.sending_timer = self.create_timer(timer_period, self.sendToArduino)
+		self.receiving_timer = self.create_timer(timer_period, self.readFromArduino)
 
 
 	def readFromArduino(self):
@@ -57,7 +57,7 @@ class SerialInterface(Node):
 		if len(packet) >3:
 			rpm_est = struct.unpack('f', packet[5:9])[0]
 			self.get_logger().info('Received estimated RPM: "%f"' % rpm_est)
-			self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
+			# self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
 		# for data in packet[4:6]: 						# <---- set range of checksum 
 		# 	checksum ^= data(data)
 
