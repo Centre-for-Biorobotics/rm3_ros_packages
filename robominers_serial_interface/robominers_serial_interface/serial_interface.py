@@ -2,6 +2,9 @@
 """ Serial interface between Olimex sbc and arduino nano
 
 Handles bidirectional communications between the two devices.
+@author: Roza Gkliva
+@contact: roza.gkliva@ttu.ee
+@creation date: 07-07-2020 (started)
 
 """
 
@@ -17,7 +20,7 @@ import serial
 import sys
 import struct
 
-RPM_goal = 30
+RPM_goal = 5
 rpm_est = 0
 # second_byte = 6
 
@@ -44,6 +47,10 @@ class SerialInterface(Node):
 
 
 	def readFromArduino(self):
+		"""
+		Reads data from serial port
+		"""
+
 		# if len(sys.argv) < 2:
 		# 	print("wrong number of arguments to serial_interface")
 		# 	print(sys.argv)
@@ -52,16 +59,21 @@ class SerialInterface(Node):
 		msg = String()
 		packet = self.ser.read(999)
 
+		# self.get_logger().info('Received: "%s"' % packet)
+
 		# compute checksum
 		# checksum = 0
 		if len(packet) >3:
+			# sync_string = struct.unpack('s', bytes(packet[0:4]))[0]
+			motor_arduino_ID = struct.unpack('b', bytes(packet[4:5]))[0]
 			rpm_est = struct.unpack('f', packet[5:9])[0]
-			self.get_logger().info('Received estimated RPM: "%f"' % rpm_est)
+			self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
+			# self.get_logger().info('Received motor ID: "%d" current: "%f"' % (motor_arduino_ID, rpm_est))
 			# self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
 		# for data in packet[4:6]: 						# <---- set range of checksum 
 		# 	checksum ^= data(data)
 
-		# self.get_logger().info('Received: "%s"' % packet)
+		
 		# self.get_logger().info('Checksum: "%d"' % checksum)
 		# print(str(sys.argv[1]))
 
@@ -72,6 +84,9 @@ class SerialInterface(Node):
 
 
 	def sendToArduino(self):
+		"""
+		Packs data into array of bytes to form a packet. Writes packet to serial port.
+		"""
 
 		outbuffer = 'sync'.encode('UTF-8')
 
