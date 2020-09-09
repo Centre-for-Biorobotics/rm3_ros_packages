@@ -20,7 +20,7 @@ import serial
 import sys
 import struct
 
-RPM_goal = 5
+RPM_goal = 15
 rpm_est = 0
 # second_byte = 6
 
@@ -59,19 +59,30 @@ class SerialInterface(Node):
 		msg = String()
 		packet = self.ser.read(999)
 
-		# self.get_logger().info('Received: "%s"' % packet)
+		self.get_logger().info('Received: "%s"' % packet)
 
-		# compute checksum
-		# checksum = 0
+		# need to find start and end of packet, isolate the data to use for checksum
+
 		if len(packet) >3:
 			# sync_string = struct.unpack('s', bytes(packet[0:4]))[0]
 			motor_arduino_ID = struct.unpack('b', bytes(packet[4:5]))[0]
 			rpm_est = struct.unpack('f', packet[5:9])[0]
+			rpm_est = struct.unpack('f', packet[9:13])[0]
+			checksum_byte = struct.unpack('b', bytes(packet[13:14]))[0]
 			self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
 			# self.get_logger().info('Received motor ID: "%d" current: "%f"' % (motor_arduino_ID, rpm_est))
 			# self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
-		# for data in packet[4:6]: 						# <---- set range of checksum 
-		# 	checksum ^= data(data)
+			checksum = 0
+			for data in packet[4:14]: 						# <---- set range of checksum 
+				checksum ^= data
+
+			# self.get_logger().info('Received 01: "%d"' % (ord(packet[4:5])))
+			# self.get_logger().info('Received 02: "%d"' % (ord(packet[5:6])))
+			# self.get_logger().info('Received 03: "%d"' % (ord(packet[6:7])))
+			# self.get_logger().info('Received 04: "%d"' % (ord(packet[7:8])))
+			self.get_logger().info('Received checksum: "%s"' % (checksum_byte))
+
+			self.get_logger().info('checked (0 is good): "%s"' % hex(checksum))	
 
 		
 		# self.get_logger().info('Checksum: "%d"' % checksum)
