@@ -51,49 +51,60 @@ class SerialInterface(Node):
 		Reads data from serial port
 		"""
 
-		# if len(sys.argv) < 2:
-		# 	print("wrong number of arguments to serial_interface")
-		# 	print(sys.argv)
-		# 	return
-		# while not rospy.is_shutdown():
 		msg = String()
 		packet = self.ser.read(999)
 
-		self.get_logger().info('Received: "%s"' % packet)
+		self.msg_start = -1
+		self.msg_end = -1
 
-		# need to find start and end of packet, isolate the data to use for checksum
+		self.get_logger().info('Received packet: "%s"' % packet)
 
-		if len(packet) >3:
-			# sync_string = struct.unpack('s', bytes(packet[0:4]))[0]
-			motor_arduino_ID = struct.unpack('b', bytes(packet[4:5]))[0]
-			rpm_est = struct.unpack('f', packet[5:9])[0]
-			rpm_est = struct.unpack('f', packet[9:13])[0]
-			checksum_byte = struct.unpack('b', bytes(packet[13:14]))[0]
-			self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
-			# self.get_logger().info('Received motor ID: "%d" current: "%f"' % (motor_arduino_ID, rpm_est))
-			# self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
-			checksum = 0
-			for data in packet[4:14]: 						# <---- set range of checksum 
-				checksum ^= data
+		if len(packet) >3 and len(packet) < 31:
+			# find indices of header and end character:
+			self.msg_start = packet.index('SYNC'.encode('UTF-8')) if 'SYNC'.encode('UTF-8') in packet else None
+			self.msg_end = packet.index('\n'.encode('UTF-8')) if '\n'.encode('UTF-8') in packet else None
+			
 
-			# self.get_logger().info('Received 01: "%d"' % (ord(packet[4:5])))
-			# self.get_logger().info('Received 02: "%d"' % (ord(packet[5:6])))
-			# self.get_logger().info('Received 03: "%d"' % (ord(packet[6:7])))
-			# self.get_logger().info('Received 04: "%d"' % (ord(packet[7:8])))
-			self.get_logger().info('Received checksum: "%s"' % (checksum_byte))
+			self.get_logger().info('msg start: "%d"' % self.msg_start)
+			self.get_logger().info('msg end: "%d"' % self.msg_end)
 
-			self.get_logger().info('checked (0 is good): "%s"' % hex(checksum))	
+			# isolate data array
+			data_packet = packet[self.msg_start : self.msg_end ]
+			if self.msg_start < self.msg_end:
+				self.extractMessage(packet)
+	
 
-		
-		# self.get_logger().info('Checksum: "%d"' % checksum)
-		# print(str(sys.argv[1]))
 
 		msg.data = str(packet)
 		self.publisher_.publish(msg)
 		self.get_logger().info('------------------------')
 
+	def extractMessage(self, data_packet):
+		self.get_logger().info('extracting from: "%s"' % data_packet)
+
+		# calculate XOR checksum of 'data' part of packet
+		chk = self.calculateChecksum(data_packet[self.msg_start +4: self.msg_end ])
+
+		# unpack packet:
+		motor_arduino_ID = struct.unpack('b', bytes(data_packet[4:5]))[0]
+		data_array_length = struct.unpack('b', bytes(data_packet[5:6]))[0]
+		rpm_est = struct.unpack('f', data_packet[6:10])[0]
+		motor_current = struct.unpack('f', data_packet[10:14])[0]
+		checksum_byte = struct.unpack('b', bytes(data_packet[14:15]))[0]
+
+		self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
+		self.get_logger().info('Received checksum: "%s"' % (checksum_byte))
+		self.get_logger().info('Calculated checksum (0 is good): "%s"' % hex(chk))
 
 
+	def calculateChecksum(self, packet):
+		# self.get_logger().info('packet: "%s"' % str(packet))
+		checksum = 0
+		for data in packet:
+			checksum ^= data
+		return checksum
+
+	
 	def sendToArduino(self):
 		"""
 		Packs data into array of bytes to form a packet. Writes packet to serial port.
@@ -106,8 +117,7 @@ class SerialInterface(Node):
 
 		outbuffer += '\n'.encode('UTF-8')
 
-		# self.get_logger().info('Sending: "%s"' % outbuffer)
-		self.get_logger().info( 'Sending: Motor ID: %d, RPM_goal: %d' %(self.motor_ID, RPM_goal))
+		# self.get_logger().info( 'Sending: Motor ID: %d, RPM_goal: %d' %(self.motor_ID, RPM_goal))
 		
 
 		self.ser.write(outbuffer) # writes to serial port
