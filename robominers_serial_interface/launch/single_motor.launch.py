@@ -11,6 +11,6 @@ def generate_launch_description():
 			executable='serial_interface',
 			name='serial_interface',
 			output='screen',
-			parameters=[{'port': '/dev/ttyUSB0'}]
+			parameters=[{'port': '/dev/ttyACM1'}]
 			)
 		])

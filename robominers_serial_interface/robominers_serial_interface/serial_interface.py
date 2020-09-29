@@ -20,11 +20,8 @@ import serial
 import sys
 import struct
 
-RPM_goal = 5
+RPM_goal = 15
 rpm_est = 0
-# second_byte = 6
-
-# port = "/dev/ttyACM0"
 
 
 class SerialInterface(Node):
@@ -32,18 +29,18 @@ class SerialInterface(Node):
 		super().__init__('serial_interface')
 		self.declare_parameter('port')
 
-		port = self.get_parameter('port').value
-		self.motor_ID = int(port[11])
-		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(port), self.motor_ID))
+		self.port = self.get_parameter('port').value
+		self.motor_ID = int(self.port[11])
+		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(self.port), self.motor_ID))
 
 		
-		self.ser = serial.Serial(port, 115200, timeout = 0)
+		self.ser = serial.Serial(self.port, 115200, timeout = 0)
 		self.publisher_ = self.create_publisher(String, 'received_data', 10)
 
-		timer_period = 1.0 # seconds
+		self.timer_period = 1.0 # seconds
 
-		self.sending_timer = self.create_timer(timer_period, self.sendToArduino)
-		self.receiving_timer = self.create_timer(timer_period, self.readFromArduino)
+		self.sending_timer = self.create_timer(self.timer_period, self.sendToArduino)
+		self.receiving_timer = self.create_timer(self.timer_period, self.readFromArduino)
 
 
 	def readFromArduino(self):
@@ -51,38 +48,66 @@ class SerialInterface(Node):
 		Reads data from serial port
 		"""
 
-		# if len(sys.argv) < 2:
-		# 	print("wrong number of arguments to serial_interface")
-		# 	print(sys.argv)
-		# 	return
-		# while not rospy.is_shutdown():
-		msg = String()
-		packet = self.ser.read(999)
+		self.msg = String()
+		self.packet = self.ser.read(999)
 
-		# self.get_logger().info('Received: "%s"' % packet)
+		self.msg_start = -1
+		self.msg_end = -1
 
-		# compute checksum
-		# checksum = 0
-		if len(packet) >3:
-			# sync_string = struct.unpack('s', bytes(packet[0:4]))[0]
-			motor_arduino_ID = struct.unpack('b', bytes(packet[4:5]))[0]
-			rpm_est = struct.unpack('f', packet[5:9])[0]
-			self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
-			# self.get_logger().info('Received motor ID: "%d" current: "%f"' % (motor_arduino_ID, rpm_est))
-			# self.get_logger().info('Received: motor ID: %d, RPM: %d' % (packet[4], packet[5]))
-		# for data in packet[4:6]: 						# <---- set range of checksum 
-		# 	checksum ^= data(data)
+		# self.get_logger().info('Received packet: "%s"' % self.packet)
 
-		
-		# self.get_logger().info('Checksum: "%d"' % checksum)
-		# print(str(sys.argv[1]))
+		if len(self.packet) >3: # and len(self.packet) < 31:
+			# find indices of header and end character:
+			self.msg_start = self.packet.index('SYNC'.encode('UTF-8')) if 'SYNC'.encode('UTF-8') in self.packet else None
+			self.msg_end = self.packet.index('\n'.encode('UTF-8')) if '\n'.encode('UTF-8') in self.packet else None
+			
+			# self.get_logger().info('msg start: "%d"' % self.msg_start)
+			# self.get_logger().info('msg end: "%d"' % self.msg_end)
 
-		msg.data = str(packet)
-		self.publisher_.publish(msg)
+			# isolate data array
+			self.data_packet = self.packet[ self.msg_start : self.msg_end ]
+			if self.msg_start < self.msg_end:
+				self.extractMessage(self.data_packet)
+	
+
+		# fix (shouldn't be the msg being published):
+		self.msg.data = str(self.packet)
+		self.publisher_.publish(self.msg)
 		self.get_logger().info('------------------------')
 
+	def extractMessage(self, data_packet):
+		# self.get_logger().info('extracting from: "%s"' % self.data_packet)
+		self.packet_length = len(data_packet)
+		# self.get_logger().info(str(self.packet_length))
+		self.header_length = 4
+
+		# calculate XOR checksum of 'data' part of packet
+		self.chk = self.calculateChecksum(data_packet[self.msg_start +4: self.msg_end ])
+
+		# unpack packet:
+		motor_arduino_ID = struct.unpack('b', bytes(data_packet[0+self.header_length:1+self.header_length]))[0]
+		data_array_length = struct.unpack('b', bytes(data_packet[1+self.header_length:2+self.header_length]))[0]
+		rpm_est = struct.unpack('f', data_packet[2+self.header_length:6+self.header_length])[0]
+		if self.packet_length == 11: # no current measurement
+			checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
+		elif self.packet_length == 15: # with current measurement
+			motor_current = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
+			checksum_byte = struct.unpack('b', bytes(data_packet[10+self.header_length:11+self.header_length]))[0]
+
+		# self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
+		self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
+		# self.get_logger().info('Received checksum: "%s"' % (checksum_byte))
+		# self.get_logger().info('Calculated checksum (0 is good): "%s"' % hex(self.chk))
 
 
+	def calculateChecksum(self, packet):
+		# self.get_logger().info('packet: "%s"' % str(packet))
+		checksum = 0
+		for data in packet:
+			checksum ^= data
+		return checksum
+
+	
 	def sendToArduino(self):
 		"""
 		Packs data into array of bytes to form a packet. Writes packet to serial port.
@@ -95,8 +120,7 @@ class SerialInterface(Node):
 
 		outbuffer += '\n'.encode('UTF-8')
 
-		# self.get_logger().info('Sending: "%s"' % outbuffer)
-		self.get_logger().info( 'Sending: Motor ID: %d, RPM_goal: %d' %(self.motor_ID, RPM_goal))
+		# self.get_logger().info( 'Sending: Motor ID: %d, RPM_goal: %d' %(self.motor_ID, RPM_goal))
 		
 
 		self.ser.write(outbuffer) # writes to serial port
@@ -110,7 +134,6 @@ def main(args=None):
 	serial_interface = SerialInterface()
 
 	rclpy.spin(serial_interface)
-
 
 	# Destroy the node expilicitly 
 	# (optional - otherwise it will be done automatically
