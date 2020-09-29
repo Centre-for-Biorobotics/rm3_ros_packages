@@ -4,7 +4,7 @@
   <name>robominer_bringup</name>
   <version>0.0.0</version>
   <description>ROS2 launch scripts for starting the robominer</description>
-  <author email="roza.gkliva@ttu.ee">Roza Gkliva</author>
+  <maintainer email="roza.gkliva@ttu.ee">Roza Gkliva</maintainer>
   <license>TODO: License declaration</license>
 
   <test_depend>ament_copyright</test_depend>
