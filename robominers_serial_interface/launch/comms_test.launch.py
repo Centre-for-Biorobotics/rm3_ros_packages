@@ -20,5 +20,21 @@ def generate_launch_description():
 			name='serial_interface',
 			output='screen',
 			parameters=[{'port': '/dev/ttyACM1'}]
+			),
+		Node(
+			package='robominers_serial_interface', 
+			namespace='motor2',
+			executable='serial_interface',
+			name='serial_interface',
+			output='screen',
+			parameters=[{'port': '/dev/ttyACM2'}]
+			),
+		Node(
+			package='robominers_serial_interface', 
+			namespace='motor3',
+			executable='serial_interface',
+			name='serial_interface',
+			output='screen',
+			parameters=[{'port': '/dev/ttyACM3'}]
 			)
 		])
