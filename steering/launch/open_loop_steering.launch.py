@@ -16,17 +16,15 @@ def generate_launch_description():
 		package='steering', 
 		executable='open_loop_steering',
 		name='open_loop_steering',
-		output='screen',
-		remappings=[('/cmd_vel', '/turtle1/cmd_vel')]		
+		output='screen'	
 		)
-	turtlesim_node = launch_ros.actions.Node(
-		package='turtlesim',
-		executable='turtle_teleop_key',
+	teleop_node = launch_ros.actions.Node(
+		package='teleop_twist_joy',
+		executable='teleop_node',
 		name='teleop',
-		output='screen',
-		remappings=[('/cmd_vel', '/turtle1/cmd_vel')]	
+		output='screen'		
 		)
 	return launch.LaunchDescription([
 		steering_node,
-		turtlesim_node
+		teleop_node
 		])
