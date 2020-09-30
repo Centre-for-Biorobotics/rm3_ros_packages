@@ -1,0 +1,6 @@
+global_parameter_server:
+  ros__parameters:
+    front_right: "75338323535351D062A0"
+    rear_right: "75735353238351513022"
+    rear_left: "7573535323835121D092"
+    front_left: "757353532383512140E0"

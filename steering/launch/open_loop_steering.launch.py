@@ -23,7 +23,8 @@ def generate_launch_description():
 		package='turtlesim',
 		executable='turtle_teleop_key',
 		name='teleop',
-		output='screen'
+		output='screen',
+		remappings=[('/cmd_vel', '/turtle1/cmd_vel')]	
 		)
 	return launch.LaunchDescription([
 		steering_node,

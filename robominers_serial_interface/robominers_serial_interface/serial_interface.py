@@ -17,6 +17,7 @@ from rclpy.parameter import Parameter
 from std_msgs.msg import String
 
 import serial
+import serial.tools.list_ports
 import sys
 import struct
 
@@ -27,9 +28,22 @@ rpm_est = 0
 class SerialInterface(Node):
 	def __init__(self):
 		super().__init__('serial_interface')
-		self.declare_parameter('port')
+		# self.declare_parameter('port')
 
-		self.port = self.get_parameter('port').value
+		# use parameters defined in launch file (directly or yaml)
+		self.declare_parameter('motor_name')
+		self.declare_parameter('arduino_sn')
+		self.which_motor = self.get_parameter('motor_name').value
+		self.which_arduino = self.get_parameter('arduino_sn').value
+
+		# self.get_logger().info(str(self.which_motor))
+		# self.get_logger().info(str(self.which_arduino))
+
+		# scan com ports to find the arduino that has the specified serial number and get its port
+		self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
+		# self.get_logger().info(str(self.port))
+
+		# self.port = self.get_parameter('port').value
 		self.motor_ID = int(self.port[11])
 		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(self.port), self.motor_ID))
 
@@ -41,6 +55,7 @@ class SerialInterface(Node):
 
 		self.sending_timer = self.create_timer(self.timer_period, self.sendToArduino)
 		self.receiving_timer = self.create_timer(self.timer_period, self.readFromArduino)
+
 
 
 	def readFromArduino(self):
