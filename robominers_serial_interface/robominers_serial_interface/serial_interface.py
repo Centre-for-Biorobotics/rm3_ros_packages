@@ -14,7 +14,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Float32
+
 
 import serial
 import serial.tools.list_ports
@@ -49,7 +50,9 @@ class SerialInterface(Node):
 
 		
 		self.ser = serial.Serial(self.port, 115200, timeout = 0)
-		self.publisher_ = self.create_publisher(String, 'received_data', 10)
+		self.publisher_data = self.create_publisher(String, 'received_data', 10)
+		self.publisher_mID = self.create_publisher(String, 'motor_ID', 10)
+		self.publisher_mRPM = self.create_publisher(Float32, 'motor_RPM', 10)
 
 		self.timer_period = 1.0 # seconds
 
@@ -87,13 +90,16 @@ class SerialInterface(Node):
 
 		# fix (shouldn't be the msg being published):
 		self.msg.data = str(self.packet)
-		self.publisher_.publish(self.msg)
+		self.publisher_data.publish(self.msg)
 		self.get_logger().info('------------------------')
 
 	def extractMessage(self, data_packet):
-		# self.get_logger().info('extracting from: "%s"' % self.data_packet)
-		self.packet_length = len(data_packet)
-		# self.get_logger().info(str(self.packet_length))
+		"""
+		unpacks the data_packet and populates messages for publishing
+		"""
+		self.m_id = String()
+		self.m_rpm_est = Float32()
+		self.packet_length = len(data_packet) # determine data packet length
 		self.header_length = 4
 
 		# calculate XOR checksum of 'data' part of packet
@@ -101,15 +107,19 @@ class SerialInterface(Node):
 
 		# unpack packet:
 		motor_arduino_ID = struct.unpack('b', bytes(data_packet[0+self.header_length:1+self.header_length]))[0]
+		self.m_id.data = str(motor_arduino_ID)	
 		data_array_length = struct.unpack('b', bytes(data_packet[1+self.header_length:2+self.header_length]))[0]
 		rpm_est = struct.unpack('f', data_packet[2+self.header_length:6+self.header_length])[0]
+		self.m_rpm_est.data = rpm_est
+		self.publisher_mID.publish(self.m_id)
+		self.publisher_mRPM.publish(self.m_rpm_est)
+
 		if self.packet_length == 11: # no current measurement
 			checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
 		elif self.packet_length == 15: # with current measurement
 			motor_current = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
 			checksum_byte = struct.unpack('b', bytes(data_packet[10+self.header_length:11+self.header_length]))[0]
 
-		# self.get_logger().info('Received motor ID: "%d" estimated RPM: "%f"' % (motor_arduino_ID, rpm_est))
 		self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
 		# self.get_logger().info('Received checksum: "%s"' % (checksum_byte))
 		# self.get_logger().info('Calculated checksum (0 is good): "%s"' % hex(self.chk))

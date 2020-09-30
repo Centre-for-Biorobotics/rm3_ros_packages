@@ -12,6 +12,6 @@ def generate_launch_description():
 			name='serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_right'},
-						{'arduino_sn': "757353532383512140E0"}]
+						{'arduino_sn': "757353532383512140"}]
 			)
 		])

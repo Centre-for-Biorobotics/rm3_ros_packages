@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
 		front_left = Node(
 			package='robominers_serial_interface', 
-			namespace='motor0',
+			namespace='front_right',
 			executable='serial_interface',
 			name='serial_interface',
 			output='screen',
@@ -15,7 +15,7 @@ def generate_launch_description():
 			)
 		rear_left = Node(
 			package='robominers_serial_interface', 
-			namespace='motor1',
+			namespace='rear_right',
 			executable='serial_interface',
 			name='serial_interface',
 			output='screen',
@@ -24,7 +24,7 @@ def generate_launch_description():
 			)
 		rear_right = Node(
 			package='robominers_serial_interface', 
-			namespace='motor2',
+			namespace='rear_left',
 			executable='serial_interface',
 			name='serial_interface',
 			output='screen',
@@ -33,7 +33,7 @@ def generate_launch_description():
 			)
 		front_right = Node(
 			package='robominers_serial_interface', 
-			namespace='motor3',
+			namespace='front_left',
 			executable='serial_interface',
 			name='serial_interface',
 			output='screen',
