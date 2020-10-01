@@ -15,7 +15,7 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 
 from std_msgs.msg import String, Float32
-from robominer_msgs.msg import MotorModule
+from robominer_msgs.msg import MotorModuleFeedback
 
 
 import serial
@@ -30,7 +30,6 @@ rpm_est = 0
 class SerialInterface(Node):
 	def __init__(self):
 		super().__init__('serial_interface')
-		# self.declare_parameter('port')
 
 		# use parameters defined in launch file (directly or yaml)
 		self.declare_parameter('motor_name')
@@ -38,20 +37,14 @@ class SerialInterface(Node):
 		self.which_motor = self.get_parameter('motor_name').value
 		self.which_arduino = self.get_parameter('arduino_sn').value
 
-		# self.get_logger().info(str(self.which_motor))
-		# self.get_logger().info(str(self.which_arduino))
-
 		# scan com ports to find the arduino that has the specified serial number and get its port
 		self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
-		# self.get_logger().info(str(self.port))
 
-		# self.port = self.get_parameter('port').value
 		self.motor_ID = int(self.port[11])
 		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(self.port), self.motor_ID))
 
-		
 		self.ser = serial.Serial(self.port, 115200, timeout = 0)
-		self.publisher_motor_module = self.create_publisher(MotorModule, 'motor_module', 10)
+		self.publisher_motor_module = self.create_publisher(MotorModuleFeedback, 'motor_module', 10)
 
 
 		self.timer_period = 1.0 # seconds
@@ -63,7 +56,7 @@ class SerialInterface(Node):
 
 	def readFromArduino(self):
 		"""
-		Reads data from serial port
+		Reads data from serial port and calls for message extraction
 		"""
 
 		self.packet = self.ser.read(999)
@@ -71,17 +64,12 @@ class SerialInterface(Node):
 		self.msg_start = -1
 		self.msg_end = -1
 
-		# self.get_logger().info('Received packet: "%s"' % self.packet)
-
-		if len(self.packet) >3: # and len(self.packet) < 31:
+		if len(self.packet) >3:
 			# find indices of header and end character:
 			self.msg_start = self.packet.index('SYNC'.encode('UTF-8')) if 'SYNC'.encode('UTF-8') in self.packet else None
 			self.msg_end = self.packet.index('\n'.encode('UTF-8')) if '\n'.encode('UTF-8') in self.packet else None
-			
-			# self.get_logger().info('msg start: "%d"' % self.msg_start)
-			# self.get_logger().info('msg end: "%d"' % self.msg_end)
 
-			# isolate data array
+			# isolate data array (payload)
 			self.data_packet = self.packet[ self.msg_start : self.msg_end ]
 			if self.msg_start < self.msg_end:
 				self.extractMessage(self.data_packet)
@@ -90,7 +78,7 @@ class SerialInterface(Node):
 		"""
 		unpacks the data_packet and populates messages that contain motor module feedback info for publishing
 		"""
-		self.motor_module = MotorModule() # custom message
+		self.motor_module = MotorModuleFeedback() # custom message
 
 		self.packet_length = len(data_packet) # determine data packet length
 		self.header_length = 4
