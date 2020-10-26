@@ -12,6 +12,16 @@ def generate_launch_description():
 			name='serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_right'},
-						{'arduino_sn': "757353532383512140"}]
+						{'arduino_sn': "75338323535351D062A0"}]
 			)
+		# Node(
+		# 	package='robominers_serial_interface', 
+		# 	namespace='motor0',
+		# 	executable='serial_interface',
+		# 	name='serial_interface',
+		# 	output='screen',
+		# 	parameters=[{'motor_name': 'rear_right'},
+		# 				{'arduino_sn': "AC013EU8"}]
+		# 	)
 		])
+	

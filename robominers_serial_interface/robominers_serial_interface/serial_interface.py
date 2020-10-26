@@ -16,6 +16,7 @@ from rclpy.parameter import Parameter
 
 from std_msgs.msg import String, Float32
 from robominer_msgs.msg import MotorModuleFeedback
+from robominer_msgs.msg import MotorModuleCommand
 
 
 import serial
@@ -23,7 +24,7 @@ import serial.tools.list_ports
 import sys
 import struct
 
-RPM_goal = 15
+RPM_goal = -30
 rpm_est = 0
 
 
@@ -45,6 +46,7 @@ class SerialInterface(Node):
 
 		self.ser = serial.Serial(self.port, 115200, timeout = 0)
 		self.publisher_motor_module = self.create_publisher(MotorModuleFeedback, 'motor_module', 10)
+		self.subscriber_motor_commands = self.create_subscription(MotorModuleCommand, 'motor_rpm_setpoint', self.motorCommandsCallback, 10)
 
 
 		self.timer_period = 1.0 # seconds
@@ -60,6 +62,7 @@ class SerialInterface(Node):
 		"""
 
 		self.packet = self.ser.read(999)
+		# self.get_logger().info( 'packet: %s, length: %d' %( str(self.packet), len(self.packet)))
 
 		self.msg_start = -1
 		self.msg_end = -1
@@ -96,15 +99,19 @@ class SerialInterface(Node):
 		self.motor_module.motor_id = str(motor_arduino_ID)
 		self.motor_module.motor_rpm = rpm_est
 
-		self.publisher_motor_module.publish(self.motor_module)
-
-		if self.packet_length == 11: # no current measurement
+		if self.packet_length == 11: 		# no current measurement
 			checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
-		elif self.packet_length == 15: # with current measurement
-			motor_current = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
+		elif self.packet_length == 15: 		# with current measurement
+			self.motor_module.motor_current_ma = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
 			checksum_byte = struct.unpack('b', bytes(data_packet[10+self.header_length:11+self.header_length]))[0]
 
-		self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
+		if self.chk != 0:
+			self.get_logger().info('Checksum problem')
+			# self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
+
+		self.publisher_motor_module.publish(self.motor_module)
+
+		
 
 
 	def calculateChecksum(self, packet):
@@ -116,6 +123,19 @@ class SerialInterface(Node):
 		for data in packet:
 			checksum ^= data
 		return checksum
+
+	def motorCommandsCallback(self, msg):
+		return
+		# self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
+		# self.screw_speeds[0] = msg.fr_motor_rpm_goal
+		# self.screw_speeds[1] = msg.rr_motor_rpm_goal
+		# self.screw_speeds[2] = msg.rl_motor_rpm_goal
+		# self.screw_speeds[3] = msg.fl_motor_rpm_goal
+
+
+		# self.get_logger().info('RPMS: fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
+
+
 
 	
 	def sendToArduino(self):

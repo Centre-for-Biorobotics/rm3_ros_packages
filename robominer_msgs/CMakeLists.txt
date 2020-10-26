@@ -27,7 +27,8 @@ find_package(rosidl_default_generators REQUIRED)
 
 set(msg_files
   "msg/MotorModuleFeedback.msg"
-  "msg/MotorModuleCommand.msg")
+  "msg/MotorModuleCommand.msg"
+  "msg/AllMotorModuleCommand.msg")
 
 
 
