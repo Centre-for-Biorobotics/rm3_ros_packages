@@ -49,7 +49,7 @@ class SerialInterface(Node):
 		self.subscriber_motor_commands = self.create_subscription(MotorModuleCommand, 'motor_rpm_setpoint', self.motorCommandsCallback, 10)
 
 
-		self.timer_period = 1.0 # seconds
+		self.timer_period = 0.5 # seconds
 
 		self.sending_timer = self.create_timer(self.timer_period, self.sendToArduino)
 		self.receiving_timer = self.create_timer(self.timer_period, self.readFromArduino)
@@ -125,6 +125,8 @@ class SerialInterface(Node):
 		return checksum
 
 	def motorCommandsCallback(self, msg):
+		# self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( msg.motor_rpm_goal, self.cmd_vel_y, self.cmd_vel_yaw))
+		
 		return
 		# self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
 		# self.screw_speeds[0] = msg.fr_motor_rpm_goal
