@@ -74,8 +74,11 @@ class SerialInterface(Node):
 
 			# isolate data array (payload)
 			self.data_packet = self.packet[ self.msg_start : self.msg_end ]
-			if self.msg_start < self.msg_end:
-				self.extractMessage(self.data_packet)
+			try:
+				if self.msg_start < self.msg_end:
+					self.extractMessage(self.data_packet)
+			except:
+				self.get_logger().info('!!! ERROR: self.msg_start !< self.msg_end')
 
 	def extractMessage(self, data_packet):
 		"""
