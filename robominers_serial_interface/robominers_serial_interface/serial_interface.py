@@ -49,10 +49,11 @@ class SerialInterface(Node):
 		self.subscriber_motor_commands = self.create_subscription(MotorModuleCommand, 'motor_rpm_setpoint', self.motorCommandsCallback, 10)
 
 
-		self.timer_period = 0.5 # seconds
+		self.transmitting_timer_period = 0.2 # for sending rpm setpoint to arduino at 5Hz
+		self.receiving_timer_period = 1 # arduino sends back rpm and current sensing every 1 second
 
-		self.sending_timer = self.create_timer(self.timer_period, self.sendToArduino)
-		self.receiving_timer = self.create_timer(self.timer_period, self.readFromArduino)
+		self.sending_timer = self.create_timer(self.transmitting_timer_period, self.sendToArduino)
+		self.receiving_timer = self.create_timer(self.receiving_timer_period, self.readFromArduino)
 
 
 
@@ -74,11 +75,12 @@ class SerialInterface(Node):
 
 			# isolate data array (payload)
 			self.data_packet = self.packet[ self.msg_start : self.msg_end ]
-			try:
+			#try:
+			if None not in (self.msg_start, self.msg_end):
 				if self.msg_start < self.msg_end:
 					self.extractMessage(self.data_packet)
-			except:
-				self.get_logger().info('!!! ERROR: self.msg_start !< self.msg_end')
+			#except:
+				#self.get_logger().info('!!! ERROR: self.msg_start !< self.msg_end')
 
 	def extractMessage(self, data_packet):
 		"""
