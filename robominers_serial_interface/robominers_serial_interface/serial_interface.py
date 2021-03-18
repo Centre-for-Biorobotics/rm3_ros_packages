@@ -132,7 +132,7 @@ class SerialInterface(Node):
 
 	def motorCommandsCallback(self, msg):
 		if str(msg.motor_id) == str(self.motor_ID):
-			self.get_logger().info('got setpoint')
+			# self.get_logger().info('got setpoint')
 			self.RPM_goal = msg.motor_rpm_goal
 		# self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( msg.motor_rpm_goal, self.cmd_vel_y, self.cmd_vel_yaw))
 		
