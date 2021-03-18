@@ -27,6 +27,12 @@ motors = np.array(['front_right',
 			'rear_left',
 			'front_left'])
 
+motors_dict = {
+	"front_right": "0",
+	"rear_right": "1",
+	"rear_left": "2",
+	"front_left": "3"
+}
 
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}			
@@ -92,14 +98,13 @@ class OpenLoopSteering(Node):
 		self.motor_cmd = [MotorModuleCommand() for i in range (4)]
 		# self.get_logger().info(str(self.motor_cmd))
 		for m in range(4):
-			self.motor_cmd[m].motor_id = motors[m]
-			self.motor_cmd[m].motor_rpm_goal = self.screw_speeds[m]
-		# self.get_logger().info(str(self.motor_cmd))
+			self.motor_cmd[m].motor_id = motors_dict[motors[m]]
+			self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
+			self.get_logger().info(str(self.motor_cmd[m]))
 		self.publisher_motor0_commands.publish(self.motor_cmd[0])
 		self.publisher_motor1_commands.publish(self.motor_cmd[1])
 		self.publisher_motor2_commands.publish(self.motor_cmd[2])
 		self.publisher_motor3_commands.publish(self.motor_cmd[3])
-		return
 
 
 
