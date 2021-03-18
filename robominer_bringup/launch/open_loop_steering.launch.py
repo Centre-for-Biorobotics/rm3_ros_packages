@@ -16,7 +16,7 @@ def generate_launch_description():
 		PythonLaunchDescriptionSource(
 			os.path.join(get_package_share_directory('robominers_serial_interface'),
 			'launch',
-			'two_unos_com_id.launch.py')
+			'four_motor_modules.launch.py')
 		))
 	steering_stuff = launch.actions.IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(

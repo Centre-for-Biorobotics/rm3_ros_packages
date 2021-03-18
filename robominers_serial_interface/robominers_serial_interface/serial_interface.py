@@ -24,7 +24,7 @@ import serial.tools.list_ports
 import sys
 import struct
 
-RPM_goal = -30
+RPM_goal = 0
 rpm_est = 0
 
 
@@ -38,6 +38,7 @@ class SerialInterface(Node):
 		self.which_motor = self.get_parameter('motor_name').value
 		self.which_arduino = self.get_parameter('arduino_sn').value
 
+		self.RPM_goal = 0
 		# scan com ports to find the arduino that has the specified serial number and get its port
 		self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
 
@@ -46,8 +47,8 @@ class SerialInterface(Node):
 
 		self.ser = serial.Serial(self.port, 115200, timeout = 0)
 		self.publisher_motor_module = self.create_publisher(MotorModuleFeedback, 'motor_module', 10)
-		self.subscriber_motor_commands = self.create_subscription(MotorModuleCommand, 'motor_rpm_setpoint', self.motorCommandsCallback, 10)
-
+		self.motor_topic_name = '/motor' + str(self.motor_ID) + '/motor_rpm_setpoint'
+		self.sub_motor_setpoint = self.create_subscription(MotorModuleCommand, self.motor_topic_name, self.motorCommandsCallback, 10)
 
 		self.transmitting_timer_period = 0.2 # for sending rpm setpoint to arduino at 5Hz
 		self.receiving_timer_period = 1 # arduino sends back rpm and current sensing every 1 second
@@ -130,6 +131,9 @@ class SerialInterface(Node):
 		return checksum
 
 	def motorCommandsCallback(self, msg):
+		if str(msg.motor_id) == str(self.motor_ID):
+			self.get_logger().info('got setpoint')
+			self.RPM_goal = msg.motor_rpm_goal
 		# self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( msg.motor_rpm_goal, self.cmd_vel_y, self.cmd_vel_yaw))
 		
 		return
@@ -152,8 +156,8 @@ class SerialInterface(Node):
 
 		outbuffer = 'sync'.encode('UTF-8')
 
-		outbuffer += struct.pack('b', self.motor_ID)
-		outbuffer += struct.pack('b', RPM_goal)
+		outbuffer += struct.pack('b', int(self.motor_ID))
+		outbuffer += struct.pack('b', self.RPM_goal)
 
 		outbuffer += '\n'.encode('UTF-8')
 
