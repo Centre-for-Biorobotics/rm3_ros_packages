@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'steering'
+package_name = 'robominer_locomotion_control'
 
 setup(
     name=package_name,
@@ -23,7 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'open_loop_steering = steering.open_loop_steering:main'
+            'open_loop_steering = robominer_locomotion_control.open_loop_steering:main'
         ],
     },
 )

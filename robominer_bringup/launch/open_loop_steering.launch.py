@@ -20,7 +20,7 @@ def generate_launch_description():
 		))
 	steering_stuff = launch.actions.IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
-			os.path.join(get_package_share_directory('steering'),
+			os.path.join(get_package_share_directory('robominer_locomotion_control'),
 			'launch',
 			'open_loop_steering.launch.py')
 		))

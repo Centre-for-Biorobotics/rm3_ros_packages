@@ -13,7 +13,7 @@ from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
 	steering_node = launch_ros.actions.Node(
-		package='steering', 
+		package='robominer_locomotion_control', 
 		executable='open_loop_steering',
 		name='open_loop_steering',
 		output='screen'	
