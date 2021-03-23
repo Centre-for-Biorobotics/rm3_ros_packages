@@ -34,6 +34,8 @@ motors_dict = {
 	"front_left": "3"
 }
 
+# speed_multiplier = 0
+
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}			
 # motor_multiplier = np.array([[1,-1,-1,1],
@@ -52,14 +54,15 @@ class OpenLoopSteering(Node):
 		self.cmd_vel_x = 0
 		self.cmd_vel_y = 0
 		self.cmd_vel_yaw = 0
-
+		self.speed_multiplier = 1.5
+		self.turbo_multiplier = 0
 
 		# fr rr rl fl
 		self.platform_kinematics = np.array([
-			[ 1,  1, -(self.lx + self.ly)*2],
-            		[-1,  1, -(self.lx + self.ly)*2],
-            		[-1, -1, -(self.lx + self.ly)*2],
-			[ 1, -1, -(self.lx + self.ly)*2]])
+			[ 1,  1, -(self.lx + self.ly)],
+            		[-1,  1, -(self.lx + self.ly)],
+            		[-1, -1, -(self.lx + self.ly)],
+			[ 1, -1, -(self.lx + self.ly)]])
 		
 		self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
 		self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
@@ -78,12 +81,16 @@ class OpenLoopSteering(Node):
 		self.cmd_vel_x = msg.axes[1]
 		self.cmd_vel_y = msg.axes[0]
 		self.cmd_vel_yaw = msg.axes[2]
+		self.turbo_multiplier = (msg.buttons[5] * 1)
+		# self.get_logger().info(str(self.turbo))
 
 
 	def inverseKinematics(self):
+		speed_multiplier = 0
+		speed_multiplier += self.speed_multiplier + self.turbo_multiplier
 		self.robot_twist = [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
 
-		self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist)
+		self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist) * speed_multiplier
 		
 		# self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
 		# self.get_logger().info('fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
