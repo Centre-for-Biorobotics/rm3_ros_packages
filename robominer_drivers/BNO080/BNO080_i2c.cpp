@@ -70,6 +70,8 @@ bool BNO080::begin(uint8_t address, std::string bus, uint8_t intPin)
 	devAddr = address; //If provided, store the I2C address from user
 	busAddr = bus;	//Grab which port the user wants us to use
 	_int = intPin;					//Get the pin that the user wants to use for interrupts. By default, it's 255 and we'll not use it in dataAvailable() function.
+
+	// TODO: change these hardcoded values for i2c-1 and 0x4a, use: busAddr and devAddr or similar.
 	file = open("/dev/i2c-1", O_RDWR);
 	if (file < 0) {
 		printf("Error opening file /dev/i2c-1\n");
