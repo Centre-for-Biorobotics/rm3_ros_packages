@@ -59,13 +59,13 @@ int main()
   while (1)
   {
     if (myIMU.dataAvailable() == true) {
- /* float quatI = myIMU.getQuatI();
+    float quatI = myIMU.getQuatI();
     float quatJ = myIMU.getQuatJ();
     float quatK = myIMU.getQuatK();
     float quatReal = myIMU.getQuatReal();
     float quatRadianAccuracy = myIMU.getQuatRadianAccuracy();
 
-/*    printf("%lf", quatI);
+    printf("%lf", quatI);
     printf(", ");
     printf("%lf", quatJ);
     printf(", ");
@@ -74,12 +74,12 @@ int main()
     printf("%lf", quatReal);
     printf(", ");
     printf("%lf", quatRadianAccuracy);
-    printf(" "); */
+    printf(" ");
 
-    float roll = myIMU.getRoll();
+/*    float roll = myIMU.getRoll();
     float pitch = myIMU.getPitch();
     float yaw = myIMU.getYaw();
-    printf("%6.2f %6.2f %6.2f",roll,pitch,yaw);
+    printf("%6.2f %6.2f %6.2f",roll,pitch,yaw); */
 
     printf("\n");
     usleep(50000);

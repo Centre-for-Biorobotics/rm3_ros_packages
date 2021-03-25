@@ -24,11 +24,11 @@ find_package(tf2 REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-add_executable(BNO080 src/BNO080_imu.cpp src/BNO080_i2c.cpp)
-ament_target_dependencies(BNO080 rclcpp std_msgs)
+add_executable(bno080_imu src/BNO080_imu.cpp src/BNO080_i2c.cpp)
+ament_target_dependencies(bno080_imu rclcpp std_msgs sensor_msgs)
 
 install(TARGETS
-  BNO080
+  bno080_imu
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

@@ -173,10 +173,10 @@ uint16_t BNO080::getReadings(void)
 		{
 			return parseCommandReport(); //This will update responses to commands, calibrationStatus, etc.
 		}
-    else if(shtpHeader[2] == CHANNEL_GYRO)
-    {
-      return parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
-    }
+		else if(shtpHeader[2] == CHANNEL_GYRO)
+		{
+		        return parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
+		}
 	}
 	return 0;
 }
@@ -1297,20 +1297,20 @@ void BNO080::saveCalibration()
 //Wait a certain time for incoming I2C bytes before giving up
 //Returns false if failed
 
-//bool BNO080::waitForI2C()
-//{
-	// for (uint8_t counter = 0; counter < 100; counter++) //Don't got more than 255
-//	{
+bool BNO080::waitForI2C()
+{
+	//for (uint8_t counter = 0; counter < 100; counter++) //Don't got more than 255
+	//{
 	//	if (_i2cPort->available() > 0)
 	//		return (true);
-//		usleep(1000);
-//	}
+		usleep(1000);
+	//}
 
 	//if (_printDebug == true)
 	//	printf("I2C timeout?\n");
-//	return (true);      // INCORRECT
+	return (true);
 	// return (false);  // CORRECT
-//}
+}
 
 
 //Blocking wait for BNO080 to assert (pull low) the INT pin
@@ -1339,19 +1339,20 @@ bool BNO080::receivePacket(void)
     //Do I2C
 	{
 		// _i2cPort->requestFrom((uint8_t)_deviceAddress, (size_t)4); //Ask for four bytes to find out how much data we need to read
-        // WRAPPED AS:
-        	//I2Cdev::readBytes(devAddr, busAddr, 0, 4, buffer);
+		// WRAPPED AS:
+		//I2Cdev::readBytes(devAddr, busAddr, 0, 4, buffer);
 		int readresult = read(file, buffer, 4);
 		if (readresult != 4) {
 		    if (_printDebug) printf("ERROR asking 4 bytes. Result: %i\n",readresult);
-		    // return (false);
+		    //return (false);
 		}
 		else {
 		    /* buffer contains the read */
 		}
+		// printf("%i \n",readresult);
 
-		//if (waitForI2C() == false)
-		//	return (false); //Error
+		if (waitForI2C() == false)
+			return (false); //Error
 
 		//Get the first four bytes, aka the packet header
 		uint8_t packetLSB = buffer[0];
@@ -1421,8 +1422,8 @@ bool BNO080::getData(uint16_t bytesRemaining)
 		    /* buffer contains the data */
 		  }
 
-		//if (waitForI2C() == false)
-		//	return (0); //Error
+		if (waitForI2C() == false)
+			return (0); //Error
 
 		for (uint8_t x = 4; x < numberOfBytesToRead + 4; x++)
 		{
@@ -1500,6 +1501,7 @@ bool BNO080::sendPacket(uint8_t channelNumber, uint8_t dataLength)
 		// i2c-dev.h:
 		if (write(file, buffer, 4+dataLength) != 4+dataLength) {
    		  printf("Write to I2C buffers failed!\n");
+		  return(false);
 		}
 
 		if (_printDebug)
@@ -1510,18 +1512,6 @@ bool BNO080::sendPacket(uint8_t channelNumber, uint8_t dataLength)
 		//_i2cPort->write(channelNumber);					  //Channel number
 		//_i2cPort->write(sequenceNumber[channelNumber]++); //Send the sequence number, increments with each packet sent, different counter for each channel
 
-	        uint8_t i2cResult = 0;
-
-		// uint8_t i2cResult = _i2cPort->endTransmission();
-
-		if (i2cResult != 0)
-		{
-			if (_printDebug == true)
-			{
-				printf("sendPacket(I2C): endTransmission returned: %i\n",i2cResult);
-			}
-			return (false);
-		}
 	}
 
 	return (true);
