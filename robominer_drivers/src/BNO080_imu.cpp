@@ -39,7 +39,8 @@ public:
   Bno080ImuPublisher()
   : Node("bno080_imu"), count_(0)
   {
-    publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("imu", 10);
+    publisher_ = this->create_publisher<std_msgs::msg::String>("/imu", 10);
+//  publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
     timer_ = this->create_wall_timer(
       50ms, std::bind(&Bno080ImuPublisher::timer_callback, this));
   }
@@ -47,24 +48,30 @@ public:
 private:
   void timer_callback()
   {
-    auto message = sensor_msgs::msg::Imu();
+    auto message = std_msgs::msg::String();
+//  auto message = sensor_msgs::msg::Imu();
 
 //  float linAccelX=-0.1, linAccelY=0.0, linAccelZ=0.1;
     float linAccelX = myIMU.getLinAccelX();
     float linAccelY = myIMU.getLinAccelY();
     float linAccelZ = myIMU.getLinAccelZ();
-
+/*
     message.linear_acceleration.x = linAccelX;
     message.linear_acceleration.y = linAccelY;
     message.linear_acceleration.z = linAccelZ;
-
+*/
     float gyroX = myIMU.getGyroX();
     float gyroY = myIMU.getGyroY();
     float gyroZ = myIMU.getGyroZ();
 
-    message.angular_velocity.x = gyroX;
+/*    message.angular_velocity.x = gyroX;
     message.angular_velocity.y = gyroY;
     message.angular_velocity.z = gyroZ;
+*/
+
+    float i, j, k, real, radAccuracy;
+    uint8_t accuracy;
+    myIMU.getQuat(i, j, k, real, radAccuracy, accuracy);
 
 //    orientation.setRPY(roll, pitch, yaw);
 
@@ -72,7 +79,7 @@ private:
     publisher_->publish(message);
   }
   rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<sensor_msgs::msg::Imu>() publisher_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
   size_t count_;
 };
 
