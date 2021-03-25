@@ -51,30 +51,40 @@ private:
     auto message = sensor_msgs::msg::Imu();
 
     if (myIMU.dataAvailable() == true) {
-      float linAccelX, linAccelY, linAccelZ;
-      float gyroX, gyroY, gyroZ;
-      float qx, qy, qz, qw;
+      float linAccelX=0.0, linAccelY=0.0, linAccelZ=0.0;
+      float gyroX=0.0, gyroY=0.0, gyroZ=0.0;
+      float qx=0.0, qy=0.0, qz=0.0, qw=0.0;
       byte linAccuracy = 0;
       byte gyroAccuracy = 0;
       //byte magAccuracy = 0;
       float quatRadianAccuracy = 0;
       byte quatAccuracy = 0;
 
-      myIMU.getLinAccel(linAccelX, linAccelY, linAccelZ, linAccuracy);
+//    myIMU.getGyro(gyroX, gyroY, gyroZ, gyroAccuracy);
+      gyroX = myIMU.getFastGyroX();
+      gyroY = myIMU.getFastGyroY();
+      gyroZ = myIMU.getFastGyroZ();
       message.angular_velocity.x = gyroX;
       message.angular_velocity.y = gyroY;
       message.angular_velocity.z = gyroZ;
 
-      myIMU.getGyro(gyroX, gyroY, gyroZ, gyroAccuracy);
+//    myIMU.getLinAccel(linAccelX, linAccelY, linAccelZ, linAccuracy);
       message.linear_acceleration.x = linAccelX;
       message.linear_acceleration.y = linAccelY;
       message.linear_acceleration.z = linAccelZ;
 
       myIMU.getQuat(qx, qy, qz, qw, quatRadianAccuracy, quatAccuracy);
+//    qx = myIMU.getQuatI();
+//    qy = myIMU.getQuatJ();
+//    qz = myIMU.getQuatK();
+//    qw = myIMU.getQuatReal();
+
       message.orientation.x = qx;
       message.orientation.y = qy;
       message.orientation.z = qz;
       message.orientation.w = qw;
+
+      message.header.stamp = this->now();
 
       count_++;
 
@@ -97,25 +107,21 @@ int main(int argc, char * argv[])
     rclcpp::shutdown();
     return -1;
   }
-/*
-  myIMU.enableLinearAccelerometer(50);
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
+
+//  myIMU.enableLinearAccelerometer(50);
+//  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
+
+//  myIMU.enableGyro(50);
+//  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro");
+
+//  myIMU.enableRotationVector(50);
+//  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled rotation vector");
+//  usleep(2000);
+
+  myIMU.enableGyroIntegratedRotationVector(50);
+  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
+  RCLCPP_WARN(rclcpp::get_logger("bno080_imu"), "Enabling linear acceleration simulaneously may break the output.");
   usleep(2000);
-
-  myIMU.enableGyro(50);
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro");
-  usleep(2000); */
-
-  myIMU.enableRotationVector(50);
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled rotation vector");
-  usleep(2000);
-
-  RCLCPP_WARN(rclcpp::get_logger("bno080_imu"), "Only rotation vector output is enabled, enabling gyro and/or linear acceleration simulaneously breaks things.");
-  RCLCPP_WARN(rclcpp::get_logger("bno080_imu"), "Possible fix: increase I2C frequency to 400 kHz.");
-
-  //myIMU.enableGyroIntegratedRotationVector(50);
-  //RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
-  //usleep(2000);
 
   rclcpp::spin(std::make_shared<Bno080ImuPublisher>());
   rclcpp::shutdown();
