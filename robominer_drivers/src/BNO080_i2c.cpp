@@ -28,6 +28,7 @@
 */
 
 #include "BNO080_i2c.h"
+
 #include <stdint.h>          // for uint_8t
 #include <stdio.h>           // for printf
 #include <math.h>            // For sqrt
