@@ -34,8 +34,9 @@ class TemperatureSensor(Node):
 			tempfile.close()
 
 			msg.temperature = tempValue/1000.0
+			msg.header.stamp = self.get_clock().now().to_msg()
 			self.publisher_temperature.publish(msg)
-			self.get_logger().info('Publishing. Raw value: %s' % tempValue)
+			# self.get_logger().info('Publishing. Raw value: %s' % tempValue)
 
 		except OSError:
 			self.get_logger().error('Temperature data file not found!')
@@ -47,6 +48,7 @@ class TemperatureSensor(Node):
 def main(args=None):
 	rclpy.init(args=args)
 	temperature_sensor = TemperatureSensor()
+	temperature_sensor.get_logger().info('Started temperature sensor node.')
 
 	rclpy.spin(temperature_sensor)
 
