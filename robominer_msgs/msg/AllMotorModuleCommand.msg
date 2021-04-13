@@ -1,4 +1,0 @@
-float32 fr_motor_rpm_goal
-float32 rr_motor_rpm_goal
-float32 rl_motor_rpm_goal
-float32 fl_motor_rpm_goal

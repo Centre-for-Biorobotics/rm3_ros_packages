@@ -87,7 +87,7 @@ class SerialInterface(Node):
 		"""
 		unpacks the data_packet and populates messages that contain motor module feedback info for publishing
 		"""
-		self.motor_module = MotorModuleFeedback() # custom message
+		self.motor_module_msg = MotorModuleFeedback() # custom message
 
 		self.packet_length = len(data_packet) # determine data packet length
 		self.header_length = 4
@@ -102,8 +102,10 @@ class SerialInterface(Node):
 
 		rpm_est = struct.unpack('f', data_packet[2+self.header_length:6+self.header_length])[0]
 
-		self.motor_module.motor_id = str(motor_arduino_ID)
-		self.motor_module.motor_rpm = rpm_est
+		self.motor_module_msg.header.stamp = self.get_clock().now().to_msg()
+		self.motor_module_msg.header.frame_id = self.which_motor 
+		self.motor_module_msg.motor_id = str(motor_arduino_ID)
+		self.motor_module_msg.motor_rpm = rpm_est
 
 		if self.packet_length == 11: 		# no current measurement
 			checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
@@ -115,7 +117,7 @@ class SerialInterface(Node):
 			self.get_logger().info('Checksum problem')
 			# self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
 
-		self.publisher_motor_module.publish(self.motor_module)
+		self.publisher_motor_module.publish(self.motor_module_msg)
 
 		
 
@@ -160,7 +162,7 @@ class SerialInterface(Node):
 		outbuffer += struct.pack('b', self.RPM_goal)
 		
 		checksum_out = self.calculateChecksum(outbuffer[4:6])
-		outbuffer += struct.pack(checksum_out)
+		outbuffer += struct.pack('b', checksum_out)
 
 		outbuffer += '\n'.encode('UTF-8')
 

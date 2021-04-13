@@ -105,6 +105,8 @@ class OpenLoopSteering(Node):
 		self.motor_cmd = [MotorModuleCommand() for i in range (4)]
 		# self.get_logger().info(str(self.motor_cmd))
 		for m in range(4):
+			self.motor_cmd[m].header.stamp = self.get_clock().now().to_msg()
+			self.motor_cmd[m].header.frame_id = motors[m]
 			self.motor_cmd[m].motor_id = motors_dict[motors[m]]
 			self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
 			# self.get_logger().info(str(self.motor_cmd[m]))
