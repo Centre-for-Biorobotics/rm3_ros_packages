@@ -162,7 +162,7 @@ class SerialInterface(Node):
 		outbuffer += struct.pack('b', self.RPM_goal)
 		
 		checksum_out = self.calculateChecksum(outbuffer[4:6])
-		outbuffer += struct.pack('b', checksum_out)
+		outbuffer += struct.pack('B', checksum_out)
 
 		outbuffer += '\n'.encode('UTF-8')
 
