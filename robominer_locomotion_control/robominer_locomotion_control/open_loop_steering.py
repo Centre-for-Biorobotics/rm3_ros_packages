@@ -59,9 +59,9 @@ class OpenLoopSteering(Node):
 
 		# fr rr rl fl
 		self.platform_kinematics = np.array([
-			[ 1,  1, -(self.lx + self.ly)],
+			[-1, -1, -(self.lx + self.ly)],
             		[-1,  1, -(self.lx + self.ly)],
-            		[-1, -1, -(self.lx + self.ly)],
+            		[ 1,  1, -(self.lx + self.ly)],
 			[ 1, -1, -(self.lx + self.ly)]])
 		
 		self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
@@ -110,6 +110,7 @@ class OpenLoopSteering(Node):
 			self.motor_cmd[m].motor_id = motors_dict[motors[m]]
 			self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
 			# self.get_logger().info(str(self.motor_cmd[m]))
+		#self.motor_cmd[1].motor_rpm_goal = int(0)
 		self.publisher_motor0_commands.publish(self.motor_cmd[0])
 		self.publisher_motor1_commands.publish(self.motor_cmd[1])
 		self.publisher_motor2_commands.publish(self.motor_cmd[2])

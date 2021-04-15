@@ -27,6 +27,12 @@ import struct
 RPM_goal = 0
 rpm_est = 0
 
+motors_mapping = {
+	"front_right": "0",
+	"rear_right": "1",
+	"rear_left": "2",
+	"front_left": "3"
+}
 
 class SerialInterface(Node):
 	def __init__(self):
@@ -42,8 +48,8 @@ class SerialInterface(Node):
 		# scan com ports to find the arduino that has the specified serial number and get its port
 		self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
 
-		self.motor_ID = int(self.port[11])
-		self.get_logger().info( 'Port: %s, Motor ID: %d' %( str(self.port), self.motor_ID))
+		self.motor_ID = motors_mapping[self.which_motor]
+		self.get_logger().info( 'Port: %s, Motor name: %s, arduino sn: %s' %( str(self.port), self.which_motor, self.which_arduino))
 
 		self.ser = serial.Serial(self.port, 115200, timeout = 0)
 		self.publisher_motor_module = self.create_publisher(MotorModuleFeedback, 'motor_module', 10)
