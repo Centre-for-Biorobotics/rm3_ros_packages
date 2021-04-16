@@ -30,8 +30,18 @@ find_package(robominer_msgs)
 add_executable(bno080_imu src/BNO080_imu.cpp src/BNO080_i2c.cpp)
 ament_target_dependencies(bno080_imu rclcpp std_msgs sensor_msgs)
 
+add_executable(tlv493d_tca9548a_whiskers
+  src/Whiskers_MUX_publisher.cpp
+  src/olimex/Olimexino.cpp
+  src/olimex/Wire.cpp
+  src/src/util/RegMask.cpp
+  src/src/util/BusInterface.cpp
+  src/src/Tlv493d.cpp)
+ament_target_dependencies(tlv493d_tca9548a_whiskers rclcpp std_msgs robominer_msgs)
+
 install(TARGETS
   bno080_imu
+  tlv493d_tca9548a_whiskers
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules

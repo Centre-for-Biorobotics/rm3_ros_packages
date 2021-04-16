@@ -28,7 +28,11 @@ find_package(std_msgs REQUIRED)
 
 set(msg_files
   "msg/MotorModuleFeedback.msg"
-  "msg/MotorModuleCommand.msg")
+  "msg/MotorModuleCommand.msg"
+  "msg/WhiskerPosInGrid.msg"
+  "msg/Whisker.msg"
+  "msg/WhiskerArray.msg"
+  )
 
 
 
