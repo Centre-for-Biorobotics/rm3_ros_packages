@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
 	return LaunchDescription([
 		Node(
-			package='robominers_serial_interface', 
+			package='robominer_drivers', 
 			namespace='motor0',
 			executable='serial_interface',
 			name='serial_interface',
@@ -15,7 +15,7 @@ def generate_launch_description():
 						{'arduino_sn': "AK08KM8L"}]
 			),
 		Node(
-			package='robominers_serial_interface', 
+			package='robominer_drivers', 
 			namespace='motor1',
 			executable='serial_interface',
 			name='serial_interface',

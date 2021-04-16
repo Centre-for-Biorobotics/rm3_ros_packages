@@ -5,7 +5,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
 		front_right = Node(
-			package='robominers_serial_interface', 
+			package='robominer_drivers', 
 			namespace='front_right',
 			executable='serial_interface',
 			name='serial_interface',
@@ -14,7 +14,7 @@ def generate_launch_description():
 						{'arduino_sn': 'AC013EU8'}]
 			)
 		rear_right = Node(
-			package='robominers_serial_interface', 
+			package='robominer_drivers', 
 			namespace='rear_right',
 			executable='serial_interface',
 			name='serial_interface',
@@ -23,7 +23,7 @@ def generate_launch_description():
 						{'arduino_sn': 'AK08KMQ8'}]
 			)
 		rear_left = Node(
-			package='robominers_serial_interface', 
+			package='robominer_drivers', 
 			namespace='rear_left',
 			executable='serial_interface',
 			name='serial_interface',
@@ -32,7 +32,7 @@ def generate_launch_description():
 						{'arduino_sn': 'AB0JQ5XM'}]
 			)
 		front_left = Node(
-			package='robominers_serial_interface', 
+			package='robominer_drivers', 
 			namespace='front_left',
 			executable='serial_interface',
 			name='serial_interface',
