@@ -7,8 +7,8 @@ def generate_launch_description():
 		front_right = Node(
 			package='robominer_drivers', 
 			namespace='front_right',
-			executable='serial_interface',
-			name='serial_interface',
+			executable='motor_serial_interface.py',
+			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'front_right'},
 						{'arduino_sn': 'AC013EU8'}]
@@ -16,7 +16,7 @@ def generate_launch_description():
 		rear_right = Node(
 			package='robominer_drivers', 
 			namespace='rear_right',
-			executable='serial_interface',
+			executable='motor_serial_interface.py',
 			name='serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_right'},
@@ -25,8 +25,8 @@ def generate_launch_description():
 		rear_left = Node(
 			package='robominer_drivers', 
 			namespace='rear_left',
-			executable='serial_interface',
-			name='serial_interface',
+			executable='motor_serial_interface.py',
+			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_left'},
 						{'arduino_sn': 'AB0JQ5XM'}]
@@ -34,8 +34,8 @@ def generate_launch_description():
 		front_left = Node(
 			package='robominer_drivers', 
 			namespace='front_left',
-			executable='serial_interface',
-			name='serial_interface',
+			executable='motor_serial_interface.py',
+			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'front_left'},
 						{'arduino_sn': 'AK08KRS8'}]

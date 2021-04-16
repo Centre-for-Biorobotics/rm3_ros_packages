@@ -3,8 +3,9 @@
 <package format="3">
   <name>robominer_drivers</name>
   <version>0.0.1</version>
-  <description>C++ drivers that interface to sensors</description>
+  <description>C++ and Python drivers that interface to devices</description>
   <maintainer email="jaan.rebane@ttu.ee">Jaan Rebane</maintainer>
+  <maintainer email="roza.gkliva@ttu.ee">Roza Gkliva</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclcpp</depend>

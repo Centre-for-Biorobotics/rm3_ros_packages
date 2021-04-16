@@ -15,7 +15,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     serial_peripherals = launch.actions.IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('robominers_serial_interface'),
+            os.path.join(get_package_share_directory('robominer_drivers'),
             'launch',
             'four_motor_modules.launch.py')
         ))
@@ -25,8 +25,8 @@ def generate_launch_description():
         name='bno080_imu'
         )
     temperature_interface = Node(
-        package='robominer_sensors',
-        executable='temperature_sensor',
+        package='robominer_drivers',
+        executable='temperature_sensor.py',
         name='temperature_sensor'
         )
     steering_stuff = launch.actions.IncludeLaunchDescription(
