@@ -28,17 +28,19 @@ void TwoWire::begin(uint8_t busAddress)
 
 void TwoWire::begin(void)
 {	
-	//printf("TwoWire::begin(): Using pre-defined bus name %s\n",busName);
+	debug("TwoWire::begin(): Using pre-defined bus name %s\n",busName);
 	begin(busName); // assuming there has been already a bus name set
 }
 
 void TwoWire::begin(char * _busName)
 {	
+	
 	if(strcmp(_busName,busName) == 0)
 	{
-		debug("TwoWire::begin(): Bus %s is already open\n",busName);
+		//debug("TwoWire::begin(): Bus %s is already open\n",busName);
 		return;
 	}
+	
 	file = open(_busName, O_RDWR);
 	//printf("TwoWire::begin(): Opening I2C bus %s...\n",_busName);
 	if (file < 0) {
@@ -113,7 +115,7 @@ int TwoWire::endTransmission(bool b)
 			debug("  errno: %s\n",strerror(errno));
 			ret = 1;
 		}	
-		delay(100); //// TODO: figure out if delay needed here
+		//delay(100); //// TODO: figure out if delay needed here
 	}
 	txBufSize = 0;
 	txBufIndex = 0;

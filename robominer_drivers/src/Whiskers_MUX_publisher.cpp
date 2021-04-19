@@ -53,25 +53,18 @@
 #include "robominer_msgs/msg/whisker_array.hpp"
 
 #include "Whiskers_MUX.h"
-#ifndef UBUNTU
-#include "./olimex/conio.h"
-#else
-#include <fcntl.h>
-#endif
-
-
-
 
 
 //////////// Start of user-defined constants /////////////
 
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive
-#define NUM_MUX 1             // Number of multiplexers
-#define NUM_SENSORS 1         // Number of sensors per multiplexer (max. 8)
+#define NUM_MUX 4             // Number of multiplexers
+#define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
 
 const bool fastMode = true;		       // [true] if false, the sensor readings come more slowly, but might be more accurate
+const bool consolePrint = true;		   // [false] if true, sensor data will be printed to the local console
 
 const unsigned char endSignature[2] = {'\r','\n'};     // for Compressed message format: end of message  
 const bool sendPolarRadius = false;    // [false] if true, the polar radius will be sent as the third value in Spherical mode using Compressed message format,
@@ -87,6 +80,15 @@ const MessageFormat mf = PlainText;    // [PlainText] format for serial messages
 
 
 
+Tlv493d *Tlv493dMagnetic3DSensor[NUM_MUX][NUM_SENSORS]; // 2D array of pointers to Tlv493d Object
+unsigned char * txString = new unsigned char[MAXBUF];
+uint16_t txIndex = 0;
+unsigned char encodeResult[2];
+float data[NUM_MUX][NUM_SENSORS][3];
+bool init = true;
+uint32_t loopSeq = 0;
+volatile unsigned long lastLoop = 0;
+float loopFreq = 0.0;
 
 
 using namespace std::chrono_literals;
@@ -105,10 +107,18 @@ class WhiskersPublisher : public rclcpp::Node
 	
   private:  
     void timer_callback()
-    {
-      auto message = robominer_msgs::msg::WhiskerArray();
+    {     
+      // Calculate actual publishing frequency
+      volatile unsigned long now = std::chrono::duration_cast< std::chrono::milliseconds >(
+		std::chrono::system_clock::now().time_since_epoch()
+		).count();
+	  loopFreq = 1000.0 / float(now - lastLoop);
+	  lastLoop = now;
+      
+      debug("\nPublishing @ %.2f Hz ", loopFreq);
       
       // Acquire data from sensors
+      
       for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
       {
         // Deselect all channels of the previous multiplexer    
@@ -124,30 +134,34 @@ class WhiskersPublisher : public rclcpp::Node
         }    
       }
       
-      // Publish
+      // Assemble and publish message to ROS
+      
+      auto message = robominer_msgs::msg::WhiskerArray();
+      
       message.header.stamp = this->now();
       message.num_mux = NUM_MUX;
       message.num_sensors = NUM_SENSORS;
-      message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
+      
+      if(t == Spherical)
+	  {
+		  message.representation = "Spherical";
+	  }
+	  else // Cartesian
+	  {
+		  message.representation = "Cartesian";
+	  }
+	  	  
+	  for(uint8_t sNum = 0; sNum < NUM_MUX*NUM_SENSORS; sNum++)
+	  {
+		  message.whiskers.push_back(robominer_msgs::msg::Whisker());
+	  }
+	  
+      //message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
       int sensorNum = 0;
       for(uint8_t m=0; m < NUM_MUX; m++)
       {
 		  for(uint8_t s = 0; s < NUM_SENSORS; s++)
 		  {     			  
-			  
-			  /*
-			   * TODO: move representation to higher level message
-			   * */
-			  
-			  if(t == Spherical)
-			  {
-				  message.whiskers[sensorNum].representation = "Spherical";
-			  }
-			  else // Cartesian
-			  {
-				  message.whiskers[sensorNum].representation = "Cartesian";
-			  }
-
 			  message.whiskers[sensorNum].pos = robominer_msgs::msg::WhiskerPosInGrid();
 			  message.whiskers[sensorNum].pos.row_num = m;
 			  message.whiskers[sensorNum].pos.col_num = s;
@@ -158,15 +172,20 @@ class WhiskersPublisher : public rclcpp::Node
 			  else
 			  {
 				  message.whiskers[sensorNum].pos.offset_y = 0;
-			  }			  			  
+			  }	
+			  message.whiskers[sensorNum].x = data[m][s][0];	
+			  message.whiskers[sensorNum].y = data[m][s][1];
+			  message.whiskers[sensorNum].z = data[m][s][2];	  			  
 			  sensorNum++;
-		  }		  
-		  
+		  }		  		  
 	  }      
       publisher_->publish(message);      
       
       // Print readings to console
-      printOut();		
+      if(consolePrint)
+      {
+	    printOut();		
+	  }
     }
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<robominer_msgs::msg::WhiskerArray>::SharedPtr publisher_;
@@ -174,14 +193,9 @@ class WhiskersPublisher : public rclcpp::Node
 			
 };
 
-Tlv493d *Tlv493dMagnetic3DSensor[NUM_MUX][NUM_SENSORS]; // 2D array of pointers to Tlv493d Object
 
-unsigned char * txString = new unsigned char[MAXBUF];
-uint8_t txIndex = 0;
-unsigned char encodeResult[2];
-float data[NUM_MUX][NUM_SENSORS][3];
-bool init = true;
-uint32_t loopSeq = 0;
+
+
 
 
 using namespace std;
@@ -200,7 +214,6 @@ int main(int argc, char **argv)
   setup(); 
   
   // MAIN LOOP 
-  debug("We are here");
   rclcpp::spin(std::make_shared<WhiskersPublisher>());
   
   // ON EXIT
@@ -230,7 +243,7 @@ void setup()
     }
   }
 
-  muxDisableAll();
+  //muxDisableAll();
 		
   for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
   {
@@ -241,7 +254,7 @@ void setup()
 	for(uint8_t i=0; i<NUM_SENSORS; i++)
 	{
 	  tcaSelect(m,i);
-	  if(!initSensor(m-MUX_STARTADDR,i))
+	  if(initSensor(m-MUX_STARTADDR,i) == BUS_ERROR)
 	  {
 		  RCLCPP_ERROR(rclcpp::get_logger("Sensor_MUX_main_ROS2"), "Sensor %d.%d not detected at default I2C address. Check the connection.\n",m-MUX_STARTADDR,i);
 	  }			
@@ -373,7 +386,7 @@ void tcaDisable(uint8_t addr)
   Wire.beginTransmission(addr);
   Wire.write(0);
   Wire.endTransmission();
-  delay(5); 
+  //delay(5); 
 }
 
 /**
@@ -385,14 +398,15 @@ void tcaDisable(uint8_t addr)
  */
 bool initSensor(uint8_t m, uint8_t i)
 {
-  bool ret = true;
+  bool ret = false;
   Tlv493dMagnetic3DSensor[m][i]->begin();
   if(fastMode)
   {
 	  ret = Tlv493dMagnetic3DSensor[m][i]->setAccessMode(Tlv493dMagnetic3DSensor[m][i]->FASTMODE);
 	  if(ret == BUS_ERROR)
 	  {
-		  ret = false;
+		  debug(">>>> Bus error after access mode");
+		  return ret;
 	  }
   }
   Tlv493dMagnetic3DSensor[m][i]->disableTemp();  
