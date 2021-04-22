@@ -116,7 +116,7 @@ class SerialInterface(Node):
 		if self.packet_length == 11: 		# no current measurement
 			checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
 		elif self.packet_length == 15: 		# with current measurement
-			self.motor_module.motor_current_ma = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
+			self.motor_module_msg.motor_current_ma = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
 			checksum_byte = struct.unpack('b', bytes(data_packet[10+self.header_length:11+self.header_length]))[0]
 
 		if self.chk != 0:
