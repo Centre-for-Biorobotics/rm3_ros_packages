@@ -34,7 +34,7 @@
 #define TLV493D_REGMASK_H_INCLUDED
 
 
-#include "./../../olimex/Olimexino.h"
+#include "Olimexino.h"
 
 #define REGMASK_READ	0
 #define REGMASK_WRITE	1

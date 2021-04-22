@@ -32,8 +32,8 @@
 
 
 #include "Tlv493d.h"
-#include "./util/RegMask.h"
-#include "./util/BusInterface2.h"
+#include "RegMask.h"
+#include "BusInterface2.h"
 #include <math.h>
 
 

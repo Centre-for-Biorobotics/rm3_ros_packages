@@ -1,10 +1,10 @@
 #ifndef WHISKERS_MUX_H
 #define WHISKERS_MUX_H
 
-#include "./olimex/config.h"
-#include "./src/Tlv493d.h"
-#include "./src/util/RegMask.h"
-#include "./src/util/BusInterface2.h"
+#include "config.h"
+#include "Tlv493d.h"
+#include "RegMask.h"
+#include "BusInterface2.h"
 
 // Representation of sensor data
 enum Type {  

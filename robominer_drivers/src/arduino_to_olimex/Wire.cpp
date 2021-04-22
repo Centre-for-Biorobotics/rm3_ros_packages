@@ -1,3 +1,24 @@
+/**
+ * Wire.cpp
+ * Kilian Ochs, Centre for Biorobotics, April 2021
+ * Tested on Linux Ubuntu 18 and Olimex Xubuntu Xfce 4.14
+ * 
+ * This cpp file is a translation of the Arduino "TwoWire" (I2C) library into
+ * a Linux-based environment. One additional function has been added
+ * (TwoWire::end()), all other functions follow very closely the original
+ * syntax used in the Arduino Arduino environment. TwoWire::begin(busAddress)
+ * should be called with the parameter of the bus number (integer in the end
+ * of /dev/i2c-#) to open a specific I2C bus. Calling this function without
+ * parameter won't have any effect, unless the bus has already been opened by
+ * a previous call to TwoWire::begin(busAddress). This keeps libraries
+ * originating from the Arduino environment which internally make use of 
+ * TwoWire::begin(void) compatible with this ported TwoWire library, as long
+ * as a call to TwoWire::begin(busAddress) is issued from the main() before
+ * the other libraries are initialized.
+ **/ 
+
+
+
 #include "Wire.h"
 #include <sys/ioctl.h>       // For ioctl
 #include <fcntl.h>           /* For O_RDWR */

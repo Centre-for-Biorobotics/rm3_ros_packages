@@ -33,8 +33,8 @@
 #ifndef TLV493D_BUSIF_H_INCLUDED
 #define TLV493D_BUSIF_H_INCLUDED
 
-#include "./../../olimex/Olimexino.h"
-#include "./../../olimex/Wire.h"
+#include "Olimexino.h"
+#include "Wire.h"
 
 #define TLV493D_BUSIF_READSIZE		10
 #define TLV493D_BUSIF_WRITESIZE		4

@@ -52,7 +52,7 @@
 #include "robominer_msgs/msg/whisker.hpp"
 #include "robominer_msgs/msg/whisker_array.hpp"
 
-#include "Whiskers_MUX.h"
+#include "Whiskers_MUX_node.h"
 
 
 //////////// Start of user-defined constants /////////////

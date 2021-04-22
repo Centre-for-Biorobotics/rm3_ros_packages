@@ -34,7 +34,7 @@
 #define TLV493D_CONF_H_INCLUDED
 
 #include "RegMask.h"
-#include "./../Tlv493d.h"
+#include "Tlv493d.h"
 
 
 

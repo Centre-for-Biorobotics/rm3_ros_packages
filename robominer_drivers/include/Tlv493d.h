@@ -35,9 +35,9 @@
 
 
 #include <cstdio>
-#include "./../olimex/Wire.h"
-#include "./util/BusInterface.h"
-#include "./util/Tlv493d_conf.h"
+#include "Wire.h"
+#include "BusInterface.h"
+#include "Tlv493d_conf.h"
 
 typedef enum Tlv493d_Address
 {
