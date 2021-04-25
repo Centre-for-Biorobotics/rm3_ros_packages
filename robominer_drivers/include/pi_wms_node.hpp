@@ -20,13 +20,15 @@ class PiWMSNode : public rclcpp::Node
 public:
 
     serial::Serial imu_serial_;
-    rclcpp::TimerBase::SharedPtr pub_timer_;
+    // rclcpp::TimerBase::SharedPtr pub_timer_;
+    rclcpp::TimerBase::SharedPtr read_timer;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pi_wms_publisher_;
     PiWMSNode();
 
 private:
     void init_serial();
-    void pub_callback();
+    void read_sample();
+    void pub_callback(std_msgs::msg::String pi_wms_string);
 
 
 };

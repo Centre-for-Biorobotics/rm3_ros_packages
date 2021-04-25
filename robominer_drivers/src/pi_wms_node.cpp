@@ -19,7 +19,9 @@ PiWMSNode::PiWMSNode()
     pi_wms_publisher_ = this->create_publisher<std_msgs::msg::String>("pi_wms_raw", 10);
 
     // use std::bind to pass the publisher (this) as one of the arguments to the callback
-    pub_timer_ = this->create_wall_timer(100ms, std::bind(&PiWMSNode::pub_callback, this));
+    // pub_timer_ = this->create_wall_timer(100ms, std::bind(&PiWMSNode::pub_callback, this));
+
+    read_timer = this->create_wall_timer(100ms, std::bind(&PiWMSNode::read_sample, this));
 
     enumerate_ports();
 
@@ -48,12 +50,19 @@ void PiWMSNode::init_serial()
     }
 }
 
-void PiWMSNode::pub_callback()
+void PiWMSNode::read_sample()
 {
-    auto pi_wms_msg = std_msgs::msg::String();
     std::string data = imu_serial_.readline(100, "\n");
+
+    auto pi_wms_msg = std_msgs::msg::String();
     pi_wms_msg.data = data;
-    pi_wms_publisher_->publish(pi_wms_msg);
+    pub_callback(pi_wms_msg);
+}
+
+void PiWMSNode::pub_callback(std_msgs::msg::String pi_wms_string)
+{
+
+    pi_wms_publisher_->publish(pi_wms_string);
 
     // RCLCPP_INFO(this->get_logger(), "%s\n", data);
 }
@@ -79,7 +88,9 @@ int main(int argc, char * argv[])
     // initialize rclcpp
     rclcpp::init(argc, argv);
 
+    // spin node
     rclcpp::spin(std::make_shared<PiWMSNode>());
+
     rclcpp::shutdown();
     return 0;
 }
