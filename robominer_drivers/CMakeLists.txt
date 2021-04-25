@@ -23,6 +23,7 @@ find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(robominer_msgs)
+find_package(serial REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -41,9 +42,14 @@ add_executable(tlv493d_tca9548a_whiskers
   src/tlv493d_lib/Tlv493d.cpp)
 ament_target_dependencies(tlv493d_tca9548a_whiskers rclcpp std_msgs robominer_msgs)
 
+# pi wms odometry sensor
+add_executable(pi_wms_interface src/pi_wms_node.cpp)
+ament_target_dependencies(pi_wms_interface rclcpp std_msgs serial)
+
 install(TARGETS
   bno080_imu
   tlv493d_tca9548a_whiskers
+  pi_wms_interface
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules
