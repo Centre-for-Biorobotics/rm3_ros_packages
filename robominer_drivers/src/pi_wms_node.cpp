@@ -23,16 +23,48 @@ PiWMSNode::PiWMSNode()
 
     read_timer = this->create_wall_timer(100ms, std::bind(&PiWMSNode::read_sample, this));
 
-    enumerate_ports();
+    wms_port = scan_ports();
 
-    PiWMSNode::init_serial(); // setup and connect to serial port
+    PiWMSNode::init_serial(wms_port); // setup and connect to serial port
 }
 
 
 // private member functions
-void PiWMSNode::init_serial()
+
+std::string PiWMSNode::scan_ports()
 {
-    std::string port_ = "/dev/ttyUSB0";
+    vector<serial::PortInfo> devices_found = serial::list_ports();
+
+    vector<serial::PortInfo>::iterator iter = devices_found.begin();
+
+    while( iter != devices_found.end() )
+    {
+        serial::PortInfo device = *iter++;
+
+        // find pi-wms device and get port
+        std::string device_ = device.description.c_str();
+        std::size_t device_found = device_.find("Prolific");        // find unique device description
+
+        // printf( "(port: %s, device description: %s, device hardware_id: %s)\n", device.port.c_str(), device.description.c_str(), device.hardware_id.c_str() );
+
+        if(device_found!=std::string::npos )
+        {
+            printf("pi-wms port: %s\n", device.port.c_str());
+
+            std::string port_ = device.port.c_str();
+
+            return port_;
+        }
+        // else
+        // {
+        //     printf("port not found");
+        // }
+    }
+    return "nan";
+}
+
+void PiWMSNode::init_serial(std::string port_)
+{
     std::int32_t baud_ = 460800;
 
     // try connecting to serial port
@@ -42,6 +74,7 @@ void PiWMSNode::init_serial()
         imu_serial_.setBaudrate(baud_);
         serial::Timeout to_ = serial::Timeout(200, 200, 0, 200, 0);
         imu_serial_.setTimeout(to_);
+
         imu_serial_.open();
     }
     catch(serial::IOException& e)
@@ -67,19 +100,7 @@ void PiWMSNode::pub_callback(std_msgs::msg::String pi_wms_string)
     // RCLCPP_INFO(this->get_logger(), "%s\n", data);
 }
 
-void enumerate_ports()
-{
-    vector<serial::PortInfo> devices_found = serial::list_ports();
 
-    vector<serial::PortInfo>::iterator iter = devices_found.begin();
-
-    while( iter != devices_found.end() )
-    {
-        serial::PortInfo device = *iter++;
-        printf( "(%s, %s, %s)\n", device.port.c_str(), device.description.c_str(), device.hardware_id.c_str() );
-    }
-
-}
 
 
 
