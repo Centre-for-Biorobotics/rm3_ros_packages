@@ -193,10 +193,38 @@ private:
 };
 
 
+class SensorGrid
+{
 
 
+    class Multiplexer
+    {
+        uint8_t address;
+        
+        void disable()
+        {
+            
+        }
+        void selectChannel(uint8_t ch)
+        {
+            
+        }
+    };
+    
+    class HallSensor
+    {
+        
+    };
+    
+    HallSensor sensors[NUM_MUX][NUM_SENSORS];
+    Multiplexer multiplexers[NUM_MUX];
+    void setup()
+    {
+        
+    }
+    
 
-
+};
 
 
 
