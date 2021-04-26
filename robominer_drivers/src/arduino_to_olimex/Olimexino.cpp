@@ -4,6 +4,7 @@
  */ 
 
 #include "Olimexino.h"
+#include <chrono>
 
 
 void delay(uint32_t ms) {
@@ -16,4 +17,11 @@ void print(unsigned char *buf, int size)
 	{
 		printf("%c",buf[c]);
 	}
+}
+
+using namespace std::chrono_literals;
+
+unsigned long millis(void)
+{
+    return std::chrono::duration_cast< std::chrono::milliseconds >(std::chrono::system_clock::now().time_since_epoch()).count();    
 }

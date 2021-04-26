@@ -1,34 +1,239 @@
+// Copyright 2016 Open Source Robotics Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Initial node:
+// Kilian Ochs, CfB Tallinn, 2021-04-16
+
+/**
+ * Kilian Ochs, 16.04.2021
+ * Center for Biorobotics, TALTECH, Tallinn
+ * Robominers experimental setup
+ * 
+ * This sketch is used to interface magnetic Hall sensors of type TLV493D
+ * using several multiplexers of type TCA9548A. It publishes messages of type "WhiskerArray"
+ * in the ROS2 environment.
+ * 
+ * Note: The number of sensors per multiplexer ("NUM_SENSORS") must be the same for all multiplexers.
+ * 
+ * Continuously reads the sensors one by one, then prints all sensor readings to Console in one burst.         
+ * When reading the Console outputs during manual verification, the format mf = PlainText should be used.
+ *
+ * The format mf = Compressed packs each sensor float value into a 16bit integer. The result is stored in
+ * txString, which can be used for data acquisition purposes in the future (e.g., send to SimuLink via Serial).
+ * 
+ * To run this code on Ubuntu instead of Olimex, uncomment "#define UBUNTU" in "./olimex/config.h".
+ * To view debug messages,                       uncomment "#define DEBUG"  in "./olimex/config.h".
+ * 
+ * When running on an Ubuntu computer (Desktop/laptop), a USB-to-I2C adapter can be used. Please note the name
+ * of the i2c bus using dmesg after plugging in the adapter. To define platform-specific bus IDs,
+ * see "./olimex/config.h".
+ *  * 
+ * To be compiled for a Linux-based system.
+ * This is a ported version of the library originally made for the Adafruit Feather M0
+ * (see gitHub: kilian2323/3dMagSensorsVisual).
+ *
+ * Note: Define constants in Whiskers_MUX_node.h.
+ */
+
+
 #include "robominer_msgs/msg/whisker_pos_in_grid.hpp"
 #include "robominer_msgs/msg/whisker.hpp"
 #include "robominer_msgs/msg/whisker_array.hpp"
 
 #include "Whiskers_MUX_node.h"
 
-// Note: Define constants in Whiskers_MUX_node.h.           
 
+
+   
+
+
+
+
+/*******************************
+ * 
+ * MAIN METHOD
+ * 
+ *******************************/
+
+ 
+ 
+ 
+ 
+ 
+ 
+
+using namespace std;
 
 /**
+ * Executable entry point.
+ * 
+ * @return Error code [TODO: currently not implemented]
+ */
+int main(int argc, char **argv)
+{    
+    // Grid construction
+    SensorGrid grid = SensorGrid(Cartesian, PlainText, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
+    
+    // SENSORS AND MUX SETUP 
+    grid.setup(); 
+    
+    // ROS SETUP 
+    rclcpp::init(argc, argv);      
+    WhiskersPublisher pub = WhiskersPublisher(grid);                // Pass pre-constructed SensorGrid object to the constructor of the ROS publisher
+
+    // MAIN LOOP 
+    rclcpp::spin(std::make_shared<WhiskersPublisher>());
+
+    // ON EXIT
+    rclcpp::shutdown();  
+    Wire.end();
+    debug("\n>>>> Good-bye!\n\n");
+    
+    return 0;     
+}
+
+   
+
+   
+   
+
+/*******************************
  * 
  * ROS-SPECIFIC FUNCTIONALITY
  * 
- */
+ *******************************/
 
+ 
+ 
+ 
+ 
+ 
 using namespace std::chrono_literals;
 
-
-
-
-
-
-
-
-
+/**
+ * ROS node class constructor.
+ */
+WhiskersPublisher::WhiskerPublisher(SensorGrid _grid) : rclcpp::Node("whiskers_publisher")
+{
+    publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
+    timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));
+    grid = _grid;
+    lastLoop = 0;
+}
 
 /**
+ * Callback function for the timer interrupt in ROS. Publishes at defined intervals (PUBLISH_INTERVAL).
+ */
+WhiskersPublisher::timer_callback()
+{
+    // Calculate actual publishing frequency
+#ifdef DEBUG
+    volatile unsigned long now = millis();
+    loopFreq = 1000.0 / float(now - lastLoop);
+    lastLoop = now;      
+    debug("\nPublishing @ %.2f Hz ", loopFreq);
+#endif
+      
+    // Acquire data from sensors
+
+    for(uint8_t m=0; m<NUM_MUX; m++)
+    {
+        // Deselect all channels of the previous multiplexer    
+        grid.muxDisablePrevious(m);
+
+        for(uint8_t i=0; i<NUM_SENSORS; i++)
+        { 
+            // Switch to next multiplexed port              
+            grid.multiplexers[m].selectChannel(i);
+            // Read sensor with selected type of representation
+            grid.sensors[m][i].read();          
+        }    
+    }
+      
+    // Assemble and publish message to ROS
+
+    auto message = robominer_msgs::msg::WhiskerArray();
+
+    message.header.stamp = this->now();
+    message.num_mux = NUM_MUX;
+    message.num_sensors = NUM_SENSORS;
+
+    if(t == Spherical)
+    {
+        message.representation = "Spherical";
+    }
+    else // Cartesian
+    {
+        message.representation = "Cartesian";
+    }
+      
+    for(uint8_t sNum = 0; sNum < NUM_MUX*NUM_SENSORS; sNum++)
+    {
+        message.whiskers.push_back(robominer_msgs::msg::Whisker());
+    }
+
+    //message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
+    int sensorNum = 0;
+    for(uint8_t m=0; m < NUM_MUX; m++)
+    {
+        for(uint8_t s = 0; s < NUM_SENSORS; s++)
+        {                   
+            message.whiskers[sensorNum].pos = robominer_msgs::msg::WhiskerPosInGrid();
+            message.whiskers[sensorNum].pos.row_num = m;
+            message.whiskers[sensorNum].pos.col_num = s;
+            if(m % 2 != 0)
+            {
+              message.whiskers[sensorNum].pos.offset_y = -0.5; // offset of sensor row in y direction
+            }
+            else
+            {
+              message.whiskers[sensorNum].pos.offset_y = 0;
+            } 
+            message.whiskers[sensorNum].x = grid.sensors[m][s].data[0];    
+            message.whiskers[sensorNum].y = grid.sensors[m][s].data[1];  
+            message.whiskers[sensorNum].z = grid.sensors[m][s].data[2];                    
+            sensorNum++;
+        }               
+    }      
+    publisher_->publish(message);      
+      
+      // Print readings to console
+#ifdef CONSOLE_PRINT
+    grid.printReadingsToConsole();     
+#endif
+}
+
+
+
+
+
+
+
+
+/*******************************
  * 
  * HARDWARE-SPECIFIC FUNCTIONALITY
  * 
- */
+ *******************************/
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
 using namespace std;
 
@@ -50,13 +255,13 @@ using namespace std;
  */
 SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode, bool _sendPolarRadius)
 {
-    setup();
+    init = true;    
     r = _r;
     f = _f;
     sendPolarRadius = _sendPolarRadius;
     fastMode = _fastMode;
     txString = new unsigned char[MAXBUF];
-    txIndex = 0;
+    txIndex = 0; 
 }
 
 /**
@@ -73,10 +278,13 @@ void SensorGrid::setup(void)
     for(uint8_t m=0; m<NUM_MUX; m++)
     { 
         multiplexers.push_back(Multiplexer(MUX_STARTADDR+m));
+    }
+    for(uint8_t m=0; m<NUM_MUX; m++)
+    {
         muxDisablePrevious(m);
         for(uint8_t i=0; i<NUM_SENSORS; i++)
         {
-            multiplexers[m].selectChannel(i);
+            multiplexers[m].selectChannel(i,true);
             if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
             {
                 debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
@@ -85,7 +293,7 @@ void SensorGrid::setup(void)
     }        
     
     hallTestAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
-    init = false;
+    
     
 #ifdef DEBUG
     debug(">>>> Setup ended. Waiting for some seconds...\n");
@@ -108,7 +316,7 @@ void SensorGrid::hallTestAndReinitialize(void)
         for(uint8_t i=0; i<NUM_SENSORS; i++)
         { 
             // Switch to next multiplexed port              
-            multiplexers[m].selectChannel(i); 
+            multiplexers[m].selectChannel(i,true); 
 
             debug(">>>> Checking sensor %d.%d\n",m,i);
 
@@ -150,12 +358,13 @@ void SensorGrid::hallTestAndReinitialize(void)
             } 
         }    
     }
+    init = false;
 }
 
 /**
  * Disables the multiplexer in sequence before the currently selected.
- * If the first multiplexer is selected, it disables the last one.
- * Disabling is done by deselecting all channels of the multiplexer.
+ * If the first multiplexer is selected, it disables the last one defined.
+ * (Disabling is done by deselecting all channels of the multiplexer.)
  * 
  * @param muxNum The index number of the currently selected multiplexer
  */
@@ -172,12 +381,12 @@ void SensorGrid::muxDisablePrevious(uint8_t muxNum)
 }
 
 /**
- * Assumes the maximum number of multiplexers (8) being installed and
- * disables each of them starting from address MUX_STARTADDR.
+ * Disables each multiplexer starting from the first one up to the number specified.
+ * @param totalNum [optional; default: NUM_MUX] The number of multiplexers to disable.
  */
-void SensorGrid::muxDisableAll(void)
+void SensorGrid::muxDisableAll(uint8_t totalNum)
 {
-    for(int m=0; m<8; m++)
+    for(int m=0; m<totalNum; m++)
     {
         multiplexers[m].disable();
     }
@@ -263,10 +472,12 @@ void SensorGrid::Multiplexer disable(void)
  * Selects a channel on the multiplexer.
  * 
  * @param ch The selected channel of the multiplexer (0...7).
+ * qparam init [optional; default: false] If true, the channel selection will
+ *             definitely be performed, even if there is only one MUX and one sensor.
  */
-void SensorGrid::Multiplexer selectChannel(uint8_t ch)
+void SensorGrid::Multiplexer selectChannel(uint8_t ch, bool init)
 {
-    if(init == false && NUM_MUX == 1 && NUM_SENSORS == 1) // We have to set a channel definitely during init, otherwise in case if there is more than one sensor or more than one multiplexer
+    if(init == false && NUM_MUX == 1 && NUM_SENSORS == 1) // We have to set a channel definitely during init, otherwise in case there is more than one sensor or more than one multiplexer
     {   
         return; 
     }

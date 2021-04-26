@@ -10,6 +10,10 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 
+
+
+
+
 //////////// Start of user-defined constants /////////////
 
 #define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not
@@ -19,14 +23,27 @@
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
+#define CONSOLE_PRINT 1       // If #define'd, sensor readings will be printed to the local console
 
 //////////// End of user-defined constants /////////////
 
+
+
+
+// Set buss address
 #ifdef UBUNTU
 #define I2C_BUS_ID 8
 #else
 #define I2C_BUS_ID 1
-#endif     
+#endif    
+
+// Set debug() to printf()
+#ifdef DEBUG
+	#define debug(fmt, ...) printf(fmt, ##__VA_ARGS__)
+	#warning DEBUG mode is on. Debug messages will be printed to the console. Undefine it in ./olimex/config.h if no debug messages should be printed.
+#else
+	#define debug(fmt, ...) ((void)0)
+#endif 
 
 // Representation of sensor data
 enum Representation {  
@@ -46,53 +63,56 @@ using namespace std;
 
 class SensorGrid
 {
-    public:         
+    public:      
+
+        SensorGrid(Representation _r, MessageFormat _f, bool _fastMode = true, bool _sendPolarRadius = true);
        
         class Multiplexer
         {
             public:
-                uint8_t address;
                 Multiplexer(uint8_t _addr);
+            
+                uint8_t address;                
                 void disable(void);
-                void selectChannel(uint8_t ch);        
+                void selectChannel(uint8_t ch, bool init = false);        
         };
         
         class HallSensor
         {
             public:
+                HallSensor(); // the constructor without arguments is explicitly implemented
+                
                 Tlv493d sensor;
                 float data[3];
-                bool init;
-                HallSensor();
-                bool initialize(bool fastMode);
+                bool init;                
                 void read(Representation r);                
                 void encode(uint8_t index, unsigned char * result);     
             private:
                 float radToDeg(float rad);
         };
         
-        HallSensor sensors[NUM_MUX][NUM_SENSORS];
-        std::vector<Multiplexer> multiplexers (NUM_MUX);
+        HallSensor sensors[NUM_MUX][NUM_SENSORS];        // will call to (explicitly implemented) default constructor for all objects 
+        std::vector<Multiplexer> multiplexers (NUM_MUX); // this makes it easier to call to the non-default constructor which requires one argument when filling the vector array
         unsigned char * txString;
         bool sendPolarRadius;
         bool fastMode;
         Representation r;
-        MessageFormat f;
-        SensorGrid(Representation _r, MessageFormat _f, bool, _fastMode = true, bool _sendPolarRadius = true);
+        MessageFormat f;                 
         
-        void setup(void);
-        
-        void hallTestAndReinitialize(void);       
+        void setup(void);       
         
         void muxDisablePrevious(uint8_t muxNum);
         
-        void muxDisableAll(void);
-                
+        void muxDisableAll(uint8_t totalNum = NUM_MUX);
+#ifdef CONSOLE_PRINT                
         void printReadingsToConsole(void);
-    
+#endif    
+
     private:
     
-        uint16_t txIndex;    
+        uint16_t txIndex;   
+        bool init;        
+        void hallTestAndReinitialize(void);  
 };
 
 using namespace std::chrono_literals;
@@ -101,38 +121,18 @@ class WhiskersPublisher : public rclcpp::Node
 {
     public:
         
-        WhiskersPublisher();
+        WhiskersPublisher(SensorGrid _grid);
+        SensorGrid grid;
         
     private:
         
         void timer_callback(void);
         rclcpp::TimerBase::SharedPtr timer_;
         rclcpp::Publisher<robominer_msgs::msg::WhiskerArray>::SharedPtr publisher_;
-        size_t count_;    
+#ifdef DEBUG
+        volatile unsigned long lastLoop;
+        float loopFreq;         
+#endif
 };
-    
-
-
-void tcaSelect(uint8_t,uint8_t);
-void tcaDisable(uint8_t);
-void muxDisablePrevious(uint8_t);
-bool initSensor(uint8_t, uint8_t);
-void readSensor(uint8_t, uint8_t);
-
-
-void writeTx(unsigned char);
-void printOut();
-void testAndReinitialize();
-void muxDisableAll(void);
-
-void setup();
-void loop();
-
-
-
-
-
-
-
 
 #endif
