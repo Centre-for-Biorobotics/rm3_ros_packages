@@ -63,8 +63,8 @@
 #define MAXBUF 1000           // Maximum char length of an output message
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
 
-const bool fastMode = true;		       // [true] if false, the sensor readings come more slowly, but might be more accurate
-const bool consolePrint = true;		   // [false] if true, sensor data will be printed to the local console
+const bool fastMode = true;            // [true] if false, the sensor readings come more slowly, but might be more accurate
+const bool consolePrint = true;        // [false] if true, sensor data will be printed to the local console
 
 const unsigned char endSignature[2] = {'\r','\n'};     // for Compressed message format: end of message  
 const bool sendPolarRadius = false;    // [false] if true, the polar radius will be sent as the third value in Spherical mode using Compressed message format,
@@ -86,7 +86,6 @@ uint16_t txIndex = 0;
 unsigned char encodeResult[2];
 float data[NUM_MUX][NUM_SENSORS][3];
 bool init = true;
-uint32_t loopSeq = 0;
 volatile unsigned long lastLoop = 0;
 float loopFreq = 0.0;
 
@@ -95,25 +94,25 @@ using namespace std::chrono_literals;
 
 class WhiskersPublisher : public rclcpp::Node
 {
-  public:
+public:
     WhiskersPublisher() 
     : Node("whiskers_publisher"), count_(0)
     {
       publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
       timer_ = this->create_wall_timer(
-				PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this)
+                PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this)
       );
     }
-	
-  private:  
+    
+private:  
     void timer_callback()
     {     
       // Calculate actual publishing frequency
       volatile unsigned long now = std::chrono::duration_cast< std::chrono::milliseconds >(
-		std::chrono::system_clock::now().time_since_epoch()
-		).count();
-	  loopFreq = 1000.0 / float(now - lastLoop);
-	  lastLoop = now;
+        std::chrono::system_clock::now().time_since_epoch()
+        ).count();
+      loopFreq = 1000.0 / float(now - lastLoop);
+      lastLoop = now;
       
       debug("\nPublishing @ %.2f Hz ", loopFreq);
       
@@ -126,11 +125,11 @@ class WhiskersPublisher : public rclcpp::Node
 
         for(uint8_t i=0; i<NUM_SENSORS; i++)
         { 
-          // Switch to next multiplexed port  			  
-          tcaSelect(m,i);   			  
+          // Switch to next multiplexed port              
+          tcaSelect(m,i);                 
 
           // Read sensor with selected type of representation
-          readSensor(m-MUX_STARTADDR,i); 		  
+          readSensor(m-MUX_STARTADDR,i);          
         }    
       }
       
@@ -143,55 +142,59 @@ class WhiskersPublisher : public rclcpp::Node
       message.num_sensors = NUM_SENSORS;
       
       if(t == Spherical)
-	  {
-		  message.representation = "Spherical";
-	  }
-	  else // Cartesian
-	  {
-		  message.representation = "Cartesian";
-	  }
-	  	  
-	  for(uint8_t sNum = 0; sNum < NUM_MUX*NUM_SENSORS; sNum++)
-	  {
-		  message.whiskers.push_back(robominer_msgs::msg::Whisker());
-	  }
-	  
+      {
+          message.representation = "Spherical";
+      }
+      else // Cartesian
+      {
+          message.representation = "Cartesian";
+      }
+          
+      for(uint8_t sNum = 0; sNum < NUM_MUX*NUM_SENSORS; sNum++)
+      {
+          message.whiskers.push_back(robominer_msgs::msg::Whisker());
+      }
+      
       //message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
       int sensorNum = 0;
       for(uint8_t m=0; m < NUM_MUX; m++)
       {
-		  for(uint8_t s = 0; s < NUM_SENSORS; s++)
-		  {     			  
-			  message.whiskers[sensorNum].pos = robominer_msgs::msg::WhiskerPosInGrid();
-			  message.whiskers[sensorNum].pos.row_num = m;
-			  message.whiskers[sensorNum].pos.col_num = s;
-			  if(m % 2 != 0)
-			  {
-				  message.whiskers[sensorNum].pos.offset_y = -0.5; // offset of sensor row in y direction
-			  }
-			  else
-			  {
-				  message.whiskers[sensorNum].pos.offset_y = 0;
-			  }	
-			  message.whiskers[sensorNum].x = data[m][s][0];	
-			  message.whiskers[sensorNum].y = data[m][s][1];
-			  message.whiskers[sensorNum].z = data[m][s][2];	  			  
-			  sensorNum++;
-		  }		  		  
-	  }      
+          for(uint8_t s = 0; s < NUM_SENSORS; s++)
+          {                   
+              message.whiskers[sensorNum].pos = robominer_msgs::msg::WhiskerPosInGrid();
+              message.whiskers[sensorNum].pos.row_num = m;
+              message.whiskers[sensorNum].pos.col_num = s;
+              if(m % 2 != 0)
+              {
+                  message.whiskers[sensorNum].pos.offset_y = -0.5; // offset of sensor row in y direction
+              }
+              else
+              {
+                  message.whiskers[sensorNum].pos.offset_y = 0;
+              } 
+              message.whiskers[sensorNum].x = data[m][s][0];    
+              message.whiskers[sensorNum].y = data[m][s][1];
+              message.whiskers[sensorNum].z = data[m][s][2];                  
+              sensorNum++;
+          }               
+      }      
       publisher_->publish(message);      
       
       // Print readings to console
       if(consolePrint)
       {
-	    printOut();		
-	  }
+        printOut();     
+      }
     }
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<robominer_msgs::msg::WhiskerArray>::SharedPtr publisher_;
     size_t count_;
-			
+            
 };
+
+
+
+
 
 
 
@@ -229,8 +232,8 @@ int main(int argc, char **argv)
  */
 void setup()
 {
-  debug(">>>> RESET\n");	  
-	
+  debug(">>>> RESET\n");      
+    
   debug(">>>> Wire.begin()\n");
   Wire.begin((uint8_t)I2C_BUS_ID);
   
@@ -244,22 +247,22 @@ void setup()
   }
 
   //muxDisableAll();
-		
+        
   for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
   {
-	debug(">>>> Initializing %d sensor(s) TLV493D\n",NUM_SENSORS);
+    debug(">>>> Initializing %d sensor(s) TLV493D\n",NUM_SENSORS);
     debug("     on MUX address 0x%02X\n",m);
-	muxDisablePrevious(m); 
+    muxDisablePrevious(m); 
 
-	for(uint8_t i=0; i<NUM_SENSORS; i++)
-	{
-	  tcaSelect(m,i);
-	  if(initSensor(m-MUX_STARTADDR,i) == BUS_ERROR)
-	  {
-		  RCLCPP_ERROR(rclcpp::get_logger("Sensor_MUX_main_ROS2"), "Sensor %d.%d not detected at default I2C address. Check the connection.\n",m-MUX_STARTADDR,i);
-	  }			
-	}
-  }	
+    for(uint8_t i=0; i<NUM_SENSORS; i++)
+    {
+      tcaSelect(m,i);
+      if(initSensor(m-MUX_STARTADDR,i) == BUS_ERROR)
+      {
+          debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m-MUX_STARTADDR,i);
+      }         
+    }
+  } 
   testAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
   init = false;
   debug(">>>> Setup ended. Waiting for some seconds...\n");
@@ -274,53 +277,53 @@ void setup()
  */
 void testAndReinitialize()
 {
-	for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
-	{
-		// Deselect all channels of the previous multiplexer    
-		muxDisablePrevious(m);
-		
-		for(uint8_t i=0; i<NUM_SENSORS; i++)
-		{ 
-		  // Switch to next multiplexed port  			  
-		  tcaSelect(m,i);   
-		  debug(">>>> Checking sensor %d.%d\n",m-MUX_STARTADDR,i);
-		  
-		  bool ok = false;	
-		  int attempts = 0;	  
-		  
-		  while(!ok && attempts < 10)
-		  {
-			  debug("     Attempt: %d/10\n",(attempts+1));
-			  int readNum = 0;
-			  while(readNum < 5)
-			  {
-				  debug("       Reading data (%d/5)\n",(readNum+1));
-				  readSensor(m-MUX_STARTADDR,i); 
-				  readNum++;	
-				  if(data[m-MUX_STARTADDR][i][0] != 0 || data[m-MUX_STARTADDR][i][1] != 0 || data[m-MUX_STARTADDR][i][2] != 0)
-				  {
-					  ok = true;
-					  break;
-				  }
-				  if(readNum == 5)
-				  {
-					debug("     Invalid data; reinitializing\n");
-					initSensor(m-MUX_STARTADDR,i);
-				  }		  
-			  }
-			  attempts++;
-		  }		
-		  if(!ok)
-		  {
-			  debug("     Failed to initialize this sensor.\n");
-		  }	 
-		  else
-		  {
-			  debug("     Sensor ok.\n");
-		  } 
-	  		    
-		}    
-	}
+    for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
+    {
+        // Deselect all channels of the previous multiplexer    
+        muxDisablePrevious(m);
+        
+        for(uint8_t i=0; i<NUM_SENSORS; i++)
+        { 
+          // Switch to next multiplexed port              
+          tcaSelect(m,i);   
+          debug(">>>> Checking sensor %d.%d\n",m-MUX_STARTADDR,i);
+          
+          bool ok = false;  
+          int attempts = 0;   
+          
+          while(!ok && attempts < 10)
+          {
+              debug("     Attempt: %d/10\n",(attempts+1));
+              int readNum = 0;
+              while(readNum < 5)
+              {
+                  debug("       Reading data (%d/5)\n",(readNum+1));
+                  readSensor(m-MUX_STARTADDR,i); 
+                  readNum++;    
+                  if(data[m-MUX_STARTADDR][i][0] != 0 || data[m-MUX_STARTADDR][i][1] != 0 || data[m-MUX_STARTADDR][i][2] != 0)
+                  {
+                      ok = true;
+                      break;
+                  }
+                  if(readNum == 5)
+                  {
+                    debug("     Invalid data; reinitializing\n");
+                    initSensor(m-MUX_STARTADDR,i);
+                  }       
+              }
+              attempts++;
+          }     
+          if(!ok)
+          {
+              debug("     Failed to initialize this sensor.\n");
+          }  
+          else
+          {
+              debug("     Sensor ok.\n");
+          } 
+                
+        }    
+    }
 }
 
 /**
@@ -333,7 +336,7 @@ void tcaSelect(uint8_t m, uint8_t i)
 {
   if(init == false && NUM_MUX == 1 && NUM_SENSORS == 1)
   {
-	  return;
+      return; // We have to do that definitely during init, otherwise only if there is more than one sensor on 
   }
   Wire.beginTransmission(m);
   Wire.write(1 << i);
@@ -402,12 +405,12 @@ bool initSensor(uint8_t m, uint8_t i)
   Tlv493dMagnetic3DSensor[m][i]->begin();
   if(fastMode)
   {
-	  ret = Tlv493dMagnetic3DSensor[m][i]->setAccessMode(Tlv493dMagnetic3DSensor[m][i]->FASTMODE);
-	  if(ret == BUS_ERROR)
-	  {
-		  debug(">>>> Bus error after access mode");
-		  return ret;
-	  }
+      ret = Tlv493dMagnetic3DSensor[m][i]->setAccessMode(Tlv493dMagnetic3DSensor[m][i]->FASTMODE);
+      if(ret == BUS_ERROR)
+      {
+          debug(">>>> Bus error after access mode");
+          return ret;
+      }
   }
   Tlv493dMagnetic3DSensor[m][i]->disableTemp();  
   return ret;
@@ -484,23 +487,23 @@ void printOut()
   }
   else if (mf == Compressed)
   {    
-	for(uint8_t m=0;m<NUM_MUX;m++)
-	{
+    for(uint8_t m=0;m<NUM_MUX;m++)
+    {
       for(uint8_t i=0;i<NUM_SENSORS;i++)
       {
-		uint8_t numValues = 3;
-		if(t == Spherical && !sendPolarRadius)
-		{
-		  numValues = 2;
-		}
-		for(int j=0;j<numValues;j++)
-		{
-		  encode(data[m][i][j]);
-		  writeTx(encodeResult[0]);
-		  writeTx(encodeResult[1]);
-		}		
-	  }          
-	} 
+        uint8_t numValues = 3;
+        if(t == Spherical && !sendPolarRadius)
+        {
+          numValues = 2;
+        }
+        for(int j=0;j<numValues;j++)
+        {
+          encode(data[m][i][j]);
+          writeTx(encodeResult[0]);
+          writeTx(encodeResult[1]);
+        }       
+      }          
+    } 
     writeTx(endSignature[0]);
     writeTx(endSignature[1]);  
     
