@@ -108,13 +108,14 @@ private:
     void timer_callback()
     {     
       // Calculate actual publishing frequency
+#ifdef DEBUG
       volatile unsigned long now = std::chrono::duration_cast< std::chrono::milliseconds >(
         std::chrono::system_clock::now().time_since_epoch()
         ).count();
       loopFreq = 1000.0 / float(now - lastLoop);
-      lastLoop = now;
-      
+      lastLoop = now;      
       debug("\nPublishing @ %.2f Hz ", loopFreq);
+#endif
       
       // Acquire data from sensors
       
