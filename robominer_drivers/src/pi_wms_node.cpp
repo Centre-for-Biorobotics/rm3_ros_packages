@@ -16,16 +16,23 @@ using std::string;
 PiWMSNode::PiWMSNode() 
 : Node("pi_wms_publisher")
 {
-    pi_wms_publisher_ = this->create_publisher<std_msgs::msg::String>("pi_wms_raw", 10);
+    pi_wms_publisher_ = this->create_publisher<std_msgs::msg::String>("pi_wms_string", 10);
 
     // use std::bind to pass the publisher (this) as one of the arguments to the callback
     // pub_timer_ = this->create_wall_timer(100ms, std::bind(&PiWMSNode::pub_callback, this));
 
     read_timer = this->create_wall_timer(100ms, std::bind(&PiWMSNode::read_sample, this));
 
-    wms_port = scan_ports();
+    wms_port = scan_ports();                        // scan ports to find where the WMS is connected
 
-    PiWMSNode::init_serial(wms_port); // setup and connect to serial port
+    if (wms_port.compare("nan") != 0)               // if the port is not 'nan' then try connecting
+    {
+        PiWMSNode::init_serial(wms_port);           // setup and connect to serial port
+    }
+    else
+    {
+        throw std::runtime_error("WMS port not found!");
+    }
 }
 
 
@@ -33,6 +40,8 @@ PiWMSNode::PiWMSNode()
 
 std::string PiWMSNode::scan_ports()
 {
+    std::string port_;
+
     vector<serial::PortInfo> devices_found = serial::list_ports();
 
     vector<serial::PortInfo>::iterator iter = devices_found.begin();
@@ -42,25 +51,22 @@ std::string PiWMSNode::scan_ports()
         serial::PortInfo device = *iter++;
 
         // find pi-wms device and get port
-        std::string device_ = device.description.c_str();
-        std::size_t device_found = device_.find("Prolific");        // find unique device description
+        std::string device_ = device.hardware_id.c_str();
+        std::size_t device_found = device_.find("067b:2303");        // find unique device hardware ID
 
         // printf( "(port: %s, device description: %s, device hardware_id: %s)\n", device.port.c_str(), device.description.c_str(), device.hardware_id.c_str() );
 
         if(device_found!=std::string::npos )
         {
-            printf("pi-wms port: %s\n", device.port.c_str());
-
-            std::string port_ = device.port.c_str();
-
-            return port_;
+            port_ = device.port.c_str();
+            RCLCPP_INFO(this->get_logger(), "pi-wms_port: %s\n", port_.c_str());
         }
-        // else
-        // {
-        //     printf("port not found");
-        // }
+        else
+        {
+            port_ = "nan";
+        }
     }
-    return "nan";
+    return port_;
 }
 
 void PiWMSNode::init_serial(std::string port_)
