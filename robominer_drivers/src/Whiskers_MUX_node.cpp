@@ -44,10 +44,8 @@
  * (see gitHub: kilian2323/3dMagSensorsVisual).
  */
  
-#include <chrono>
-#include <memory>
 
-#include "rclcpp/rclcpp.hpp"
+
 #include "robominer_msgs/msg/whisker_pos_in_grid.hpp"
 #include "robominer_msgs/msg/whisker.hpp"
 #include "robominer_msgs/msg/whisker_array.hpp"
@@ -62,17 +60,6 @@
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
-
-const bool fastMode = true;            // [true] if false, the sensor readings come more slowly, but might be more accurate
-const bool consolePrint = true;        // [false] if true, sensor data will be printed to the local console
-
-const unsigned char endSignature[2] = {'\r','\n'};     // for Compressed message format: end of message  
-const bool sendPolarRadius = false;    // [false] if true, the polar radius will be sent as the third value in Spherical mode using Compressed message format,
-                                       //         otherwise it will be omitted (only two values will be sent)
-const int multiplier = 100;            // [100] used for Compressed message format. Higher value: better accuracy, but lower range of values to capture
-
-const Type t = Cartesian;              // [Cartesian] type of representation of sensor data: Cartesian or Spherical
-const MessageFormat mf = PlainText;    // [PlainText] format for serial messages: PlainText or Compressed
 
 //////////// End of user-defined constants /////////////
 
@@ -194,38 +181,7 @@ private:
 };
 
 
-class SensorGrid
-{
 
-
-    class Multiplexer
-    {
-        uint8_t address;
-        
-        void disable()
-        {
-            
-        }
-        void selectChannel(uint8_t ch)
-        {
-            
-        }
-    };
-    
-    class HallSensor
-    {
-        
-    };
-    
-    HallSensor sensors[NUM_MUX][NUM_SENSORS];
-    Multiplexer multiplexers[NUM_MUX];
-    void setup()
-    {
-        
-    }
-    
-
-};
 
 
 
