@@ -35,8 +35,7 @@ class TwoWire
 		uint8_t bufSize = 0;
 		char txBuffer[BUFFER_LENGTH]; // TX buffer
 		int txBufIndex = 0;
-		int txBufSize = 0;
-		
+		int txBufSize = 0;		
 		char busName[NAME_LENGTH];
 };
 extern TwoWire Wire; // declares the variable Wire as an object of class TwoWire

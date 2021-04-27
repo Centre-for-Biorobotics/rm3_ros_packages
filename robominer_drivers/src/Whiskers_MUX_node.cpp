@@ -16,529 +16,596 @@
 // Kilian Ochs, CfB Tallinn, 2021-04-16
 
 /**
- * Kilian Ochs, 16.04.2021
- * Center for Biorobotics, TALTECH, Tallinn
+ * Kilian Ochs, 27.04.2021
+ * Centre for Biorobotics, TALTECH, Tallinn
  * Robominers experimental setup
  * 
  * This sketch is used to interface magnetic Hall sensors of type TLV493D
- * using several multiplexers of type TCA9548A. It publishes messages of type "WhiskerArray"
- * in the ROS2 environment.
+ * using several multiplexers of type TCA9548A. It publishes messages of
+ * type "WhiskerArray" in the ROS2 environment.
  * 
- * Note: The number of sensors per multiplexer ("NUM_SENSORS") must be the same for all multiplexers.
+ * Note: The number of sensors per multiplexer ("NUM_SENSORS") must be
+ * the same for all multiplexers.
  * 
- * Continuously reads the sensors one by one, then prints all sensor readings to Console in one burst.         
- * When reading the Console outputs during manual verification, the format mf = PlainText should be used.
+ * Continuously reads the sensors one by one, then prints all sensor
+ * readings to Console in one burst. When reading the Console outputs
+ * during manual verification, the format mf = PlainText should be used.
  *
- * The format mf = Compressed packs each sensor float value into a 16bit integer. The result is stored in
- * txString, which can be used for data acquisition purposes in the future (e.g., send to SimuLink via Serial).
+ * The format mf = Compressed packs each sensor float value into a 16bit
+ * integer. The result is stored in "txString", which can be used for data
+ * acquisition purposes in the future (e.g., send to SimuLink via Serial).
  * 
- * To run this code on Ubuntu instead of Olimex, uncomment "#define UBUNTU" in "./olimex/config.h".
- * To view debug messages,                       uncomment "#define DEBUG"  in "./olimex/config.h".
+ * To run this code on Ubuntu instead of Olimex, uncomment "#define UBUNTU"
+ * in "./olimex/config.h".
+ * To view debug messages, uncomment "#define DEBUG"  in "./olimex/config.h".
  * 
- * When running on an Ubuntu computer (Desktop/laptop), a USB-to-I2C adapter can be used. Please note the name
- * of the i2c bus using dmesg after plugging in the adapter. To define platform-specific bus IDs,
- * see "./olimex/config.h".
+ * When running on an Ubuntu computer (Desktop/laptop), a USB-to-I2C
+ * adapter can be used. Please note the name of the i2c bus using "dmesg"
+ * after plugging in the adapter. To define platform-specific bus IDs,
+ * see "Whiskers_MUX_node.h".
  *  * 
  * To be compiled for a Linux-based system.
  * This is a ported version of the library originally made for the Adafruit Feather M0
  * (see gitHub: kilian2323/3dMagSensorsVisual).
+ *
+ * Note: Define all constants in Whiskers_MUX_node.h.
  */
- 
 
 
-#include "robominer_msgs/msg/whisker_pos_in_grid.hpp"
-#include "robominer_msgs/msg/whisker.hpp"
-#include "robominer_msgs/msg/whisker_array.hpp"
+
 
 #include "Whiskers_MUX_node.h"
 
 
-//////////// Start of user-defined constants /////////////
-
-#define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive
-#define NUM_MUX 4             // Number of multiplexers
-#define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
-#define MAXBUF 1000           // Maximum char length of an output message
-#define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
-
-//////////// End of user-defined constants /////////////
+SensorGrid grid;  // constructs SensorGrid with default parameters
+   
 
 
 
 
+/*******************************
+ * 
+ * MAIN METHOD
+ * 
+ *******************************/
 
-Tlv493d *Tlv493dMagnetic3DSensor[NUM_MUX][NUM_SENSORS]; // 2D array of pointers to Tlv493d Object
-unsigned char * txString = new unsigned char[MAXBUF];
-uint16_t txIndex = 0;
-unsigned char encodeResult[2];
-float data[NUM_MUX][NUM_SENSORS][3];
-bool init = true;
-volatile unsigned long lastLoop = 0;
-float loopFreq = 0.0;
-
-
-using namespace std::chrono_literals;
-
-class WhiskersPublisher : public rclcpp::Node
-{
-public:
-    WhiskersPublisher() 
-    : Node("whiskers_publisher"), count_(0)
-    {
-      publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
-      timer_ = this->create_wall_timer(
-                PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this)
-      );
-    }
-    
-private:  
-    void timer_callback()
-    {     
-      // Calculate actual publishing frequency
-#ifdef DEBUG
-      volatile unsigned long now = std::chrono::duration_cast< std::chrono::milliseconds >(
-        std::chrono::system_clock::now().time_since_epoch()
-        ).count();
-      loopFreq = 1000.0 / float(now - lastLoop);
-      lastLoop = now;      
-      debug("\nPublishing @ %.2f Hz ", loopFreq);
-#endif
-      
-      // Acquire data from sensors
-      
-      for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
-      {
-        // Deselect all channels of the previous multiplexer    
-        muxDisablePrevious(m);
-
-        for(uint8_t i=0; i<NUM_SENSORS; i++)
-        { 
-          // Switch to next multiplexed port              
-          tcaSelect(m,i);                 
-
-          // Read sensor with selected type of representation
-          readSensor(m-MUX_STARTADDR,i);          
-        }    
-      }
-      
-      // Assemble and publish message to ROS
-      
-      auto message = robominer_msgs::msg::WhiskerArray();
-      
-      message.header.stamp = this->now();
-      message.num_mux = NUM_MUX;
-      message.num_sensors = NUM_SENSORS;
-      
-      if(t == Spherical)
-      {
-          message.representation = "Spherical";
-      }
-      else // Cartesian
-      {
-          message.representation = "Cartesian";
-      }
-          
-      for(uint8_t sNum = 0; sNum < NUM_MUX*NUM_SENSORS; sNum++)
-      {
-          message.whiskers.push_back(robominer_msgs::msg::Whisker());
-      }
-      
-      //message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
-      int sensorNum = 0;
-      for(uint8_t m=0; m < NUM_MUX; m++)
-      {
-          for(uint8_t s = 0; s < NUM_SENSORS; s++)
-          {                   
-              message.whiskers[sensorNum].pos = robominer_msgs::msg::WhiskerPosInGrid();
-              message.whiskers[sensorNum].pos.row_num = m;
-              message.whiskers[sensorNum].pos.col_num = s;
-              if(m % 2 != 0)
-              {
-                  message.whiskers[sensorNum].pos.offset_y = -0.5; // offset of sensor row in y direction
-              }
-              else
-              {
-                  message.whiskers[sensorNum].pos.offset_y = 0;
-              } 
-              message.whiskers[sensorNum].x = data[m][s][0];    
-              message.whiskers[sensorNum].y = data[m][s][1];
-              message.whiskers[sensorNum].z = data[m][s][2];                  
-              sensorNum++;
-          }               
-      }      
-      publisher_->publish(message);      
-      
-      // Print readings to console
-      if(consolePrint)
-      {
-        printOut();     
-      }
-    }
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<robominer_msgs::msg::WhiskerArray>::SharedPtr publisher_;
-    size_t count_;
-            
-};
-
-
-
-
-
-
+ 
+ 
+ 
+ 
+ 
+ 
 
 using namespace std;
 
 /**
  * Executable entry point.
  * 
- * @return Error code (TODO: currently not implemented)
+ * @return Error code [TODO: currently not implemented]
  */
 int main(int argc, char **argv)
 {    
-  // ROS SETUP 
-  rclcpp::init(argc, argv);  
-  
-  // SENSORS AND MUX SETUP 
-  setup(); 
-  
-  // MAIN LOOP 
-  rclcpp::spin(std::make_shared<WhiskersPublisher>());
-  
-  // ON EXIT
-  rclcpp::shutdown();  
-  Wire.end();
-  debug("\n>>>> Good-bye!\n\n");
-  return 0;     
+    // Grid construction
+    //SensorGrid grid = SensorGrid(Cartesian, PlainText, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
+    
+    // SENSORS AND MUX SETUP 
+    grid.setup(); 
+    
+    // ROS SETUP 
+    rclcpp::init(argc, argv);      
+    //WhiskersPublisher pub = WhiskersPublisher();               
+
+    // MAIN LOOP 
+    rclcpp::spin(std::make_shared<WhiskersPublisher>());
+
+    // ON EXIT
+    rclcpp::shutdown();  
+    Wire.end();
+    debug("\n>>>> Good-bye!\n\n");
+    
+    return 0;     
 }
 
+   
+
+   
+   
+
+/*******************************
+ * 
+ * ROS-SPECIFIC FUNCTIONALITY
+ * 
+ *******************************/
+
+ 
+ 
+ 
+ 
+ 
+using namespace std::chrono_literals;
+
+/**
+ * ROS node class constructor.
+ */
+WhiskersPublisher::WhiskersPublisher() : rclcpp::Node("whiskers_publisher")
+{
+    publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
+    timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));
+    //grid = _grid;
+    lastLoop = 0;
+}
+
+/**
+ * Callback function for the timer interrupt in ROS. Publishes at defined intervals (PUBLISH_INTERVAL).
+ */
+void WhiskersPublisher::timer_callback(void)
+{
+    // Calculate actual publishing frequency
+#ifdef DEBUG
+    volatile unsigned long now = millis();
+    loopFreq = 1000.0 / float(now - lastLoop);
+    lastLoop = now;      
+    debug("\nPublishing @ %.2f Hz\n", loopFreq);
+#endif
+      
+    // Acquire data from sensors
+
+    for(uint8_t m=0; m<NUM_MUX; m++)
+    {
+        // Deselect all channels of the previous multiplexer    
+        ::grid.muxDisablePrevious(m);
+
+        for(uint8_t i=0; i<NUM_SENSORS; i++)
+        { 
+            // Switch to next multiplexed port   
+            ::grid.multiplexers[m].selectChannel(i);
+            // Read sensor with selected type of representation
+            ::grid.sensors[m][i].read();          
+        }    
+    }
+      
+    // Assemble and publish message to ROS
+
+    auto message = robominer_msgs::msg::WhiskerArray();
+
+    message.header.stamp = this->now();
+    message.num_mux = NUM_MUX;
+    message.num_sensors = NUM_SENSORS;
+
+    if(::grid.r == Spherical)
+    {
+        message.representation = "Spherical";
+    }
+    else // Cartesian
+    {
+        message.representation = "Cartesian";
+    }
+      
+    for(uint8_t sNum = 0; sNum < NUM_MUX*NUM_SENSORS; sNum++)
+    {
+        message.whiskers.push_back(robominer_msgs::msg::Whisker());
+    }
+
+    //message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
+    int sensorNum = 0;
+    for(uint8_t m=0; m < NUM_MUX; m++)
+    {
+        for(uint8_t s = 0; s < NUM_SENSORS; s++)
+        {                   
+            message.whiskers[sensorNum].pos = robominer_msgs::msg::WhiskerPosInGrid();
+            message.whiskers[sensorNum].pos.row_num = m;
+            message.whiskers[sensorNum].pos.col_num = s;
+            if(m % 2 != 0)
+            {
+              message.whiskers[sensorNum].pos.offset_y = -0.5; // offset of sensor row in y direction
+            }
+            else
+            {
+              message.whiskers[sensorNum].pos.offset_y = 0;
+            } 
+            message.whiskers[sensorNum].x = ::grid.sensors[m][s].data[0];    
+            message.whiskers[sensorNum].y = ::grid.sensors[m][s].data[1];  
+            message.whiskers[sensorNum].z = ::grid.sensors[m][s].data[2];                    
+            sensorNum++;
+        }               
+    }      
+    publisher_->publish(message);      
+      
+      // Print readings to console
+#ifdef CONSOLE_PRINT
+    ::grid.printReadingsToConsole();     
+#endif
+}
+
+
+
+
+
+
+
+
+/*******************************
+ * 
+ * HARDWARE-SPECIFIC FUNCTIONALITY
+ * 
+ *******************************/
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+using namespace std;
+
+
+/**
+ * SensorGrid class constructor.
+ * 
+ * @param _r The tzpe of representation of sensor data (Cartesian or Spherical).
+ * @param _f The type of message representation for sending data out to
+ *           non-ROS interfaces such as Serial (PlainText or Compressed).
+ *           [TODO: Serial not yet implemented.]
+ * @param _fastMode [optional; default: true] If true, the sensors are being
+ *                  read in a higher frequency than when set to false.
+ * @param _sendPolarRadius [optional; default: true] If true, the sensor data 
+ *                         printed when using Compressed message format
+ *                         and Spherical representation will include the third
+ *                         value as polar radius, otherwise not (only two values
+ *                         will be printed).
+ */
+SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode, bool _sendPolarRadius)
+{
+    init = true;    
+    r = _r;
+    f = _f;
+    sendPolarRadius = _sendPolarRadius;
+    fastMode = _fastMode;
+    txString = new unsigned char[MAXBUF];
+    txIndex = 0; 
+}
 
 /**
  * Opens the I2C bus, constructs and initializes the sensors.
  */
-void setup()
+void SensorGrid::setup(void)
 {
-  debug(">>>> RESET\n");      
+    debug(">>>> RESET\n");      
     
-  debug(">>>> Wire.begin()\n");
-  Wire.begin((uint8_t)I2C_BUS_ID);
-  
-  debug(">>>> Constructing objects of TLV493D\n");
-  for(uint8_t m=0; m<NUM_MUX; m++)
-  { 
-    for(uint8_t i=0; i<NUM_SENSORS; i++)
-    {
-      Tlv493dMagnetic3DSensor[m][i] = new Tlv493d();
+    endSignature[0] = '\r';
+    endSignature[1] = '\n';
+    
+    debug(">>>> Wire.begin()\n");
+    Wire.begin((uint8_t)I2C_BUS_ID);
+    
+    debug(">>>> Constructing multiplexers, initializing sensors TLV493D\n");
+    for(uint8_t m=0; m<NUM_MUX; m++)
+    { 
+        multiplexers.push_back(Multiplexer(MUX_STARTADDR+m));
     }
-  }
-
-  //muxDisableAll();
-        
-  for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
-  {
-    debug(">>>> Initializing %d sensor(s) TLV493D\n",NUM_SENSORS);
-    debug("     on MUX address 0x%02X\n",m);
-    muxDisablePrevious(m); 
-
-    for(uint8_t i=0; i<NUM_SENSORS; i++)
+    for(uint8_t m=0; m<NUM_MUX; m++)
     {
-      tcaSelect(m,i);
-      if(initSensor(m-MUX_STARTADDR,i) == BUS_ERROR)
-      {
-          debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m-MUX_STARTADDR,i);
-      }         
-    }
-  } 
-  testAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
-  init = false;
-  debug(">>>> Setup ended. Waiting for some seconds...\n");
+        muxDisablePrevious(m);
+        for(uint8_t i=0; i<NUM_SENSORS; i++)
+        {
+            multiplexers[m].selectChannel(i,true);
+            if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
+            {
+                debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
+            }
+        }
+    }        
+    
+    hallTestAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
+    
+    
 #ifdef DEBUG
-  delay(5000);
+    debug(">>>> Setup ended. Waiting for some seconds...\n");
+    delay(5000);
 #endif
 }
 
 /**
- * After sensor initialization, the sensors are polled several times to see if initialization was successful.
- * In case of failure, a sensor will be reinitialized.
+ * After sensor initialization, the sensors are polled several times to
+ * see if initialization was successful.
+ * In case of failure, a sensor will be reinitialized here.
  */
-void testAndReinitialize()
+void SensorGrid::hallTestAndReinitialize(void)
 {
-    for(uint8_t m=MUX_STARTADDR; m<MUX_STARTADDR+NUM_MUX; m++)
+    for(uint8_t m=0; m<NUM_MUX; m++)
     {
         // Deselect all channels of the previous multiplexer    
         muxDisablePrevious(m);
         
         for(uint8_t i=0; i<NUM_SENSORS; i++)
         { 
-          // Switch to next multiplexed port              
-          tcaSelect(m,i);   
-          debug(">>>> Checking sensor %d.%d\n",m-MUX_STARTADDR,i);
-          
-          bool ok = false;  
-          int attempts = 0;   
-          
-          while(!ok && attempts < 10)
-          {
-              debug("     Attempt: %d/10\n",(attempts+1));
-              int readNum = 0;
-              while(readNum < 5)
-              {
-                  debug("       Reading data (%d/5)\n",(readNum+1));
-                  readSensor(m-MUX_STARTADDR,i); 
-                  readNum++;    
-                  if(data[m-MUX_STARTADDR][i][0] != 0 || data[m-MUX_STARTADDR][i][1] != 0 || data[m-MUX_STARTADDR][i][2] != 0)
-                  {
-                      ok = true;
-                      break;
-                  }
-                  if(readNum == 5)
-                  {
-                    debug("     Invalid data; reinitializing\n");
-                    initSensor(m-MUX_STARTADDR,i);
-                  }       
-              }
-              attempts++;
-          }     
-          if(!ok)
-          {
-              debug("     Failed to initialize this sensor.\n");
-          }  
-          else
-          {
-              debug("     Sensor ok.\n");
-          } 
-                
+            // Switch to next multiplexed port              
+            multiplexers[m].selectChannel(i,true); 
+
+            debug(">>>> Checking sensor %d.%d\n",m,i);
+
+            bool ok = false;  
+            int attempts = 0;   
+
+            while(!ok && attempts < 10)
+            {
+                debug("     Attempt: %d/10\n",(attempts+1));
+                int readNum = 0;
+                while(readNum < 5)
+                {
+                    debug("       Reading data (%d/5)\n",(readNum+1));
+                    sensors[m][i].read(r); 
+                    readNum++;    
+                    if(sensors[m][i].data[0] != 0 || sensors[m][i].data[1] != 0 || sensors[m][i].data[2] != 0)
+                    {
+                        ok = true;
+                        break;
+                    }
+                    if(readNum == 5)
+                    {
+                        debug("     Invalid data; reinitializing\n");
+                        if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
+                        {
+                            debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
+                        }
+                    }       
+                }
+                attempts++;
+            }     
+            if(!ok)
+            {
+                debug("     Failed to initialize sensor %d.%d.\n",m,i);
+            }  
+            else
+            {
+                debug("     Sensor ok.\n");
+            } 
         }    
     }
-}
-
-/**
- * Selects a channel on a multiplexer.
- * 
- * @params m The selected multiplexer address
- * @params i The selected channel of the multiplexer (1...8)
- */
-void tcaSelect(uint8_t m, uint8_t i) 
-{
-  if(init == false && NUM_MUX == 1 && NUM_SENSORS == 1)
-  {
-      return; // We have to do that definitely during init, otherwise only if there is more than one sensor on 
-  }
-  Wire.beginTransmission(m);
-  Wire.write(1 << i);
-  Wire.endTransmission();  
-}
-
-/**
- * Disables all 8 multiplexers starting from address MUX_STARTADDR.
- */
-void muxDisableAll()
-{
-  for(int m=MUX_STARTADDR; m<MUX_STARTADDR+8; m++)
-  {
-    tcaDisable(m);
-  }
+    init = false;
 }
 
 /**
  * Disables the multiplexer in sequence before the currently selected.
- * If the first multiplexer is selected, it disables the last one.
- * Disabling is done by deselecting all channels.
+ * If the first multiplexer is selected, it disables the last one defined.
+ * (Disabling is done by deselecting all channels of the multiplexer.)
  * 
- * @params m The address of the currently selected multiplexer
+ * @param muxNum The index number of the currently selected multiplexer
  */
-void muxDisablePrevious(uint8_t m)
+void SensorGrid::muxDisablePrevious(uint8_t muxNum)
 {
-  if(NUM_MUX == 1)
-  {
-    return;
-  }
-  uint8_t muxToDisable;
-  if(m == MUX_STARTADDR)
-  {
-    muxToDisable = MUX_STARTADDR + NUM_MUX - 1;
-  }
-  else
-  {
-    muxToDisable = m - 1;
-  }
-  tcaDisable(muxToDisable);
-}
-
-/**
- * Disables the multiplexer at the specific address.
- * 
- * @params addr The address of the multiplexer to disable
- */
-void tcaDisable(uint8_t addr)
-{
-  Wire.beginTransmission(addr);
-  Wire.write(0);
-  Wire.endTransmission();
-  //delay(5); 
-}
-
-/**
- * Initializes a sensor of type Tlv493dMagnetic3DSensor which is connected to one channel of a multiplexer TCA9548a.
- * 
- * @params m The number of the multiplexer to which the sensor is attached (0...NUM_MUX-1)
- * @params i The number of the multiplexer's channel on which the sensor is attached (0...NUM_SENSORS-1)
- * @return Error flag: true in case of success, otherwise (in case of bus error) false.
- */
-bool initSensor(uint8_t m, uint8_t i)
-{
-  bool ret = false;
-  Tlv493dMagnetic3DSensor[m][i]->begin();
-  if(fastMode)
-  {
-      ret = Tlv493dMagnetic3DSensor[m][i]->setAccessMode(Tlv493dMagnetic3DSensor[m][i]->FASTMODE);
-      if(ret == BUS_ERROR)
-      {
-          debug(">>>> Bus error after access mode");
-          return ret;
-      }
-  }
-  Tlv493dMagnetic3DSensor[m][i]->disableTemp();  
-  return ret;
-}
-
-/**
- * Polls a sensor of type Tlv493dMagnetic3DSensor which is connected to one channel of a multiplexer TCA9548a.
- * The returned results from each sensor are stored in the global 3D array "data[][][]".
- * The returned values may represent the magnet's position in Cartesian coordinates or in Polar coordinates,
- * depending on the value of global constant "t".
- * 
- * @params m The number of the multiplexer to which the sensor is attached (0...NUM_MUX-1)
- * @params i The number of the multiplexer's channel on which the sensor is attached (0...NUM_SENSORS-1)
- */
-void readSensor(uint8_t m, uint8_t i)
-{
-  int dly = Tlv493dMagnetic3DSensor[m][i]->getMeasurementDelay();
-  delay(dly);
-  Tlv493d_Error_t err = Tlv493dMagnetic3DSensor[m][i]->updateData();
-  if(err != TLV493D_NO_ERROR)
-  {
-    return;
-  }  
-
-  if(t == Spherical)
-  {      
-    data[m][i][0] = radToDeg(Tlv493dMagnetic3DSensor[m][i]->getAzimuth());                       // angle in xy plane relative to x axis
-    data[m][i][1] = radToDeg(Tlv493dMagnetic3DSensor[m][i]->getPolar());                         // inclination angle relative to x axis
-    data[m][i][2] = Tlv493dMagnetic3DSensor[m][i]->getAmount();                                  // distance between magnet and sensor
-  }
-  else if(t == Cartesian)
-  {
-    data[m][i][0] = Tlv493dMagnetic3DSensor[m][i]->getX();
-    data[m][i][1] = Tlv493dMagnetic3DSensor[m][i]->getY();
-    data[m][i][2] = Tlv493dMagnetic3DSensor[m][i]->getZ();       
-  }   
-  
-  // results are according to sensor reference frame if the third value is non-negative (not tested for Spherical)
-  if(data[m][i][2] < 0) { 
-    data[m][i][2] *= -1;
-    data[m][i][1] *= -1;
-    data[m][i][0] *= -1;
-  }   
-}
-
-/**
- * Prints the sensor values currently stored in the global 3D array "data[][][]" to console.
- * The type of console output (plain text or compressed) depends on the value of the global constant "mf".
- */
-void printOut()
-{
-  if(mf == PlainText)
-  {    
-    for(uint8_t m=0;m<NUM_MUX;m++)
-    {  
-      printf("{");
-      for(uint8_t i=0;i<NUM_SENSORS;i++)
-      {
-        printf("[");
-        for(uint8_t j=0;j<3;j++)
-        {
-          printf("%.2f",data[m][i][j]);
-          if(j < 2)
-          {
-            printf(";");    
-          }
-        }    
-        printf("]");
-      }
-      printf("}");
-    }
-    printf("\n");
-     
-  }
-  else if (mf == Compressed)
-  {    
-    for(uint8_t m=0;m<NUM_MUX;m++)
+    if(muxNum > 0)
     {
-      for(uint8_t i=0;i<NUM_SENSORS;i++)
-      {
-        uint8_t numValues = 3;
-        if(t == Spherical && !sendPolarRadius)
-        {
-          numValues = 2;
-        }
-        for(int j=0;j<numValues;j++)
-        {
-          encode(data[m][i][j]);
-          writeTx(encodeResult[0]);
-          writeTx(encodeResult[1]);
-        }       
-      }          
-    } 
-    writeTx(endSignature[0]);
-    writeTx(endSignature[1]);  
-    
-    print(txString,txIndex);  // Instead of printing txString to console, it can be used in some other way (e.g., sent via Serial interface)
-    txIndex = 0;
-  }
-}
-
-
-
-
-
-/**
- * Encodes a float into a 16-bit representation as Little Endian.
- * The result is stored in the global array "encodeResult[]".
- * 
- * @params f The float to be encoded
- */
-void encode(float f)
-{  
-  int16_t s = f * multiplier;  // multiplying the float by 100, then dropping the last 16 bits
-  
-  encodeResult[1] = s >> 8;
-  encodeResult[0] = s & 0x00ff;     
+        multiplexers[muxNum-1].disable();
+    }
+    else
+    {
+        multiplexers[NUM_MUX-1].disable();
+    }    
 }
 
 /**
- * Converts a value in radians to degrees.
- * 
- * @params rad The value to be converted
- * @return The converted value
+ * Disables each multiplexer starting from the first one up to the number specified.
+ * @param totalNum [optional; default: NUM_MUX] The number of multiplexers to disable.
  */
-float radToDeg(float rad)
+void SensorGrid::muxDisableAll(uint8_t totalNum)
 {
-  return rad * 180.0 / PI;
+    for(int m=0; m<totalNum; m++)
+    {
+        multiplexers[m].disable();
+    }
 }
 
 /**
- * Concatenates characters into the global string txIndex.
- * This is used to assemble the string printed to console in case message format is Compressed. 
+ * Prints the sensor values currently stored all the sensors' field member "data[]"
+ * to console. The type of console output (plain text or compressed) depends
+ * on the value of "f".
+ */
+void SensorGrid::printReadingsToConsole(void)
+{
+    if(f == PlainText)
+    {    
+        for(uint8_t m=0;m<NUM_MUX;m++)
+        {  
+            printf("{");
+            for(uint8_t i=0;i<NUM_SENSORS;i++)
+            {
+                printf("[");
+                for(uint8_t j=0;j<3;j++)
+                {
+                    printf("%.2f",sensors[m][i].data[j]);
+                    if(j < 2)
+                    {
+                        printf(";");    
+                    }
+                }    
+                printf("]");
+            }
+            printf("}");
+        }
+        printf("\n");
+    }
+    else if (f == Compressed)
+    {    
+        for(uint8_t m=0;m<NUM_MUX;m++)
+        {
+            for(uint8_t i=0;i<NUM_SENSORS;i++)
+            {
+                uint8_t numValues = 3;
+                if(r == Spherical && !sendPolarRadius)
+                {
+                    numValues = 2;
+                }
+                for(int j=0;j<numValues;j++)
+                {
+                    unsigned char * encoded = new unsigned char[2];
+                    sensors[m][i].encode(j, encoded);
+                    writeTx(encoded[0]);
+                    writeTx(encoded[1]);
+                }       
+            }          
+        } 
+        writeTx(endSignature[0]);
+        writeTx(endSignature[1]);  
+        print(txString,txIndex);  // TODO: Instead of printing txString to console, it can be used in some other way later (e.g., sent via Serial interface)
+        txIndex = 0;
+    }
+}
+
+/**
+ * Concatenates characters into the class-global string txIndex.
+ * This is used to assemble the string printed to console in case message
+ * format is Compressed. 
  * 
  * @params c The character to be concatenated
  */
-void writeTx(unsigned char c) 
+void SensorGrid::writeTx(unsigned char c) 
 {
   if(txIndex >= MAXBUF) { return; }
   txString[txIndex] = c;
   txIndex++;
 }
 
+/**
+ * SensorGrid::Multiplexer class constructor.
+ * 
+ * @param addr The multiplexer's I2C address.
+ */
+SensorGrid::Multiplexer::Multiplexer(uint8_t addr)
+{
+    address = addr;
+}
 
+/**
+ * Disables the multiplexer by writing 0 to its I2C address.
+ */
+void SensorGrid::Multiplexer::disable(void)
+{
+    Wire.beginTransmission(address);
+    Wire.write(0);
+    Wire.endTransmission();
+}
 
+/**
+ * Selects a channel on the multiplexer.
+ * 
+ * @param ch The selected channel of the multiplexer (0...7).
+ * qparam init [optional; default: false] If true, the channel selection will
+ *             definitely be performed, even if there is only one MUX and one sensor.
+ */
+void SensorGrid::Multiplexer::selectChannel(uint8_t ch, bool init)
+{
+    // We have to set a channel definitely during init,
+    // and otherwise in case there is more than one sensor
+    // or more than one multiplexer.
+    if(init == false && NUM_MUX == 1 && NUM_SENSORS == 1) 
+    {   
+        return; 
+    }
+    Wire.beginTransmission(address);
+    Wire.write(1 << ch);
+    Wire.endTransmission();  
+}
 
+/**
+ * Overridden default constructor for class SensorGrid::HallSensor.
+ */
+SensorGrid::HallSensor::HallSensor()
+{
+    for(int i=0; i<3; i++)
+    {
+        data[i] = 0.0;
+    }
+}
+
+/**
+ * Initializes the sensor of type Tlv493dMagnetic3DSensor.
+ * 
+ * @param fastMode If true, sets the access mode of the sensor to FASTMODE.
+ * @return Error flag: true in case of success, otherwise (in case of bus error) false.
+ */
+bool SensorGrid::HallSensor::initialize(bool fastMode)
+{
+    bool ret = false;
+    sensor.begin();
+    if(fastMode)
+    {
+        ret = sensor.setAccessMode(sensor.FASTMODE);
+        if(ret == BUS_ERROR)
+        {
+            debug(">>>> Bus error on access mode = FASTMODE");
+            return ret;
+        }
+    }
+    sensor.disableTemp();  
+    return ret;
+}
+
+/**
+ * Polls the sensor of type Tlv493dMagnetic3DSensor.
+ * The returned results from each sensor are stored in the array "data[]".
+ * The returned values may represent the magnet's position in Cartesian
+ * coordinates or in Polar coordinates, depending on the value of "r".
+ * 
+ * @param r [optional; default: Cartesian] The desired data representation
+ *          (Cartesian or Spherical).
+ */
+void SensorGrid::HallSensor::read(Representation r)
+{
+    int dly = sensor.getMeasurementDelay();
+    delay(dly);
+    Tlv493d_Error_t err = sensor.updateData();
+    if(err != TLV493D_NO_ERROR)
+    {
+        return;
+    }  
+
+    if(r == Spherical)
+    {      
+        data[0] = radToDeg(sensor.getAzimuth());                       // angle in xy plane relative to x axis
+        data[1] = radToDeg(sensor.getPolar());                         // inclination angle relative to x axis
+        data[2] = sensor.getAmount();                                  // distance between magnet and sensor
+    }
+    else if(r == Cartesian)
+    {
+        data[0] = sensor.getX();
+        data[1] = sensor.getY();
+        data[2] = sensor.getZ();       
+    }   
+
+    // results are according to sensor reference frame if the third value is non-negative (not tested for Spherical)
+    if(data[2] < 0)
+    { 
+        data[2] *= -1;
+        data[1] *= -1;
+        data[0] *= -1;
+    }   
+}
+
+/**
+ * Converts a value from radians to degrees.
+ * 
+ * @param rad The value in radians to be converted.
+ * @return The converted value in degrees.
+ */
+float SensorGrid::HallSensor::radToDeg(float rad)
+{
+  return rad * 180.0 / PI;
+}
+
+/**
+ * Encodes a float in data[] into a 16-bit representation
+ * as Little Endian.
+ * 
+ * @param index The index of the float in data[].
+ * @param result A pointer to two values of type unsigned char.
+ */
+void SensorGrid::HallSensor::encode(uint8_t index, unsigned char * result)
+{  
+    // multiplying the float by 100, then dropping the last 16 bits  
+    int16_t s = data[index] * ENCODE_MULTIPLIER;    
+    result[1] = s >> 8;
+    result[0] = s & 0x00ff;     
+}

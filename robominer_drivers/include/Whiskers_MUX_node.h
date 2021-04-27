@@ -1,7 +1,6 @@
 #ifndef WHISKERS_MUX_H
 #define WHISKERS_MUX_H
 
-#include "config.h"
 #include "Tlv493d.h"
 #include "RegMask.h"
 #include "BusInterface2.h"
@@ -10,7 +9,9 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 
-
+#include "robominer_msgs/msg/whisker_pos_in_grid.hpp"
+#include "robominer_msgs/msg/whisker.hpp"
+#include "robominer_msgs/msg/whisker_array.hpp"
 
 
 
@@ -23,18 +24,20 @@
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
-#define CONSOLE_PRINT 1       // If #define'd, sensor readings will be printed to the local console
+#define CONSOLE_PRINT         // If #define'd, sensor readings will be printed to the local console
+#define ENCODE_MULTIPLIER 100 // [100] Multiplier for floats when converting to 16-bit integers.
+                              // Higher value: more precision, smaller range of values.
 
 //////////// End of user-defined constants /////////////
 
 
 
 
-// Set buss address
+// Set I2C bus address
 #ifdef UBUNTU
-#define I2C_BUS_ID 8
+    #define I2C_BUS_ID 8
 #else
-#define I2C_BUS_ID 1
+    #define I2C_BUS_ID 1
 #endif    
 
 // Set debug() to printf()
@@ -65,7 +68,7 @@ class SensorGrid
 {
     public:      
 
-        SensorGrid(Representation _r, MessageFormat _f, bool _fastMode = true, bool _sendPolarRadius = true);
+        SensorGrid(Representation _r = Cartesian, MessageFormat _f = PlainText, bool _fastMode = true, bool _sendPolarRadius = true);
        
         class Multiplexer
         {
@@ -84,20 +87,23 @@ class SensorGrid
                 
                 Tlv493d sensor;
                 float data[3];
-                bool init;                
-                void read(Representation r);                
-                void encode(uint8_t index, unsigned char * result);     
-            private:
+                //bool init;    
+                bool initialize(bool fastMode);            
+                void read(Representation r = Cartesian);     
+                void encode(uint8_t index, unsigned char * result);    
+                             
+            private:                
                 float radToDeg(float rad);
         };
         
         HallSensor sensors[NUM_MUX][NUM_SENSORS];        // will call to (explicitly implemented) default constructor for all objects 
-        std::vector<Multiplexer> multiplexers (NUM_MUX); // this makes it easier to call to the non-default constructor which requires one argument when filling the vector array
+        std::vector<Multiplexer> multiplexers; // this makes it easier to call to the non-default constructor which requires one argument when filling the vector array
         unsigned char * txString;
         bool sendPolarRadius;
         bool fastMode;
         Representation r;
-        MessageFormat f;                 
+        MessageFormat f;      
+        unsigned char endSignature[2];           
         
         void setup(void);       
         
@@ -105,7 +111,7 @@ class SensorGrid
         
         void muxDisableAll(uint8_t totalNum = NUM_MUX);
 #ifdef CONSOLE_PRINT                
-        void printReadingsToConsole(void);
+        void printReadingsToConsole(void);        
 #endif    
 
     private:
@@ -113,7 +119,10 @@ class SensorGrid
         uint16_t txIndex;   
         bool init;        
         void hallTestAndReinitialize(void);  
+        void writeTx(unsigned char c);
 };
+
+extern SensorGrid grid; 
 
 using namespace std::chrono_literals;
 
@@ -121,8 +130,8 @@ class WhiskersPublisher : public rclcpp::Node
 {
     public:
         
-        WhiskersPublisher(SensorGrid _grid);
-        SensorGrid grid;
+        WhiskersPublisher();
+        //SensorGrid grid;
         
     private:
         
