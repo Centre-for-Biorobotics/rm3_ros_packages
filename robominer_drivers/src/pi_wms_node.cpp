@@ -9,6 +9,11 @@
 #include "pi_wms_node.hpp"
 
 #include "std_msgs/msg/string.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/quaternion.hpp"
+
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 using namespace std::chrono_literals;
 
@@ -20,6 +25,8 @@ PiWMSNode::PiWMSNode()
 : Node("pi_wms_publisher")
 {
     pi_wms_publisher_ = this->create_publisher<std_msgs::msg::String>("pi_wms_string", 10);
+
+    odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("pi_wms_odom", 10);
 
     // use std::bind to pass the publisher (this) as one of the arguments to the callback
     // pub_timer_ = this->create_wall_timer(100ms, std::bind(&PiWMSNode::pub_callback, this));
@@ -94,22 +101,19 @@ void PiWMSNode::init_serial(std::string port_)
 
 void PiWMSNode::read_sample()
 {
-    std::string data = imu_serial_.readline(100, "\n");
+    std::string data_string = imu_serial_.readline(100, "\n");
 
-    auto pi_wms_msg = std_msgs::msg::String();
-    pi_wms_msg.data = data;
+    parse_wms_message(data_string);      // parse line of data
 
-    parse_wms_message(data);      // parse line of data
-
-    pub_callback(pi_wms_msg); // publishes entire message as string
+    pub_callback(data_string); // publishes entire message as string
 }
 
-void PiWMSNode::pub_callback(std_msgs::msg::String pi_wms_string)
+void PiWMSNode::pub_callback(std::string data_string)
 {
+    auto pi_wms_msg = std_msgs::msg::String();
+    pi_wms_msg.data = data_string;
 
-    pi_wms_publisher_->publish(pi_wms_string);
-
-    // RCLCPP_INFO(this->get_logger(), "%s\n", data);
+    pi_wms_publisher_->publish(pi_wms_msg);
 }
 
 void PiWMSNode::parse_wms_message(std::string message_string)
@@ -162,10 +166,11 @@ void PiWMSNode::parse_wms_message(std::string message_string)
                     wms_checksum_ = substr; 
                     break;
             }
+            publish_odometry(x, y, heading);
 
             iter_++;
         }
-        RCLCPP_INFO(this->get_logger(), "x, y coord: %f, %f ", x, y);
+        // RCLCPP_INFO(this->get_logger(), "x, y coord: %f, %f ", x, y);
 
     }
     else
@@ -173,6 +178,33 @@ void PiWMSNode::parse_wms_message(std::string message_string)
         RCLCPP_INFO(this->get_logger(), "bad string \n");
     }
 }
+
+void PiWMSNode::publish_odometry(float x, float y, float heading, float speed)
+{
+    auto odom_msg = nav_msgs::msg::Odometry();
+
+    // convert euler to quaternion
+    tf2::Quaternion quat_tf;
+    quat_tf.setRPY(0.0, 0.0, heading);
+    // RCLCPP_INFO(this->get_logger(), quat_tf.);
+
+    geometry_msgs::msg::Quaternion quat_msg;
+    tf2::convert(quat_tf, quat_msg);
+    
+
+    odom_msg.header.stamp = this->now();
+    odom_msg.header.frame_id = "odom";
+    odom_msg.child_frame_id = "base_link"; // change these to whatever makes sense
+
+    odom_msg.pose.pose.position.x = x;
+    odom_msg.pose.pose.position.y = y;
+
+    odom_msg.pose.pose.orientation = quat_msg;
+
+    odom_publisher_->publish(odom_msg);
+
+}
+
 
 
 

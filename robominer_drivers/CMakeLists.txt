@@ -21,6 +21,8 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(robominer_msgs)
 find_package(serial REQUIRED)
@@ -44,7 +46,7 @@ ament_target_dependencies(tlv493d_tca9548a_whiskers rclcpp std_msgs robominer_ms
 
 # pi wms odometry sensor
 add_executable(pi_wms_interface src/pi_wms_node.cpp)
-ament_target_dependencies(pi_wms_interface rclcpp std_msgs serial)
+ament_target_dependencies(pi_wms_interface rclcpp std_msgs serial nav_msgs geometry_msgs)
 
 install(TARGETS
   bno080_imu
