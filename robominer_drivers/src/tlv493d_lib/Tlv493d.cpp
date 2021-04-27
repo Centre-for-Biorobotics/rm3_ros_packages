@@ -35,7 +35,7 @@
 #include "RegMask.h"
 #include "BusInterface2.h"
 #include <math.h>
-
+#include "Whiskers_MUX_node.h"
 
 Tlv493d::Tlv493d(void)
 {
@@ -64,7 +64,6 @@ void Tlv493d::begin(TwoWire &bus)
 
 void Tlv493d::begin(TwoWire &bus, Tlv493d_Address_t slaveAddress, bool reset)
 {	
-	//printf("  >> Tlv493d::begin(): Slave address: %d\n",slaveAddress);
 	initInterface(&mInterface, &bus, slaveAddress);
 	delay(TLV493D_STARTUPDELAY);
 
@@ -97,7 +96,6 @@ void Tlv493d::end(void)
 
 bool Tlv493d::setAccessMode(AccessMode_e mode)
 {
-	//printf("  >> Tlv493d::setAccessMode()\n");
 	bool ret = BUS_ERROR;
 	const tlv493d::AccessMode_t *modeConfig = &(tlv493d::accModes[mode]);
 	setRegBits(tlv493d::W_FAST, modeConfig->fast);
@@ -107,12 +105,12 @@ bool Tlv493d::setAccessMode(AccessMode_e mode)
 	ret = tlv493d::writeOut(&mInterface);
 	if ( ret != BUS_ERROR )
 	{
-		printf("  >> Tlv493d::setAccessMode(): OK\n");
+		debug("  >> Tlv493d::setAccessMode(): OK\n");
 		mMode = mode;
 	}
 	else
 	{
-		printf("  >> Tlv493d::setAccessMode(): Error\n");
+		debug("  >> Tlv493d::setAccessMode(): Error\n");
 	}
 	return ret;
 }
@@ -283,7 +281,6 @@ float Tlv493d::getPolar(void)
  */
 void Tlv493d::resetSensor(uint8_t adr)     // Recovery & Reset - this can be handled by any uC as it uses bitbanging
 {
-	//printf("  >> Tlv493d::resetSensor(): Setting to address %d\n",adr);
 	mInterface.bus->beginTransmission((uint8_t)0x00);
 
 	if (adr == TLV493D_ADDRESS1) {
@@ -299,7 +296,6 @@ void Tlv493d::resetSensor(uint8_t adr)     // Recovery & Reset - this can be han
 
 void Tlv493d::setRegBits(uint8_t regMaskIndex, uint8_t data)
 {
-	//printf("  >> Tlv493d::setRegBits()\n");
 	if(regMaskIndex < TLV493D_NUM_OF_REGMASKS)
 	{
 		tlv493d::setToRegs(&(tlv493d::regMasks[regMaskIndex]), mInterface.regWriteData, data);
@@ -308,21 +304,17 @@ void Tlv493d::setRegBits(uint8_t regMaskIndex, uint8_t data)
 
 uint8_t Tlv493d::getRegBits(uint8_t regMaskIndex)
 {
-	//printf("  >> Tlv493d::getRegBits()\n");
-	//printf("     regMaskIndex: %d\n",regMaskIndex);
 	if(regMaskIndex < TLV493D_NUM_OF_REGMASKS)
 	{
 		const tlv493d::RegMask_t *mask = &(tlv493d::regMasks[regMaskIndex]);
 		if(mask->rw == REGMASK_READ)
 		{
 			uint8_t got = tlv493d::getFromRegs(mask, mInterface.regReadData);
-			//printf("     REGMASK READ return value: %d\n",got);
 			return got;
 		}
 		else
 		{
 			uint8_t got = tlv493d::getFromRegs(mask, mInterface.regWriteData);
-			//printf("     REGMASK WRITE return value: %d\n",got);
 			return got;
 		}
 	}

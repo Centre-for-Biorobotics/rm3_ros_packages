@@ -58,16 +58,13 @@ void TwoWire::begin(char * _busName)
 	
 	if(strcmp(_busName,busName) == 0)
 	{
-		//debug("TwoWire::begin(): Bus %s is already open\n",busName);
 		return;
 	}
 	
 	file = open(_busName, O_RDWR);
-	//printf("TwoWire::begin(): Opening I2C bus %s...\n",_busName);
 	if (file < 0) {
 		/* ERROR HANDLING; you can check errno to see what went wrong */
 		debug("TwoWire::begin(): Error opening I2C bus %s.\n",_busName);
-		//exit(1);
 	}	
 	snprintf(busName, 19, "%s", _busName);
 	debug("TwoWire::begin(): I2C bus is now open: %s\n",busName);
@@ -87,7 +84,6 @@ bool TwoWire::selectSlave(uint8_t address)
 		return false;
 	}	
 	slaveAddress = address;
-	//printf("TwoWire::selectSlave(): The slave address is set to %d\n",slaveAddress);
 	return true;
 }
 
@@ -99,7 +95,6 @@ Public
 **/
 void TwoWire::beginTransmission(uint8_t address)
 {
-	//printf("TwoWire::beginTransmission(): Existing slave address: %d, New slave address: %d\n",slaveAddress,address);
 	bufIndex = 0;	
 	bufSize = 0;	
 	if(address == slaveAddress)
@@ -118,11 +113,10 @@ Public
 **/
 int TwoWire::endTransmission(bool b)
 {
-	//printf("TwoWire::endTransmission()\n");
 	int ret = -1;
 	if(b)
 	{
-		//printf("TwoWire::endTransmission(): Warning: Stop condition is not supported.\n");
+		debug("TwoWire::endTransmission(): Warning: Stop condition is not supported.\n");
 	}
 	
 	if(txBufSize != 0)
@@ -136,7 +130,6 @@ int TwoWire::endTransmission(bool b)
 			debug("  errno: %s\n",strerror(errno));
 			ret = 1;
 		}	
-		//delay(100); //// TODO: figure out if delay needed here
 	}
 	txBufSize = 0;
 	txBufIndex = 0;
@@ -159,14 +152,12 @@ Public
 **/
 size_t TwoWire::write(const uint8_t *data, ssize_t quantity)
 {
-	//printf("TwoWire::write(): Setting txBuffer content (quantity: %ld):\n  ",quantity);
-	int bytesCopied = 0; //snprintf(txBuffer, quantity, "%hhn", data);
+	int bytesCopied = 0; 
 	for(int i=0; i<quantity; i++)
 	{
 		write(data[i]);
 		bytesCopied++;
 	}
-	//printf("Copied %d bytes\n",txBufSize);
 	return txBufSize;
 }
 
@@ -178,12 +169,9 @@ Public
 **/
 size_t TwoWire::write(uint8_t dataByte)
 {
-	//printf("TwoWire::write(): Setting txBuffer content\n");
 	txBuffer[txBufIndex] = (char)dataByte;
-	//printf("  txBufIndex: %d, data: %d\n",txBufIndex,txBuffer[txBufIndex]);
 	txBufIndex++;		
 	txBufSize = txBufIndex;
-	//printf("  txBufSize: %d\n",txBufSize);
 	return 1;
 }
 
@@ -219,7 +207,6 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity)
 		debug("TwoWire::requestFrom(): Error: Too many bytes requested. Please increase BUFFER_LENGTH.\n");
 		quantity = BUFFER_LENGTH;
 	}
-	//delay(10);
 	// perform blocking read into buffer
 	int r = ::read(file, buffer, quantity);
 	if(r != quantity)
@@ -232,7 +219,7 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity)
 	// set new buffer size value
 	bufSize = r;
 	
-	endTransmission(false); // (seems obsolete)
+	endTransmission(false);
 	return r;	
 }
 

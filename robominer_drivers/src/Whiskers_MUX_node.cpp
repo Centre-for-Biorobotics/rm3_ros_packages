@@ -85,7 +85,7 @@ using namespace std;
 int main(int argc, char **argv)
 {    
     // GRID OBJECT CONSTRUCTION
-    SensorGrid grid(Cartesian, PlainText, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
+    SensorGrid grid(Cartesian, Grid, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
     
     // ROS SETUP 
     rclcpp::init(argc, argv);    
@@ -135,7 +135,9 @@ WhiskersPublisher::WhiskersPublisher(SensorGrid * _grid) : rclcpp::Node("whisker
     publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
     timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));
     grid = _grid;
+#ifdef DEBUG
     lastLoop = 0;
+#endif
 }
 
 /**
@@ -248,9 +250,9 @@ using namespace std;
  * SensorGrid class constructor.
  * 
  * @param _r The tzpe of representation of sensor data (Cartesian or Spherical).
- * @param _f The type of message representation for sending data out to
- *           non-ROS interfaces such as Serial (PlainText or Compressed).
- *           [TODO: Serial not yet implemented.]
+ * @param _f The type of message representation for displaying sensor data
+ *           (PlainText, Compressed or Grid). Note: will print only if CONSOLE_PRINT
+ *           is #define'd.
  * @param _fastMode [optional; default: true] If true, the sensors are being
  *                  read in a higher frequency than when set to false.
  * @param _sendPolarRadius [optional; default: true] If true, the sensor data 
@@ -473,6 +475,75 @@ void SensorGrid::printReadingsToConsole(void)
         writeTx(endSignature[1]);  
         print(txString,txIndex);  // TODO: Instead of printing txString to console, it can be used in some other way later (e.g., sent via Serial interface)
         txIndex = 0;
+    }
+    else if (f == Grid)
+    {
+        const static int charsWidthPerSensor = 10; // horizontal space inside a table cell without vertical line
+        const static int charsHeightPerRow = 5;    // vertical space inside a table cell without horizontal line  
+                
+        const static int gridWidth = (charsWidthPerSensor+1)*NUM_SENSORS+2; // includes all verticals and newline character
+        
+        const static int totalCharSize = NUM_MUX * (gridWidth*(charsHeightPerRow+1))+gridWidth + 2; // includes last horizontal line, final newline character and null terminator
+        
+        char * gridFull = new char[totalCharSize];
+        int indexPos = 0; // keeping track of characters written in total
+        
+        // Horizontal lines in between rows
+        char * horizontalLine = new char[gridWidth+1]; // includes newline character and null terminator
+        for(int c=0; c<gridWidth-1; c++)
+        {
+            horizontalLine[c] = '-';
+        }
+        horizontalLine[gridWidth-1] = '\n'; 
+        horizontalLine[gridWidth] = '\0';       // null-terminating (for strcat)
+        strcat(gridFull,horizontalLine);          
+        indexPos = gridWidth;    
+                
+        for(uint8_t m=0;m<NUM_MUX;m++)
+        {              
+            // One multiline table row including all sensors per multiplexer and all three values per sensor, no horizontals
+            char * gridRow = new char[gridWidth*charsHeightPerRow+1]; // includes all newline characters and one final null terminator
+            int rowIndexPos = 0;
+            for(int row = 0; row<charsHeightPerRow; row++) // one table row consists of four rows
+            {
+                gridRow[rowIndexPos] = '|'; // start vertical
+                rowIndexPos++;
+                for(int cell = 0;cell<NUM_SENSORS;cell++)
+                {                      
+                    if(row == 0 || row == 4)    // empty rows in cell
+                    {
+                        for(int c = 0; c < charsWidthPerSensor; c++)
+                        {
+                            gridRow[rowIndexPos] = ' ';
+                            rowIndexPos++;
+                        }
+                    }
+                    else                        // valued rows in cell
+                    {
+                        char * content = new char[charsWidthPerSensor+1]; // content will be null terminated
+                        int len = sprintf(content,"  %6.2f  ",sensors[m][cell].data[row-1]);
+                        gridRow[rowIndexPos] = '\0'; // null-terminating for strcat to work properly
+                        strcat(gridRow,content);
+                        rowIndexPos += len;
+                    }                   
+                    gridRow[rowIndexPos] = '|'; // dividing or end vertical
+                    rowIndexPos++;                             
+                }
+                gridRow[rowIndexPos] = '\n'; // end of line
+                rowIndexPos++;
+            }
+            // end of mux row
+            gridRow[rowIndexPos] = '\0'; // null-terminating
+            strcat(gridFull,gridRow);    // add table row to full table     
+            indexPos += rowIndexPos;
+            strcat(gridFull,horizontalLine); // add horizontal line to full table
+            indexPos += gridWidth;
+        }
+        gridFull[indexPos] = '\n';
+        indexPos++;
+        gridFull[indexPos] = '\0'; // null-terminating (for printf)
+        printf("%s\n",gridFull);    
+        
     }
 }
 
