@@ -34,6 +34,7 @@ private:
     void init_serial(std::string port_);
     void read_sample();
     void pub_callback(std_msgs::msg::String pi_wms_string);
+    void parse_wms_message(std::string message_string);
 
 
 };

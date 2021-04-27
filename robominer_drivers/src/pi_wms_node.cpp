@@ -1,5 +1,8 @@
 #include <chrono>
 #include <string>
+#include <vector>
+#include <sstream>
+
 #include "rclcpp/rclcpp.hpp"
 
 #include "serial/serial.h"      // get from https://github.com/RoverRobotics-forks/serial-ros2
@@ -95,7 +98,10 @@ void PiWMSNode::read_sample()
 
     auto pi_wms_msg = std_msgs::msg::String();
     pi_wms_msg.data = data;
-    pub_callback(pi_wms_msg);
+
+    parse_wms_message(data);      // parse line of data
+
+    pub_callback(pi_wms_msg); // publishes entire message as string
 }
 
 void PiWMSNode::pub_callback(std_msgs::msg::String pi_wms_string)
@@ -106,7 +112,67 @@ void PiWMSNode::pub_callback(std_msgs::msg::String pi_wms_string)
     // RCLCPP_INFO(this->get_logger(), "%s\n", data);
 }
 
+void PiWMSNode::parse_wms_message(std::string message_string)
+{
+    /* format = <NMEA type>,<seq nmbr>,<X-coord>,<Y-coord>,<velocity>,<heading>,<temperature>,<bat. voltage>,<checksum?> */
+    std::size_t string_start = message_string.find("$WSDTA");
 
+    // RCLCPP_INFO(this->get_logger(), "where is the header: %d ", string_start);
+
+    if(string_start!=std::string::npos)
+    {
+        std::int8_t iter_;
+        std::int64_t seq_;
+        // std::vector<float> payload_;
+        std::string wms_checksum_;
+        float x, y, speed, heading, temperature, voltage;
+
+        std::stringstream stream(message_string);
+
+        iter_= 0;
+
+        while(stream.good())
+        {
+            std::string substr;
+            getline(stream, substr, ',');
+
+            switch(iter_) {
+                case 1: 
+                    seq_ = std::stoi(substr); 
+                    break;
+                case 2: 
+                    x = std::stof(substr); 
+                    break;
+                case 3: 
+                    y = std::stof(substr); 
+                    break;
+                case 4: 
+                    speed = std::stof(substr); 
+                    break;
+                case 5: 
+                    heading = std::stof(substr); 
+                    break;
+                case 6: 
+                    temperature = std::stof(substr); 
+                    break;
+                case 7: 
+                    voltage = std::stof(substr); 
+                    break;
+                case 8: 
+                    wms_checksum_ = substr; 
+                    break;
+            }
+
+            iter_++;
+        }
+        RCLCPP_INFO(this->get_logger(), "x, y coord: %f, %f ", x, y);
+
+    }
+    else
+    {
+        RCLCPP_INFO(this->get_logger(), "bad string \n");
+    }
+}
 
 
 
