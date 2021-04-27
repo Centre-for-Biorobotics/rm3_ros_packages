@@ -350,6 +350,10 @@ int SensorGrid::hallTestAndReinitialize(void)
                     if(!sensors[m][i].read(r))
                     {
                         present = false;
+                        if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
+                        {
+                            debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
+                        }
                         break;
                     }
                     readNum++;    
