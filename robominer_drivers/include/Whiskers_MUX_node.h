@@ -20,7 +20,7 @@
 #define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not
 //#define UBUNTU              // If #define'd, the platform to compile for is Linux Ubuntu, otherwise Olimex Linux
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive
-#define NUM_MUX 4             // Number of multiplexers
+#define NUM_MUX 8             // Number of multiplexers (max. 8)
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
@@ -87,10 +87,11 @@ class SensorGrid
                 
                 Tlv493d sensor;
                 float data[3];
-                //bool init;    
+                bool init;    
                 bool initialize(bool fastMode);            
-                void read(Representation r = Cartesian);     
-                void encode(uint8_t index, unsigned char * result);    
+                bool read(Representation r = Cartesian);     
+                void encode(uint8_t index, unsigned char * result);  
+                bool initOK;  
                              
             private:                
                 float radToDeg(float rad);
@@ -105,7 +106,7 @@ class SensorGrid
         MessageFormat f;      
         unsigned char endSignature[2];           
         
-        void setup(void);       
+        int setup(void);       
         
         void muxDisablePrevious(uint8_t muxNum);
         
@@ -118,11 +119,9 @@ class SensorGrid
     
         uint16_t txIndex;   
         bool init;        
-        void hallTestAndReinitialize(void);  
+        int hallTestAndReinitialize(void);  
         void writeTx(unsigned char c);
 };
-
-extern SensorGrid grid; 
 
 using namespace std::chrono_literals;
 
@@ -130,8 +129,8 @@ class WhiskersPublisher : public rclcpp::Node
 {
     public:
         
-        WhiskersPublisher();
-        //SensorGrid grid;
+        WhiskersPublisher(SensorGrid * grid);
+        SensorGrid * grid;
         
     private:
         

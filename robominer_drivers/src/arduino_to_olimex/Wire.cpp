@@ -67,7 +67,7 @@ void TwoWire::begin(char * _busName)
 	if (file < 0) {
 		/* ERROR HANDLING; you can check errno to see what went wrong */
 		debug("TwoWire::begin(): Error opening I2C bus %s.\n",_busName);
-		exit(1);
+		//exit(1);
 	}	
 	snprintf(busName, 19, "%s", _busName);
 	debug("TwoWire::begin(): I2C bus is now open: %s\n",busName);
