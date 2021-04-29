@@ -87,6 +87,8 @@ void Tlv493d::begin(TwoWire &bus, Tlv493d_Address_t slaveAddress, bool reset)
 }
 
 
+
+
 void Tlv493d::end(void)
 {
 	disableInterrupt();

@@ -20,14 +20,14 @@
 
 //////////// Start of user-defined constants /////////////
 
-#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not
+//#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not
 //#define UBUNTU              // If #define'd, the platform to compile for is Linux Ubuntu, otherwise Olimex Linux
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive
 #define NUM_MUX 4             // Number of multiplexers (max. 8)
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message (txString)
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
-#define CONSOLE_PRINT         // If #define'd, sensor readings will be printed to the local console
+//#define CONSOLE_PRINT         // If #define'd, sensor readings will be printed to the local console
 #define ENCODE_MULTIPLIER 100 // [100] Multiplier for floats when converting to 16-bit integers.
                               // Higher value: more precision, smaller range of values.
 #define MAX_READS_ZEROS 5     // [5] After this number of consecutive zero-valued readings from a sensor, it will
@@ -95,7 +95,7 @@ class SensorGrid
                 float data[3];
                 uint8_t numReadZeros;
                 bool initialize(bool fastMode, bool reinitialize = false);            
-                bool read(Representation r = Cartesian);     
+                int read(Representation r = Cartesian);     
                 void encode(uint8_t index, unsigned char * result);  
                 void setGridPosition(uint8_t mNum, uint8_t sNum);
                 bool initOK; 

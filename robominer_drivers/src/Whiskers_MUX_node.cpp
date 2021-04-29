@@ -84,6 +84,8 @@ using namespace std;
  */
 int main(int argc, char **argv)
 {    
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing. Please wait...\n");
+    
     // GRID OBJECT CONSTRUCTION
     SensorGrid grid(Cartesian, Grid, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
     
@@ -94,8 +96,7 @@ int main(int argc, char **argv)
     int ret = grid.setup(); 
     if(ret != 0)
     {
-        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor setup.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.\n");
-        //return ret;
+        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor initialization.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.\n");
     }
 
     // MAIN LOOP 
@@ -165,7 +166,12 @@ void WhiskersPublisher::timer_callback(void)
             // Switch to next multiplexed port   
             grid->multiplexers[m].selectChannel(i);
             // Read sensor with selected type of representation
-            grid->sensors[m][i].read();                      
+            if(grid->sensors[m][i].read() != 0)
+            {
+                // read() returned an error code;
+                // will try to reinitialize this sensor and force a sensor reset
+                grid->sensors[m][i].initialize(grid->fastMode, true);
+            }                      
         }    
     }
       
@@ -349,26 +355,20 @@ int SensorGrid::hallTestAndReinitialize(void)
 
             bool ok = false;  
             int attempts = 0;  
-            bool present = true; 
 
-            while(!ok && attempts < 10 && present)
+            while(!ok && attempts < 10)
             {
                 debug("     Attempt: %d/10\n",(attempts+1));
                 int readNum = 0;
                 while(readNum < 5)
                 {                    
                     debug("       Reading data (%d/5)\n",(readNum+1));
-                    if(!sensors[m][i].read(r))
+                    if(sensors[m][i].read(r) != 0)
                     {
-                        present = false;
-                        if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
-                        {
-                            debug(">>>> Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
-                        }
+                        debug("       Reading failed (%d/5)\n",(readNum+1));
                         break;
                     }
                     readNum++;    
-                    //debug("         Got: %.2f, %.2f, %.2f\n",sensors[m][i].data[0],sensors[m][i].data[1],sensors[m][i].data[2]);
                     if(sensors[m][i].data[0] != 0 || sensors[m][i].data[1] != 0 || sensors[m][i].data[2] != 0)
                     {
                         ok = true;
@@ -651,27 +651,23 @@ void SensorGrid::HallSensor::setGridPosition(uint8_t mNum, uint8_t sNum)
 
 
 /**
- * Initializes the sensor of type Tlv493dMagnetic3DSensor.
+ * Initializes the sensor of type Tlv493d (see Tlv493d.h).
  * 
  * @param fastMode If true, sets the access mode of the sensor to FASTMODE.
  * @param reinitialize If true, the sensor will be reset before initializing.
  *                     This can be useful if a sensor needs to be reinitialized
  *                     due to failure during operation (repeated zero-readings).
- * @return Error flag: true in case of success, otherwise (in case of bus error) false.
+ * @return Error flag: True in case of success, otherwise (in case of bus error) false.
  */
 bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize)
 {
     bool ret = false;
-    initOK = true;
+    initOK = true;    
     if(reinitialize)
     {
-        // TODO: call Tlv493d::begin with bus identifier, to force reset of the sensor
-        sensor.begin(&Wire);
+        //sensor.end();
     }
-    else
-    {
-        sensor.begin();
-    }
+    sensor.begin();  
     if(fastMode)
     {
         ret = sensor.setAccessMode(sensor.FASTMODE);
@@ -694,9 +690,11 @@ bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize)
  * 
  * @param r [optional; default: Cartesian] The desired data representation
  *          (Cartesian or Spherical).
- * @return Success code: true if readable, false if not.
+ * @return Error code: sensor error code in case of sensor error,
+ *                     -1 in case of repeated zero-valued readings,
+ *                     0 in case of success.
  */
-bool SensorGrid::HallSensor::read(Representation r)
+int SensorGrid::HallSensor::read(Representation r)
 {
     int dly = sensor.getMeasurementDelay();
     delay(dly);
@@ -705,7 +703,7 @@ bool SensorGrid::HallSensor::read(Representation r)
     {
         debug("Error reading sensor %d.%d. Error (%d) was: %s.\n",pos[0],pos[1],errno,strerror(errno));
         hasError = true;
-        return false;
+        return err;
     }    
     hasError = false;  
 
@@ -734,9 +732,8 @@ bool SensorGrid::HallSensor::read(Representation r)
     if(numReadZeros >= MAX_READS_ZEROS)
     {
         hasError = true;
-        numReadZeros = MAX_READS_ZEROS;
-        
-        return false;
+        numReadZeros = MAX_READS_ZEROS;        
+        return -1;
     }
 
     // results are according to sensor reference frame if the third value is non-negative (not tested for Spherical)
@@ -746,7 +743,7 @@ bool SensorGrid::HallSensor::read(Representation r)
         data[1] *= -1;
         data[0] *= -1;
     }   
-    return true;
+    return 0;
 }
 
 /**
