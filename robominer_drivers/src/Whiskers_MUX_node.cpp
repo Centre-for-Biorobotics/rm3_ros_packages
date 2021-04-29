@@ -24,26 +24,30 @@
  * using several multiplexers of type TCA9548A. It publishes messages of
  * type "WhiskerArray" in the ROS2 environment.
  * 
- * Note: The number of sensors per multiplexer ("NUM_SENSORS") must be
- * the same for all multiplexers.
- * 
  * Continuously reads the sensors one by one, then prints all sensor
  * readings to Console in one burst. When reading the Console outputs
  * during manual verification, the MessageFormat f = PlainText should be used.
+ * 
+ * Define number of multiplexers and number of sensors per multiplexers
+ * in "Whiskers_MUX_node.h" (NUM_MUX and NUM_SENSORS).
+ * 
+ * Note: The number of sensors per multiplexer ("NUM_SENSORS") should be
+ * the same for all multiplexers. If not, define the maximum number of
+ * sensors on a multiplexer. The sensors which are missing on the other
+ * multiplexers won't initialize, but will not break the program.
  *
  * The MessageFormat f = Compressed packs each sensor float value into a 16bit
  * integer. The result is stored in "txString", which can be used for data
  * acquisition purposes in the future (e.g., send to SimuLink via Serial).
  * 
- * To run this code on Ubuntu instead of Olimex, uncomment "#define UBUNTU"
- * in "./olimex/config.h".
- * To view debug messages, uncomment "#define DEBUG"  in "./olimex/config.h".
+ * To run this code on Olimex, uncomment "#define OLIMEX" in "Whiskers_MUX_node.h".
+ * To view debug messages, uncomment "#define DEBUG" in "Whiskers_MUX_node.h".
  * 
  * When running on an Ubuntu computer (Desktop/laptop), a USB-to-I2C
  * adapter can be used. Please note the name of the i2c bus using "dmesg"
  * after plugging in the adapter. To define platform-specific bus IDs,
  * see "Whiskers_MUX_node.h".
- *  * 
+ *  
  * To be compiled for a Linux-based system.
  * This is a ported version of the library originally made for the Adafruit Feather M0
  * (see gitHub: kilian2323/3dMagSensorsVisual).
@@ -97,6 +101,10 @@ int main(int argc, char **argv)
     if(ret != 0)
     {
         RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor initialization.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.\n");
+    }
+    else
+    {
+        RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Starting to publish.\n");
     }
 
     // MAIN LOOP 
@@ -665,7 +673,7 @@ bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize)
     initOK = true;    
     if(reinitialize)
     {
-        //sensor.end();
+        sensor.end();
     }
     sensor.begin();  
     if(fastMode)
