@@ -107,8 +107,11 @@ void TwoWire::beginTransmission(uint8_t address)
 /**
 Ends the transmission with a slave device
 Writes the actual send buffer out onto the I2C bus
-@param {bool} b (unused)
-@returns {int}: 0 in case of success, -1 if there was nothing in the send buffer, 1 if the number of bytes written does not match the number of bytes that should have been written
+@param {bool} b [optional; default: false] remained from original Arduino
+                TwoWire library and has no meaning on the Linux platforms
+@returns {int}: 0 in case of success, -1 if there was nothing in the send buffer,
+                1 if the number of bytes written does not match the number of
+                bytes that should have been written
 Public
 **/
 int TwoWire::endTransmission(bool b)
@@ -116,7 +119,7 @@ int TwoWire::endTransmission(bool b)
 	int ret = -1;
 	if(b)
 	{
-		debug("TwoWire::endTransmission(): Warning: Stop condition is not supported.\n");
+		debug("TwoWire::endTransmission(): Warning: I2C stop condition is not supported on this platform.\n");
 	}
 	
 	if(txBufSize != 0)
@@ -126,8 +129,8 @@ int TwoWire::endTransmission(bool b)
 		ssize_t bytesWritten = ::write(file, txBuffer, bytesToSend);		
 		if (bytesWritten != bytesToSend) {
 			debug("TwoWire::endTransmission(): Error writing to slave 0x%02X: Unexpected number of bytes.\n",slaveAddress);					
-			debug("  bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten);
-			debug("  errno: %s\n",strerror(errno));
+			//debug("  bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten);
+			//debug("  errno: %s\n",strerror(errno));
 			ret = 1;
 		}	
 	}
@@ -136,11 +139,6 @@ int TwoWire::endTransmission(bool b)
 	slaveAddress = 0;
 	
 	return ret;
-}
-
-int TwoWire::endTransmission(void)
-{
-	return endTransmission(false);
 }
 
 /**
@@ -212,8 +210,8 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity)
 	if(r != quantity)
 	{
 	  debug("TwoWire::requestFrom(): Error reading slave device 0x%02X: Unexpected number of bytes.\n",address);
-	  debug("  bytes expected: %d\n  bytes read: %d\n",quantity, r);
-	  debug("  errno: %s\n",strerror(errno));
+	  //debug("  bytes expected: %d\n  bytes read: %d\n",quantity, r);
+	  //debug("  errno: %s\n",strerror(errno));
 	  return 0;
 	}
 	// set new buffer size value

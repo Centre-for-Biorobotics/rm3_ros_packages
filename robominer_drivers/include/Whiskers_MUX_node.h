@@ -6,6 +6,7 @@
 #include "BusInterface2.h"
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include <chrono>
 #include <memory>
@@ -19,16 +20,18 @@
 
 //////////// Start of user-defined constants /////////////
 
-//#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not
+#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not
 //#define UBUNTU              // If #define'd, the platform to compile for is Linux Ubuntu, otherwise Olimex Linux
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive
 #define NUM_MUX 4             // Number of multiplexers (max. 8)
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8)
 #define MAXBUF 1000           // Maximum char length of an output message (txString)
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing
-//#define CONSOLE_PRINT         // If #define'd, sensor readings will be printed to the local console
+#define CONSOLE_PRINT         // If #define'd, sensor readings will be printed to the local console
 #define ENCODE_MULTIPLIER 100 // [100] Multiplier for floats when converting to 16-bit integers.
                               // Higher value: more precision, smaller range of values.
+#define MAX_READS_ZEROS 5     // [5] After this number of consecutive zero-valued readings from a sensor, it will
+                              // be considered erroneous.
 
 //////////// End of user-defined constants /////////////
 
@@ -45,7 +48,7 @@
 // Set debug() to printf()
 #ifdef DEBUG
 	#define debug(fmt, ...) printf(fmt, ##__VA_ARGS__)
-	#warning DEBUG mode is on. Debug messages will be printed to the console. Undefine it in ./olimex/config.h if no debug messages should be printed.
+	#warning DEBUG mode is on. Debug messages will be printed to the console. Undefine it in Whiskers_MUX_node.h if no debug messages should be printed.
 #else
 	#define debug(fmt, ...) ((void)0)
 #endif 
@@ -86,22 +89,25 @@ class SensorGrid
         class HallSensor
         {
             public:
-                HallSensor(); // the constructor without arguments is explicitly implemented
+                HallSensor(); // explicitly implemented default constructor 
                 
                 Tlv493d sensor;
                 float data[3];
-                bool init;    
-                bool initialize(bool fastMode);            
+                uint8_t numReadZeros;
+                bool initialize(bool fastMode, bool reinitialize = false);            
                 bool read(Representation r = Cartesian);     
                 void encode(uint8_t index, unsigned char * result);  
-                bool initOK;  
+                void setGridPosition(uint8_t mNum, uint8_t sNum);
+                bool initOK; 
+                bool hasError;
+                uint8_t pos[2]; 
                              
             private:                
                 float radToDeg(float rad);
         };
         
-        HallSensor sensors[NUM_MUX][NUM_SENSORS];        // will call to (explicitly implemented) default constructor for all objects 
-        std::vector<Multiplexer> multiplexers; // this makes it easier to call to the non-default constructor which requires one argument when filling the vector array
+        HallSensor sensors[NUM_MUX][NUM_SENSORS];     // invokes default constructor (which is explicitly implemented)     
+        std::vector<Multiplexer> multiplexers;        // vectors make it easier to call to the non-default constructor which requires one argument when filling the vector array
         unsigned char * txString;
         bool sendPolarRadius;
         bool fastMode;

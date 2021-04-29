@@ -17,8 +17,7 @@ class TwoWire
 		void begin(char *);
 		void begin(uint8_t);                   
 		void beginTransmission(uint8_t);   // set device address and empty the buffer									   
-		int endTransmission(bool);
-		int endTransmission(void);
+		int endTransmission(bool useStop=false);
 		uint8_t requestFrom(uint8_t, uint8_t);  
 		size_t write(uint8_t);
 		size_t write(const uint8_t *, ssize_t);

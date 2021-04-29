@@ -165,7 +165,7 @@ void WhiskersPublisher::timer_callback(void)
             // Switch to next multiplexed port   
             grid->multiplexers[m].selectChannel(i);
             // Read sensor with selected type of representation
-            grid->sensors[m][i].read();          
+            grid->sensors[m][i].read();                      
         }    
     }
       
@@ -191,7 +191,6 @@ void WhiskersPublisher::timer_callback(void)
         message.whiskers.push_back(robominer_msgs::msg::Whisker());
     }
 
-    //message.whiskers = std::vector<robominer_msgs::msg::Whisker>(NUM_MUX*NUM_SENSORS);
     int sensorNum = 0;
     for(uint8_t m=0; m < NUM_MUX; m++)
     {
@@ -208,6 +207,7 @@ void WhiskersPublisher::timer_callback(void)
             {
               message.whiskers[sensorNum].pos.offset_y = 0;
             } 
+            message.whiskers[sensorNum].has_error = grid->sensors[m][s].hasError || !(grid->sensors[m][s].initOK); 
             message.whiskers[sensorNum].x = grid->sensors[m][s].data[0];    
             message.whiskers[sensorNum].y = grid->sensors[m][s].data[1];  
             message.whiskers[sensorNum].z = grid->sensors[m][s].data[2];                    
@@ -288,6 +288,15 @@ int SensorGrid::setup(void)
     
     debug(">>>> Wire.begin()\n");
     Wire.begin((uint8_t)I2C_BUS_ID);
+    
+    debug(">>>> Preparing sensor objects TLV493D for the grid\n");
+    for(uint8_t m=0; m<NUM_MUX; m++)
+    { 
+        for(uint8_t i=0; i<NUM_SENSORS; i++)
+        {
+            sensors[m][i].setGridPosition(m,i);
+        }
+    }
     
     debug(">>>> Constructing multiplexers, initializing sensors TLV493D\n");
     for(uint8_t m=0; m<NUM_MUX; m++)
@@ -427,6 +436,7 @@ void SensorGrid::muxDisableAll(uint8_t totalNum)
  * to console. The type of console output (plain text or compressed) depends
  * on the value of "f".
  */
+ #ifdef CONSOLE_PRINT
 void SensorGrid::printReadingsToConsole(void)
 {
     if(f == PlainText)
@@ -521,7 +531,15 @@ void SensorGrid::printReadingsToConsole(void)
                     else                        // valued rows in cell
                     {
                         char * content = new char[charsWidthPerSensor+1]; // content will be null terminated
-                        int len = sprintf(content,"  %6.2f  ",sensors[m][cell].data[row-1]);
+                        int len;
+                        if(!sensors[m][cell].hasError && sensors[m][cell].initOK)
+                        {
+                            len = sprintf(content,"  %6.2f  ",sensors[m][cell].data[row-1]);
+                        }
+                        else
+                        {
+                            len = sprintf(content,"  XXXXXX  ");
+                        }
                         gridRow[rowIndexPos] = '\0'; // null-terminating for strcat to work properly
                         strcat(gridRow,content);
                         rowIndexPos += len;
@@ -546,6 +564,7 @@ void SensorGrid::printReadingsToConsole(void)
         
     }
 }
+#endif
 
 /**
  * Concatenates characters into the class-global string txIndex.
@@ -568,6 +587,7 @@ void SensorGrid::writeTx(unsigned char c)
  */
 SensorGrid::Multiplexer::Multiplexer(uint8_t addr)
 {
+    //debug(">>>> Constructing Multiplexer object with address 0x%02X\n",addr);
     address = addr;
 }
 
@@ -607,25 +627,51 @@ void SensorGrid::Multiplexer::selectChannel(uint8_t ch, bool init)
  */
 SensorGrid::HallSensor::HallSensor()
 {
+    //debug(">>>> Constructing HallSensor object using default constructor\n");
     for(int i=0; i<3; i++)
     {
         data[i] = 0.0;
     }
-    init = true;
-    initOK = false;
+    initOK = false;  
+    hasError = false;  
+    numReadZeros = 0;
 }
+
+/**
+ * Allows to set the row and column number inside the HallSensor object.
+ * 
+ * @param mNum The number of the row (0...NUM_MUX-1).
+ * @param sNum The number of the column (0...NUM_SENSORS-1).
+ */
+void SensorGrid::HallSensor::setGridPosition(uint8_t mNum, uint8_t sNum)
+{
+    pos[0] = mNum;
+    pos[1] = sNum;
+}
+
 
 /**
  * Initializes the sensor of type Tlv493dMagnetic3DSensor.
  * 
  * @param fastMode If true, sets the access mode of the sensor to FASTMODE.
+ * @param reinitialize If true, the sensor will be reset before initializing.
+ *                     This can be useful if a sensor needs to be reinitialized
+ *                     due to failure during operation (repeated zero-readings).
  * @return Error flag: true in case of success, otherwise (in case of bus error) false.
  */
-bool SensorGrid::HallSensor::initialize(bool fastMode)
+bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize)
 {
     bool ret = false;
     initOK = true;
-    sensor.begin();
+    if(reinitialize)
+    {
+        // TODO: call Tlv493d::begin with bus identifier, to force reset of the sensor
+        sensor.begin(&Wire);
+    }
+    else
+    {
+        sensor.begin();
+    }
     if(fastMode)
     {
         ret = sensor.setAccessMode(sensor.FASTMODE);
@@ -652,23 +698,16 @@ bool SensorGrid::HallSensor::initialize(bool fastMode)
  */
 bool SensorGrid::HallSensor::read(Representation r)
 {
-    if(!initOK)
-    {
-        if(init)
-        {
-            debug("       Aborting read (not properly initialized).\n");
-        }
-        init = false; // We will never see this debug message any more for this sensor.
-        return false;
-    }
-    
     int dly = sensor.getMeasurementDelay();
     delay(dly);
     Tlv493d_Error_t err = sensor.updateData();
     if(err != TLV493D_NO_ERROR)
     {
+        debug("Error reading sensor %d.%d. Error (%d) was: %s.\n",pos[0],pos[1],errno,strerror(errno));
+        hasError = true;
         return false;
-    }  
+    }    
+    hasError = false;  
 
     if(r == Spherical)
     {      
@@ -682,6 +721,23 @@ bool SensorGrid::HallSensor::read(Representation r)
         data[1] = sensor.getY();
         data[2] = sensor.getZ();       
     }   
+    
+    // repeatedly reading only zeros indicates a faulty sensor
+    if(data[0] == 0 && data[1] == 0 && data[2] == 0)
+    {
+        numReadZeros++;
+    }
+    else
+    {
+        numReadZeros = 0;
+    }
+    if(numReadZeros >= MAX_READS_ZEROS)
+    {
+        hasError = true;
+        numReadZeros = MAX_READS_ZEROS;
+        
+        return false;
+    }
 
     // results are according to sensor reference frame if the third value is non-negative (not tested for Spherical)
     if(data[2] < 0)
@@ -690,7 +746,6 @@ bool SensorGrid::HallSensor::read(Representation r)
         data[1] *= -1;
         data[0] *= -1;
     }   
-    init = false;
     return true;
 }
 
