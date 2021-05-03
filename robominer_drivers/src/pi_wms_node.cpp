@@ -1,3 +1,13 @@
+/**
+ * Node that handles PI-WMS serial interface.
+ * 
+ * Uses serial library by William Woodall (https://github.com/wjwwood/serial), currently a variant for ROS2 is used.
+ * 
+ * @author: Roza Gkliva
+ * @contact: roza.gkliva@ttu.ee
+ * @date: 2021-04-25
+ */
+
 #include <chrono>
 #include <string>
 #include <vector>
@@ -20,7 +30,10 @@ using namespace std::chrono_literals;
 using std::vector;
 using std::string;
 
-// public constructor
+/**
+ * Constructor for ROS node. Creates two publishers, a timer for a callback. Calls for 
+ * initialization of the serial port.
+ */
 PiWMSNode::PiWMSNode() 
 : Node("pi_wms_publisher")
 {
@@ -48,6 +61,11 @@ PiWMSNode::PiWMSNode()
 
 // private member functions
 
+/**
+ * Scans all ports for a device with a given hardware ID. Finds port where device is connected.
+ * 
+ * @return string(port), or 'nan' if port not found.
+ */
 std::string PiWMSNode::scan_ports()
 {
     std::string port_;
@@ -62,7 +80,9 @@ std::string PiWMSNode::scan_ports()
 
         // find pi-wms device and get port
         std::string device_ = device.hardware_id.c_str();
-        std::size_t device_found = device_.find("067b:2303");        // find unique device hardware ID
+
+        // find the device
+        std::size_t device_found = device_.find("067b:2303");   // TODO: find a unique device identifier, this only identifies the USB-Serial adapter
 
         // printf( "(port: %s, device description: %s, device hardware_id: %s)\n", device.port.c_str(), device.description.c_str(), device.hardware_id.c_str() );
 
@@ -79,6 +99,13 @@ std::string PiWMSNode::scan_ports()
     return port_;
 }
 
+/**
+ * Initializes serial port.
+ * 
+ * @param string_port_ String denoting the port where WMS is connected.
+ * 
+ * @throws serial::IOException Thrown if unable to open port
+ */
 void PiWMSNode::init_serial(std::string port_)
 {
     std::int32_t baud_ = 460800;
@@ -99,15 +126,24 @@ void PiWMSNode::init_serial(std::string port_)
     }
 }
 
+/**
+ * Reads one line from the serial buffer, until the '\n' eol charachter is found.
+ * Calls to parse the string.
+ */
 void PiWMSNode::read_sample()
 {
     std::string data_string = imu_serial_.readline(100, "\n");
 
-    parse_wms_message(data_string);      // parse line of data
+    parse_wms_message(data_string);         // parse line of data
 
-    pub_callback(data_string); // publishes entire message as string
+    pub_callback(data_string);              // publishes entire message as string
 }
 
+/**
+ * Publishes a string type message.
+ * 
+ * @param data_string String containing the entire message to be published.
+ */
 void PiWMSNode::pub_callback(std::string data_string)
 {
     auto pi_wms_msg = std_msgs::msg::String();
@@ -116,6 +152,11 @@ void PiWMSNode::pub_callback(std::string data_string)
     pi_wms_publisher_->publish(pi_wms_msg);
 }
 
+/**
+ * Parses a string into separate variables, using a delimiter.
+ * 
+ * @param message_string String containing the entire message.
+ */
 void PiWMSNode::parse_wms_message(std::string message_string)
 {
     /* format = <NMEA type>,<seq nmbr>,<X-coord>,<Y-coord>,<velocity>,<heading>,<temperature>,<bat. voltage>,<checksum?> */
@@ -179,6 +220,14 @@ void PiWMSNode::parse_wms_message(std::string message_string)
     }
 }
 
+/**
+ * Populates and publishes an 'odometry' type message.
+ * 
+ * @param x Linear translation along the x axis
+ * @param y Linear translation along the y axis
+ * @param heading Angular position around the z (vertical) axis
+ * @param speed {TODO: not sure what speed this is yet}
+ */
 void PiWMSNode::publish_odometry(float x, float y, float heading, float speed)
 {
     auto odom_msg = nav_msgs::msg::Odometry();
@@ -207,7 +256,9 @@ void PiWMSNode::publish_odometry(float x, float y, float heading, float speed)
 
 
 
-
+/**
+ * Main entry point for the node.
+ */
 int main(int argc, char * argv[])
 {
     // initialize rclcpp
