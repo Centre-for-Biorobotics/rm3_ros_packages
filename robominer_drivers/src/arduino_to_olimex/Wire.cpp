@@ -129,8 +129,8 @@ int TwoWire::endTransmission(bool b)
 		ssize_t bytesWritten = ::write(file, txBuffer, bytesToSend);		
 		if (bytesWritten != bytesToSend) {
 			debug("TwoWire::endTransmission(): Error writing to slave 0x%02X: Unexpected number of bytes.\n",slaveAddress);					
-			//debug("  bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten);
-			//debug("  errno: %s\n",strerror(errno));
+			debug("  bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten);
+			debug("  errno: %s\n",strerror(errno));
 			ret = 1;
 		}	
 	}

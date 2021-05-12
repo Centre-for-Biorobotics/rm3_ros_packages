@@ -7,7 +7,7 @@
 #include <chrono>
 
 
-void delay(uint32_t ms) {
+void delay(uint16_t ms) {
 	usleep(1000*ms);
 }
 
