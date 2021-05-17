@@ -36,6 +36,8 @@
 #include "BusInterface2.h"
 #include <math.h>
 #include "Whiskers_MUX_node.h"
+#include <string.h>
+#include <errno.h>
 
 Tlv493d::Tlv493d(void)
 {
@@ -107,12 +109,12 @@ bool Tlv493d::setAccessMode(AccessMode_e mode)
 	ret = tlv493d::writeOut(&mInterface);
 	if ( ret != BUS_ERROR )
 	{
-		debug("  >> Tlv493d::setAccessMode(): OK\n");
+		debug("  << Tlv493d::setAccessMode(): OK\n");
 		mMode = mode;
 	}
 	else
 	{
-		debug("  >> Tlv493d::setAccessMode(): Error\n");
+		debug("  << Tlv493d::setAccessMode(): Error: %s\n",strerror(errno));
 	}
 	return ret;
 }

@@ -16,7 +16,7 @@
 // Kilian Ochs, CfB Tallinn, 2021-04-16
 
 /**
- * Kilian Ochs, 27.04.2021
+ * Kilian Ochs, 17.05.2021
  * Centre for Biorobotics, TALTECH, Tallinn
  * Robominers experimental setup
  * 
@@ -26,7 +26,8 @@
  * 
  * Continuously reads the sensors one by one, then prints all sensor
  * readings to Console in one burst. When reading the Console outputs
- * during manual verification, the MessageFormat f = PlainText should be used.
+ * during manual verification, the MessageFormat f = PlainText or f = Grid
+ * should be used.
  * 
  * Define number of multiplexers and number of sensors per multiplexers
  * in "Whiskers_MUX_node.h" (NUM_MUX and NUM_SENSORS).
@@ -35,6 +36,11 @@
  * the same for all multiplexers. If not, define the maximum number of
  * sensors on a multiplexer. The sensors which are missing on the other
  * multiplexers won't initialize, but will not break the program.
+ * 
+ * If a sensor does not get successfully initialized, it will be flagged 
+ * and ignored from there on. If a sensor has been successfully initialized
+ * but fails during later operation, the program attempts to reinitialize it
+ * until it comes back.
  *
  * The MessageFormat f = Compressed packs each sensor float value into a 16bit
  * integer. The result is stored in "txString", which can be used for data
@@ -94,18 +100,17 @@ int main(int argc, char **argv)
     SensorGrid grid(Cartesian, Grid, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
     
     // SENSORS AND MUX SETUP 
-    int ret = grid.setup(); 
-    
-    // ROS SETUP 
-    rclcpp::init(argc, argv);    
-    
-    if(ret != 0)
+    bool ret = grid.setup(); 
+    if(ret == false)
     {
         RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor initialization.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.\n");
     }
-    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Starting to publish.\n");
+    
+    // ROS SETUP 
+    rclcpp::init(argc, argv);    
 
     // MAIN LOOP 
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Starting to publish.\n");
     rclcpp::spin(std::make_shared<WhiskersPublisher>(&grid)); // This constructs node and then spins it.
 
     // ON EXIT
@@ -113,7 +118,11 @@ int main(int argc, char **argv)
     Wire.end();
     debug("\n>>>> Good-bye!\n\n");
     
-    return ret;     
+    if(ret)
+    {
+        return 0; // OK
+    }
+    return 1;     // Error 
 }
 
    
@@ -157,7 +166,7 @@ void WhiskersPublisher::timer_callback(void)
     volatile unsigned long now = millis();
     loopFreq = 1000.0 / float(now - lastLoop);
     lastLoop = now;      
-    debug("\nPublishing @ %.2f Hz\n", loopFreq);
+    debug("\n>>>> Publishing @ %.2f Hz\n", loopFreq);
 #endif
       
     // Acquire data from sensors
@@ -172,10 +181,10 @@ void WhiskersPublisher::timer_callback(void)
             // Switch to next multiplexed port   
             grid->multiplexers[m].selectChannel(i);
             // Read sensor with selected type of representation
-            if(grid->sensors[m][i].read() != 0)
+            if(grid->sensors[m][i].read(grid->r) > 0) // If code is -1, it means the sensor has never been initialized (-> ignore now).
+                                                      // If code is > 0, it means there was a reading error, but the sensor has been initialized before.
             {
-                // read() returned an error code;
-                // will try to reinitialize this sensor and force a sensor reset
+                debug(">>>> Error reading sensor %d.%d; intializing again\n",m,i);
                 grid->sensors[m][i].initialize(grid->fastMode, true);
             }                      
         }    
@@ -287,13 +296,13 @@ SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode, bool
 /**
  * Opens the I2C bus, constructs and initializes the sensors.
  * 
- * @return Error code: 0 if ok, otherwise 1.
+ * @return Success code: true if all sensors ok, otherwise false.
  */
-int SensorGrid::setup(void)
+bool SensorGrid::setup(void)
 {
     debug("\n>>>> SETUP\n");     
     
-    int ret = 0; 
+    bool allOK = true; 
     
     endSignature[0] = '\r';
     endSignature[1] = '\n';
@@ -326,91 +335,23 @@ int SensorGrid::setup(void)
         {
             multiplexers[m].selectChannel(i,true);
             debug("  >> Now initializing sensor %d.%d\n",m,i);
-            if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
+            bool ret = sensors[m][i].initialize(fastMode);
+            allOK &= ret;
+            if(ret == false)
             {
-                debug("     Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
+                debug("  << Sensor %d.%d initialization failed. Check the connection.\n",m,i);
             }
         }
     }        
-    debug("\n >>> Checking and re-initializing sensors TLV493D\n");
-    ret = hallTestAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
+    //debug("\n >>> Checking and re-initializing sensors TLV493D\n");
+    //ret = hallTestAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
     init = false;                    // init mode is done, now we are in regular operating mode 
     
 #ifdef DEBUG
-    debug("\n>>>> SETUP ended. Waiting for some seconds...\n");
+    debug("\n<<<< SETUP ended. Waiting for some seconds...\n");
     delay(5000);
 #endif
-    return ret;
-}
-
-/**
- * After sensor initialization, the sensors are polled several times to
- * see if initialization was successful.
- * In case of failure, a sensor will be reinitialized here.
- * 
- * @return Error code: 0 if ok, otherwise 1.
- */
-int SensorGrid::hallTestAndReinitialize(void)
-{
-    muxForceDisableAll();
-    int ret = 0;
-    for(uint8_t m=0; m<NUM_MUX; m++)
-    {
-        // Deselect all channels of the previous multiplexer    
-        muxDisablePrevious(m);
-        
-        for(uint8_t i=0; i<NUM_SENSORS; i++)
-        { 
-            debug("\n >>> Checking sensor %d.%d\n",m,i);
-            
-            // Switch to next multiplexed port              
-            multiplexers[m].selectChannel(i,true); 
-
-            bool ok = false;  
-            int attempts = 0;  
-
-            while(!ok && attempts < 10)
-            {
-                debug("  >> Attempt: %d/10\n",(attempts+1));
-                int readNum = 0;
-                while(readNum < 5)
-                {                    
-                    debug("   > Reading data (%d/5)\n",(readNum+1));
-                    if(sensors[m][i].read(r) != 0)
-                    {
-                        debug("     Reading failed (%d/5)\n",(readNum+1));
-                        break;
-                    }
-                    readNum++;    
-                    if(sensors[m][i].data[0] != 0 || sensors[m][i].data[1] != 0 || sensors[m][i].data[2] != 0)
-                    {
-                        ok = true;
-                        break;
-                    }
-                    if(readNum == 5)
-                    {
-                        debug("     Invalid data; reinitializing\n");
-                        if(sensors[m][i].initialize(fastMode) == BUS_ERROR)
-                        {
-                            debug("     Sensor %d.%d not detected at default I2C address. Check the connection.\n",m,i);
-                        }
-                    }       
-                }
-                attempts++;
-            }     
-            if(!ok)
-            {
-                debug("     Failed to initialize sensor %d.%d.\n",m,i);
-                ret = 1;
-            }  
-            else
-            {
-                debug("     Sensor ok.\n");
-            } 
-        }    
-    }    
-    debug("\n >>> Exiting hallTestAndReinitialize() with code %d.\n",ret);
-    return ret;
+    return allOK;
 }
 
 /**
@@ -443,7 +384,7 @@ void SensorGrid::muxDisablePrevious(uint8_t muxNum)
  */
 void SensorGrid::muxForceDisableAll(uint8_t totalNum)
 {
-    for(int m=MUX_STARTADDR; m<MUX_STARTADDR+8; m++)
+    for(int m=MUX_STARTADDR; m<MUX_STARTADDR+totalNum; m++)
     {
         debug("  >> Disabling multiplexer at address 0x%02X\n",m);
         Wire.beginTransmission(m);
@@ -557,9 +498,13 @@ void SensorGrid::printReadingsToConsole(void)
                         {
                             len = sprintf(content,"  %6.2f  ",sensors[m][cell].data[row-1]);
                         }
-                        else
+                        else if(sensors[m][cell].initOK)  // may be temporarily faulty
                         {
                             len = sprintf(content,"  XXXXXX  ");
+                        }
+                        else                              // is permanently faulty/not present
+                        {
+                            len = sprintf(content,"  ------  ");
                         }
                         gridRow[rowIndexPos] = '\0'; // null-terminating for strcat to work properly
                         strcat(gridRow,content);
@@ -673,36 +618,84 @@ void SensorGrid::HallSensor::setGridPosition(uint8_t mNum, uint8_t sNum)
     pos[1] = sNum;
 }
 
-
 /**
  * Initializes the sensor of type Tlv493d (see Tlv493d.h).
- * 
- * @param fastMode If true, sets the access mode of the sensor to FASTMODE.
- * @param reinitialize [optional; default: false]If true, the sensor will be uninitialized
+ * After sensor initialization, the sensors are polled several times to
+ * see if initialization was successful.
+ * In case of failure during operation, a sensor will be reinitialized here.
+ * @param fastMode The mode of reading the sensor.
+ * @param reinitialize [optional; default: false] If true, the sensor will be uninitialized
  *                     before reinitialization. This can be useful if a sensor needs to be
  *                     reinitialized during operation (when giving repeated zero-readings).
- * @return Error flag: True in case of success, otherwise (in case of bus error) false.
+ * @param r [optional; default: Cartesian] The data representation to use when getting sensor readings.
+ * 
+ * @return Success code: True if ok, otherwise false.
  */
-bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize)
+bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize, Representation r)
 {
-    bool ret = false;
+    int attemptNum = 0;
+    bool checkOK = false;
     initOK = true;    
     if(reinitialize)
     {
         sensor.end();
     }
-    sensor.begin();  
-    if(fastMode)
+    while(!checkOK && attemptNum < 5)
     {
-        ret = sensor.setAccessMode(sensor.FASTMODE);
-        if(ret == BUS_ERROR)
+        debug("   > Attempt: %d/5\n",(attemptNum+1));
+        sensor.begin();  
+        if(fastMode)
         {
-            debug("   > Bus error on access mode = FASTMODE\n");
-            initOK = false;
-            return ret;
+            bool ret = sensor.setAccessMode(sensor.FASTMODE);
+            if(ret == BUS_ERROR)
+            {
+                debug("   > Bus error on access mode = FASTMODE\n");
+                initOK = false;
+                //return ret;
+            }
         }
+        sensor.disableTemp();  
+        if(initOK)
+        {
+            checkOK = check(r);    
+        }  
+        attemptNum++;  
     }
-    sensor.disableTemp();  
+    return checkOK;
+}
+
+/**
+ * Checks a sensor after successful initialization. If it returns only
+ * zero-readings for MAX_READS_ZEROS times, it is considered badly initialized.
+ * 
+ * @param r The data representation to use when getting sensor readings.
+ * @return Success code: true if sensor returned useful data, otherwise false.
+ */
+bool SensorGrid::HallSensor::check(Representation r)
+{
+    bool ret = false;
+    uint8_t readNum = 0;
+    debug("  >> Checking sensor %d.%d\n",pos[0],pos[1]);
+    while(readNum < MAX_READS_ZEROS)
+    {                    
+        debug("   > Reading data (%d/%d)\n",(readNum+1),MAX_READS_ZEROS);
+        if(read(r) != 0)
+        {
+            debug("  << Reading failed\n");
+            break;
+        }
+        readNum++;    
+        if(data[0] != 0 || data[1] != 0 || data[2] != 0)
+        {
+            ret = true;
+            debug("  << Good data\n");
+            break;
+        }            
+    }
+    if(!ret)
+    {
+        debug("  << Check failed\n");
+    }
     return ret;
 }
 
@@ -712,21 +705,26 @@ bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize)
  * The returned values may represent the magnet's position in Cartesian
  * coordinates or in Polar coordinates, depending on the value of "r".
  * 
- * @param r [optional; default: Cartesian] The desired data representation
- *          (Cartesian or Spherical).
- * @return Error code: sensor error code in case of sensor error,
- *                     -1 in case of repeated zero-valued readings,
+ * @param r The desired data representation (Cartesian or Spherical).
+ * @return Error code: sensor error code in case of sensor error;
+ *                     -1 if the sensor has never been initialized,
+ *                     1 in case of repeated zero-valued readings,
  *                     0 in case of success.
  */
 int SensorGrid::HallSensor::read(Representation r)
 {
-    debug("   > Attempting to read sensor %d.%d.\n",pos[0],pos[1]);
+    if(!initOK)
+    {
+        debug("   > Not reading sensor %d.%d (not initialized)\n",pos[0],pos[1]);
+        return -1;
+    }
+    debug("   > Attempting to read sensor %d.%d\n",pos[0],pos[1]);
     uint16_t dly = sensor.getMeasurementDelay();
     delay(dly);
     Tlv493d_Error_t err = sensor.updateData();
     if(err != TLV493D_NO_ERROR)
     {
-        debug("     Error reading sensor %d.%d. Error (%d) was: %s.\n",pos[0],pos[1],errno,strerror(errno));
+        debug("   < Error reading sensor %d.%d. Error (%d) was: %s\n",pos[0],pos[1],errno,strerror(errno));
         hasError = true;
         return err;
     }    
@@ -758,7 +756,7 @@ int SensorGrid::HallSensor::read(Representation r)
     {
         hasError = true;
         numReadZeros = MAX_READS_ZEROS;        
-        return -1;
+        return 1;
     }
 
     // results are according to sensor reference frame if the third value is non-negative (not tested for Spherical)

@@ -49,7 +49,7 @@ void TwoWire::begin(uint8_t busAddress)
 
 void TwoWire::begin(void)
 {	
-	debug("TwoWire::begin(): Using pre-defined bus name %s\n",busName);
+	//debug("TwoWire::begin(): Using pre-defined bus name %s\n",busName);
 	begin(busName); // assuming there has been already a bus name set
 }
 
@@ -128,9 +128,11 @@ int TwoWire::endTransmission(bool b)
 		ssize_t bytesToSend = (ssize_t)txBufSize;
 		ssize_t bytesWritten = ::write(file, txBuffer, bytesToSend);		
 		if (bytesWritten != bytesToSend) {
+            /*
 			debug("TwoWire::endTransmission(): Error writing to slave 0x%02X: Unexpected number of bytes.\n",slaveAddress);					
 			debug("  bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten);
 			debug("  errno: %s\n",strerror(errno));
+            */
 			ret = 1;
 		}	
 	}
@@ -209,7 +211,7 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity)
 	int r = ::read(file, buffer, quantity);
 	if(r != quantity)
 	{
-	  debug("TwoWire::requestFrom(): Error reading slave device 0x%02X: Unexpected number of bytes.\n",address);
+	  //debug("TwoWire::requestFrom(): Error reading slave device 0x%02X: Unexpected number of bytes.\n",address);
 	  //debug("  bytes expected: %d\n  bytes read: %d\n",quantity, r);
 	  //debug("  errno: %s\n",strerror(errno));
 	  return 0;

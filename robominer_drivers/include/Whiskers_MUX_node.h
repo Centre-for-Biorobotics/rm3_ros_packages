@@ -20,10 +20,11 @@
 
 //////////// Start of user-defined constants /////////////
 
-#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not.
-#define OLIMEX                // If #define'd, the platform to compile for is Olimex.
+//#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not.
+#define OLIMEX                // If #define'd, the platform to compile for is Olimex. Note: Only the I2C bus address
+                              // depends on this setting.
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive.
-#define NUM_MUX 1             // Number of multiplexers (max. 8).
+#define NUM_MUX 5             // Number of multiplexers (max. 8).
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8).
 #define MAXBUF 1000           // Maximum char length of an output message (txString).
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing.
@@ -72,7 +73,7 @@ enum MessageFormat {
 using namespace std;
 
 /**
- * Class defining a grid of sensors and an arry of multiplexers.
+ * Class defining a grid of sensors and an array of multiplexers.
  * Holds a couple of utility functions for initialization and data reading.
  */
 class SensorGrid
@@ -108,8 +109,9 @@ class SensorGrid
                 Tlv493d sensor;
                 float data[3];
                 uint8_t numReadZeros;
-                bool initialize(bool fastMode, bool reinitialize = false);            
-                int read(Representation r = Cartesian);     
+                bool initialize(bool fastMode, bool reinitialize = false, Representation r = Cartesian);    
+                bool check(Representation r);        
+                int read(Representation r);     
                 void encode(uint8_t index, unsigned char * result);  
                 void setGridPosition(uint8_t mNum, uint8_t sNum);
                 bool initOK; 
@@ -129,7 +131,7 @@ class SensorGrid
         MessageFormat f;      
         unsigned char endSignature[2];           
         
-        int setup(void);       
+        bool setup(void);       
         
         void muxDisablePrevious(uint8_t muxNum);
         
@@ -142,7 +144,7 @@ class SensorGrid
     
         uint16_t txIndex;   
         bool init;        
-        int hallTestAndReinitialize(void);  
+        //int hallTestAndReinitialize(void);  
         void writeTx(unsigned char c);
 };
 
