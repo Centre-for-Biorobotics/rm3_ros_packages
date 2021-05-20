@@ -20,11 +20,11 @@
 
 //////////// Start of user-defined constants /////////////
 
-//#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not.
+#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not.
 #define OLIMEX                // If #define'd, the platform to compile for is Olimex. Note: Only the I2C bus address
                               // depends on this setting.
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive.
-#define NUM_MUX 5             // Number of multiplexers (max. 8).
+#define NUM_MUX 8             // Number of multiplexers (max. 8).
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8).
 #define MAXBUF 1000           // Maximum char length of an output message (txString).
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing.

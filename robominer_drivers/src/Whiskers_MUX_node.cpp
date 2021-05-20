@@ -63,7 +63,6 @@
 
 
 
-
 #include "Whiskers_MUX_node.h"
 
 
@@ -334,6 +333,7 @@ bool SensorGrid::setup(void)
         for(uint8_t i=0; i<NUM_SENSORS; i++)
         {
             multiplexers[m].selectChannel(i,true);
+            //delay(50);
             debug("  >> Now initializing sensor %d.%d\n",m,i);
             bool ret = sensors[m][i].initialize(fastMode);
             allOK &= ret;
@@ -635,11 +635,13 @@ bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize, Repres
 {
     int attemptNum = 0;
     bool checkOK = false;
-    initOK = true;    
+    initOK = false;    
+    /*
     if(reinitialize)
     {
         sensor.end();
     }
+    * */
     while(!checkOK && attemptNum < 5)
     {
         debug("   > Attempt: %d/5\n",(attemptNum+1));
@@ -650,8 +652,10 @@ bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize, Repres
             if(ret == BUS_ERROR)
             {
                 debug("   > Bus error on access mode = FASTMODE\n");
-                initOK = false;
-                //return ret;
+            }
+            else if(ret == BUS_OK)
+            {
+                initOK = true;
             }
         }
         sensor.disableTemp();  
