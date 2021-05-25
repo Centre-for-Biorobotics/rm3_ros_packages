@@ -99,11 +99,19 @@ int main(int argc, char **argv)
     SensorGrid grid(Cartesian, Grid, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
     
     // SENSORS AND MUX SETUP 
-    bool ret = grid.setup(); 
-    if(ret == false)
+    int ret = grid.setup(); 
+    if(ret == 2)
     {
         RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor initialization.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.\n");
     }
+    else if(ret == 1)
+    {
+        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor read checks.\n");
+    }
+#ifdef DEBUG
+    debug("\n<<<< SETUP ended. Waiting for some seconds...\n");
+    delay(5000);
+#endif
     
     // ROS SETUP 
     rclcpp::init(argc, argv);    
@@ -115,13 +123,8 @@ int main(int argc, char **argv)
     // ON EXIT
     rclcpp::shutdown();  
     Wire.end();
-    debug("\n>>>> Good-bye!\n\n");
-    
-    if(ret)
-    {
-        return 0; // OK
-    }
-    return 1;     // Error 
+    debug("\n>>>> Good-bye!\n\n");    
+    return ret;
 }
 
    
@@ -183,8 +186,14 @@ void WhiskersPublisher::timer_callback(void)
             if(grid->sensors[m][i].read(grid->r) > 0) // If code is -1, it means the sensor has never been initialized (-> ignore now).
                                                       // If code is > 0, it means there was a reading error, but the sensor has been initialized before.
             {
-                debug(">>>> Error reading sensor %d.%d; intializing again\n",m,i);
-                grid->sensors[m][i].initialize(grid->fastMode, true);
+                char message[255]; 
+                sprintf ( message, "Error reading sensor %d.%d; initializing again\n", m,i);
+                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+                if(grid->sensors[m][i].initialize(grid->fastMode) == 2)
+                {
+                    sprintf ( message, "Previously initialized sensor %d.%d now disabled\n", m,i);
+                    RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+                }
             }                      
         }    
     }
@@ -269,7 +278,7 @@ using namespace std;
 /**
  * SensorGrid class constructor.
  * 
- * @param _r The tzpe of representation of sensor data (Cartesian or Spherical).
+ * @param _r The type of representation of sensor data (Cartesian or Spherical).
  * @param _f The type of message representation for displaying sensor data
  *           (PlainText, Compressed or Grid). Note: will print only if CONSOLE_PRINT
  *           is #define'd.
@@ -295,13 +304,16 @@ SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode, bool
 /**
  * Opens the I2C bus, constructs and initializes the sensors.
  * 
- * @return Success code: true if all sensors ok, otherwise false.
+ * @return Success code: 0 if all sensors ok, otherwise the largest error (1 or 2)
+ *                       returned during initialization of all sensors.
+ *                       1: all sensors initialized, but not all passed the read check;
+ *                       2: not all sensors initialized.
  */
-bool SensorGrid::setup(void)
+int SensorGrid::setup(void)
 {
     debug("\n>>>> SETUP\n");     
     
-    bool allOK = true; 
+    int worstError = 0; 
     
     endSignature[0] = '\r';
     endSignature[1] = '\n';
@@ -335,23 +347,28 @@ bool SensorGrid::setup(void)
             multiplexers[m].selectChannel(i,true);
             //delay(50);
             debug("  >> Now initializing sensor %d.%d\n",m,i);
-            bool ret = sensors[m][i].initialize(fastMode);
-            allOK &= ret;
-            if(ret == false)
+            int ret = sensors[m][i].initialize(fastMode);            
+            if(ret > worstError)
             {
-                debug("  << Sensor %d.%d initialization failed. Check the connection.\n",m,i);
+                worstError = ret;
+            }
+            if(ret == 2)
+            {
+                char message[255]; 
+                sprintf ( message, "Sensor %d.%d initialization failed. Check the connection.\n", m,i );
+                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+            }
+            else if(ret == 1)
+            {
+                char message[255]; 
+                sprintf ( message, "Sensor %d.%d initialization ok, but read check failed.\n", m,i );
+                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
             }
         }
     }        
-    //debug("\n >>> Checking and re-initializing sensors TLV493D\n");
-    //ret = hallTestAndReinitialize(); // This is some dirty hack to avoid "badly initialized" (?) sensors in Linux
+    printSetupResult();
     init = false;                    // init mode is done, now we are in regular operating mode 
-    
-#ifdef DEBUG
-    debug("\n<<<< SETUP ended. Waiting for some seconds...\n");
-    delay(5000);
-#endif
-    return allOK;
+    return worstError;
 }
 
 /**
@@ -530,6 +547,24 @@ void SensorGrid::printReadingsToConsole(void)
         
     }
 }
+
+/**
+ * Prints the result of the sensor setup routine to the console in the
+ * form of a grid.
+ */
+void SensorGrid::printSetupResult(void)
+{
+    for(int m=0; m<NUM_MUX; m++)
+    {
+        for(int i=0; i<NUM_SENSORS; i++)
+        {
+            debug("  %s  ",sensors[m][i].initOK ? "OK" : "XX");
+        }
+        debug("\n");
+    }
+    debug("\n\n");
+}
+
 #endif
 
 /**
@@ -629,22 +664,18 @@ void SensorGrid::HallSensor::setGridPosition(uint8_t mNum, uint8_t sNum)
  *                     reinitialized during operation (when giving repeated zero-readings).
  * @param r [optional; default: Cartesian] The data representation to use when getting sensor readings.
  * 
- * @return Success code: True if ok, otherwise false.
+ * @return Success code: 0 if ok, 1 if initialization ok, but read check failed, 2 if initialization failed completely.
  */
-bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize, Representation r)
+int SensorGrid::HallSensor::initialize(bool fastMode, Representation r)
 {
     int attemptNum = 0;
     bool checkOK = false;
     initOK = false;    
-    /*
-    if(reinitialize)
-    {
-        sensor.end();
-    }
-    * */
+    
     while(!checkOK && attemptNum < 5)
     {
-        debug("   > Attempt: %d/5\n",(attemptNum+1));
+        attemptNum++;  
+        debug("   > Attempt: %d/5\n",(attemptNum));
         sensor.begin();  
         if(fastMode)
         {
@@ -652,20 +683,32 @@ bool SensorGrid::HallSensor::initialize(bool fastMode, bool reinitialize, Repres
             if(ret == BUS_ERROR)
             {
                 debug("   > Bus error on access mode = FASTMODE\n");
+                continue;
             }
             else if(ret == BUS_OK)
             {
                 initOK = true;
+                //printf("Sensor %d.%d successfully initialized.\n", pos[0],pos[1]);
             }
         }
         sensor.disableTemp();  
         if(initOK)
         {
             checkOK = check(r);    
-        }  
-        attemptNum++;  
+        }          
     }
-    return checkOK;
+    if(initOK)
+    {
+        if(checkOK)
+        {
+            //printf("(0) Sensor %d.%d initialized and reading ok.\n", pos[0],pos[1]);
+            return 0;
+        }
+        //printf("(1) Sensor %d.%d initialized but reading failed.\n", pos[0],pos[1]);
+        return 1;
+    }
+    //printf("(2) Sensor %d.%d not initialized.\n", pos[0],pos[1]);
+    return 2;
 }
 
 /**
@@ -722,7 +765,7 @@ int SensorGrid::HallSensor::read(Representation r)
         debug("   > Not reading sensor %d.%d (not initialized)\n",pos[0],pos[1]);
         return -1;
     }
-    debug("   > Attempting to read sensor %d.%d\n",pos[0],pos[1]);
+    //debug("   > Attempting to read sensor %d.%d\n",pos[0],pos[1]);
     uint16_t dly = sensor.getMeasurementDelay();
     delay(dly);
     Tlv493d_Error_t err = sensor.updateData();
@@ -731,8 +774,7 @@ int SensorGrid::HallSensor::read(Representation r)
         debug("   < Error reading sensor %d.%d. Error (%d) was: %s\n",pos[0],pos[1],errno,strerror(errno));
         hasError = true;
         return err;
-    }    
-    hasError = false;  
+    }
 
     if(r == Spherical)
     {      
@@ -754,7 +796,8 @@ int SensorGrid::HallSensor::read(Representation r)
     }
     else
     {
-        numReadZeros = 0;
+        numReadZeros = 0;            
+        hasError = false;  
     }
     if(numReadZeros >= MAX_READS_ZEROS)
     {

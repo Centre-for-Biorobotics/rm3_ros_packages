@@ -109,7 +109,7 @@ class SensorGrid
                 Tlv493d sensor;
                 float data[3];
                 uint8_t numReadZeros;
-                bool initialize(bool fastMode, bool reinitialize = false, Representation r = Cartesian);    
+                int initialize(bool fastMode, Representation r = Cartesian);    
                 bool check(Representation r);        
                 int read(Representation r);     
                 void encode(uint8_t index, unsigned char * result);  
@@ -131,12 +131,13 @@ class SensorGrid
         MessageFormat f;      
         unsigned char endSignature[2];           
         
-        bool setup(void);       
+        int setup(void);       
         
         void muxDisablePrevious(uint8_t muxNum);
         
         void muxForceDisableAll(uint8_t totalNum = 8);
-#ifdef CONSOLE_PRINT                
+#ifdef CONSOLE_PRINT   
+        void printSetupResult(void);
         void printReadingsToConsole(void);        
 #endif    
 

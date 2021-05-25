@@ -109,12 +109,12 @@ bool Tlv493d::setAccessMode(AccessMode_e mode)
 	ret = tlv493d::writeOut(&mInterface);
 	if ( ret != BUS_ERROR )
 	{
-		debug("  << Tlv493d::setAccessMode(): OK\n");
+		debug("  << Tlv493d::setAccessMode(%d): OK\n",mode);
 		mMode = mode;
 	}
 	else
 	{
-		debug("  << Tlv493d::setAccessMode(): Error: %s\n",strerror(errno));
+		debug("  << Tlv493d::setAccessMode(%d): Error: %s\n",mode,strerror(errno));
 	}
 	return ret;
 }
