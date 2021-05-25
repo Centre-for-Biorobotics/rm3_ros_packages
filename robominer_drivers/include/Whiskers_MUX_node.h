@@ -20,7 +20,7 @@
 
 //////////// Start of user-defined constants /////////////
 
-#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not.
+//#define DEBUG                 // If #define'd, debug messages will be printed to the console, otherwise not.
 #define OLIMEX                // If #define'd, the platform to compile for is Olimex. Note: Only the I2C bus address
                               // depends on this setting.
 #define MUX_STARTADDR 0x70    // [0x70] Address of the first multiplexer; the others must be consecutive.
@@ -84,7 +84,7 @@ class SensorGrid
         
         /**
          * Inner class defining a multiplexer with I2C bus address.
-         * Holds some utility functions for interfacing the multiplexer
+         * Holds some utility functions for interfacing the multiplexer.
          */
         class Multiplexer
         {
@@ -145,7 +145,6 @@ class SensorGrid
     
         uint16_t txIndex;   
         bool init;        
-        //int hallTestAndReinitialize(void);  
         void writeTx(unsigned char c);
 };
 
