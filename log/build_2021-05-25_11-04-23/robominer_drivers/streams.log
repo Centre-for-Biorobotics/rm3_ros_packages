@@ -1,0 +1,8 @@
+[0.167s] Invoking command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
+[0.570s] [35m[1mScanning dependencies of target tlv493d_tca9548a_whiskers[0m
+[0.706s] [ 30%] Built target bno080_imu
+[0.841s] [ 40%] [32mBuilding CXX object CMakeFiles/tlv493d_tca9548a_whiskers.dir/src/Whiskers_MUX_node.cpp.o[0m
+[5.453s] make[2]: *** [CMakeFiles/tlv493d_tca9548a_whiskers.dir/build.make:63: CMakeFiles/tlv493d_tca9548a_whiskers.dir/src/Whiskers_MUX_node.cpp.o] Interrupt
+[5.454s] make[1]: *** [CMakeFiles/Makefile2:80: CMakeFiles/tlv493d_tca9548a_whiskers.dir/all] Interrupt
+[5.455s] make: *** [Makefile:141: all] Interrupt
+[5.501s] Invoked command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers' returned '-2': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4

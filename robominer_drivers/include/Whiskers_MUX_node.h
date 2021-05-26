@@ -28,6 +28,7 @@
 #define NUM_SENSORS 8         // Number of sensors per multiplexer (max. 8).
 #define MAXBUF 1000           // Maximum char length of an output message (txString).
 #define PUBLISH_INTERVAL 40ms // Interval for whisker message publishing.
+#define PARAM_UPDATE_INTERVAL 1000ms // Interval for checking the parameter server for updated parameters.
 #define CONSOLE_PRINT         // If #define'd, sensor readings will be printed to the local console in the format chosen
                               // (second parameter in SensorGrid constructor).
 #define ENCODE_MULTIPLIER 100 // [100] Multiplier for floats when converting to 16-bit integers.
@@ -36,7 +37,6 @@
                               // be considered erroneous.
 
 //////////// End of user-defined constants /////////////
-
 
 
 
@@ -54,6 +54,11 @@
 #else
 	#define debug(fmt, ...) ((void)0)
 #endif 
+
+
+extern bool use_debug_mode;
+extern bool use_console_print;
+
 
 // Representation of sensor data
 enum Representation {  
@@ -164,7 +169,9 @@ class WhiskersPublisher : public rclcpp::Node
     private:
         
         void timer_callback(void);
+        void parameters_update(void);
         rclcpp::TimerBase::SharedPtr timer_;
+        rclcpp::TimerBase::SharedPtr timer_p_;
         rclcpp::Publisher<robominer_msgs::msg::WhiskerArray>::SharedPtr publisher_;
 #ifdef DEBUG
         volatile unsigned long lastLoop;

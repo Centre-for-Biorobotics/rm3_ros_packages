@@ -1,0 +1,134 @@
+[1.801s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--packages-select', 'robominer_drivers']
+[1.802s] DEBUG:colcon:Parsed command line arguments: Namespace(ament_cmake_args=None, base_paths=['.'], build_base='build', catkin_cmake_args=None, catkin_skip_building_tests=False, cmake_args=None, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, cmake_target=None, cmake_target_skip_unavailable=False, continue_on_error=False, event_handlers=None, executor='parallel', ignore_user_meta=False, install_base='install', log_base=None, log_level=None, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0xffffa7b044c0>>, merge_install=False, metas=['./colcon.meta'], packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_end=None, packages_ignore=None, packages_ignore_regex=None, packages_select=['robominer_drivers'], packages_select_build_failed=False, packages_select_by_dep=None, packages_select_regex=None, packages_select_test_failures=False, packages_skip=None, packages_skip_build_finished=False, packages_skip_by_dep=None, packages_skip_regex=None, packages_skip_test_passed=False, packages_skip_up_to=None, packages_start=None, packages_up_to=None, packages_up_to_regex=None, parallel_workers=4, paths=None, symlink_install=False, test_result_base=None, verb_extension=<colcon_core.verb.build.BuildVerb object at 0xffffa7b044c0>, verb_name='build', verb_parser=<colcon_defaults.argument_parser.defaults.DefaultArgumentsDecorator object at 0xffffa7b04a00>)
+[2.011s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[2.012s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[2.013s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[2.013s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[2.013s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[2.014s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[2.015s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/olimex/dev_ws/src/robominer'
+[2.016s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[2.017s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[2.017s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[2.018s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[2.018s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[2.019s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[2.019s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[2.020s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[2.020s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[2.152s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[2.152s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[2.153s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[2.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[2.154s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[2.155s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[2.156s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[2.157s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[2.159s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[2.160s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[2.161s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[2.162s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[2.163s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[2.163s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[2.164s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extensions ['ignore', 'ignore_ament_install']
+[2.165s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extension 'ignore'
+[2.166s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extension 'ignore_ament_install'
+[2.166s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extensions ['colcon_pkg']
+[2.167s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extension 'colcon_pkg'
+[2.167s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extensions ['colcon_meta']
+[2.168s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extension 'colcon_meta'
+[2.168s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extensions ['ros']
+[2.169s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_bringup) by extension 'ros'
+[2.191s] DEBUG:colcon.colcon_core.package_identification:Package 'robominer_bringup' with type 'ros.ament_python' and name 'robominer_bringup'
+[2.192s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extensions ['ignore', 'ignore_ament_install']
+[2.193s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extension 'ignore'
+[2.194s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extension 'ignore_ament_install'
+[2.195s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extensions ['colcon_pkg']
+[2.195s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extension 'colcon_pkg'
+[2.195s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extensions ['colcon_meta']
+[2.196s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extension 'colcon_meta'
+[2.196s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extensions ['ros']
+[2.197s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_drivers) by extension 'ros'
+[2.208s] DEBUG:colcon.colcon_core.package_identification:Package 'robominer_drivers' with type 'ros.ament_cmake' and name 'robominer_drivers'
+[2.209s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extensions ['ignore', 'ignore_ament_install']
+[2.210s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extension 'ignore'
+[2.211s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extension 'ignore_ament_install'
+[2.212s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extensions ['colcon_pkg']
+[2.212s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extension 'colcon_pkg'
+[2.213s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extensions ['colcon_meta']
+[2.213s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extension 'colcon_meta'
+[2.214s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extensions ['ros']
+[2.214s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_locomotion_control) by extension 'ros'
+[2.220s] DEBUG:colcon.colcon_core.package_identification:Package 'robominer_locomotion_control' with type 'ros.ament_python' and name 'robominer_locomotion_control'
+[2.221s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extensions ['ignore', 'ignore_ament_install']
+[2.222s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extension 'ignore'
+[2.223s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extension 'ignore_ament_install'
+[2.224s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extensions ['colcon_pkg']
+[2.224s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extension 'colcon_pkg'
+[2.225s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extensions ['colcon_meta']
+[2.225s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extension 'colcon_meta'
+[2.225s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extensions ['ros']
+[2.226s] Level 1:colcon.colcon_core.package_identification:_identify(robominer_msgs) by extension 'ros'
+[2.232s] DEBUG:colcon.colcon_core.package_identification:Package 'robominer_msgs' with type 'ros.ament_cmake' and name 'robominer_msgs'
+[2.233s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extensions ['ignore', 'ignore_ament_install']
+[2.234s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'ignore'
+[2.235s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'ignore_ament_install'
+[2.235s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extensions ['colcon_pkg']
+[2.236s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'colcon_pkg'
+[2.236s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extensions ['colcon_meta']
+[2.237s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'colcon_meta'
+[2.237s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extensions ['ros']
+[2.238s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'ros'
+[2.239s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extensions ['cmake', 'python']
+[2.239s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'cmake'
+[2.239s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'python'
+[2.240s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extensions ['python_setup_py']
+[2.240s] Level 1:colcon.colcon_core.package_identification:_identify(rosbag2_2021_04_22-14_47_24) by extension 'python_setup_py'
+[2.241s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[2.241s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[2.242s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[2.242s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[2.242s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[2.272s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'robominer_bringup' in 'robominer_bringup'
+[2.272s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'robominer_locomotion_control' in 'robominer_locomotion_control'
+[2.273s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'robominer_msgs' in 'robominer_msgs'
+[2.306s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'cmake_args' from command line to 'None'
+[2.307s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'cmake_target' from command line to 'None'
+[2.307s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[2.307s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'cmake_clean_cache' from command line to 'False'
+[2.308s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'cmake_clean_first' from command line to 'False'
+[2.308s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'cmake_force_configure' from command line to 'False'
+[2.308s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'ament_cmake_args' from command line to 'None'
+[2.309s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'catkin_cmake_args' from command line to 'None'
+[2.309s] Level 5:colcon.colcon_core.verb:set package 'robominer_drivers' build argument 'catkin_skip_building_tests' from command line to 'False'
+[2.309s] DEBUG:colcon.colcon_core.verb:Building package 'robominer_drivers' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/olimex/dev_ws/src/robominer/build/robominer_drivers', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/olimex/dev_ws/src/robominer/install/robominer_drivers', 'merge_install': False, 'path': '/home/olimex/dev_ws/src/robominer/robominer_drivers', 'symlink_install': False, 'test_result_base': None}
+[2.313s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[2.332s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[2.335s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/olimex/dev_ws/src/robominer/robominer_drivers' with build type 'ament_cmake'
+[2.378s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[2.381s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/olimex/dev_ws/src/robominer/robominer_drivers'
+[2.388s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[2.388s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[2.420s] DEBUG:colcon.colcon_core.shell:Ignoring prefix path '/opt/ros/foxy'
+[2.510s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
+[7.788s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete was interrupted
+[7.789s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete again
+[7.843s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers' returned '-2': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
+[7.850s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished
+[7.851s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[7.852s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[7.853s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[7.924s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[7.925s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[7.926s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[7.944s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[7.954s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/olimex/dev_ws/src/robominer/install/local_setup.ps1'
+[7.966s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/olimex/dev_ws/src/robominer/install/_local_setup_util_ps1.py'
+[7.983s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/olimex/dev_ws/src/robominer/install/setup.ps1'
+[8.014s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/olimex/dev_ws/src/robominer/install/local_setup.sh'
+[8.021s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/olimex/dev_ws/src/robominer/install/_local_setup_util_sh.py'
+[8.026s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/olimex/dev_ws/src/robominer/install/setup.sh'
+[8.055s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/olimex/dev_ws/src/robominer/install/local_setup.bash'
+[8.061s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/olimex/dev_ws/src/robominer/install/setup.bash'
+[8.089s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/olimex/dev_ws/src/robominer/install/local_setup.zsh'
+[8.095s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/olimex/dev_ws/src/robominer/install/setup.zsh'

@@ -1,0 +1,42 @@
+[0.210s] Invoking command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
+[0.835s] [35m[1mScanning dependencies of target tlv493d_tca9548a_whiskers[0m
+[1.037s] [ 30%] Built target bno080_imu
+[1.122s] [ 40%] [32mBuilding CXX object CMakeFiles/tlv493d_tca9548a_whiskers.dir/src/Whiskers_MUX_node.cpp.o[0m
+[34.623s] [ 50%] [32m[1mLinking CXX executable tlv493d_tca9548a_whiskers[0m
+[36.659s] [100%] Built target tlv493d_tca9548a_whiskers
+[36.751s] Invoked command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
+[37.082s] Invoking command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --install /home/olimex/dev_ws/src/robominer/build/robominer_drivers
+[37.149s] -- Install configuration: ""
+[37.151s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/bno080_imu
+[37.155s] -- Installing: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/tlv493d_tca9548a_whiskers
+[37.166s] -- Set runtime path of "/home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/tlv493d_tca9548a_whiskers" to ""
+[37.167s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/pythonpath.sh
+[37.168s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/pythonpath.dsv
+[37.170s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/python3.8/site-packages/robominer_drivers
+[37.171s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/python3.8/site-packages/robominer_drivers/__init__.py
+[37.463s] Listing '/home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/python3.8/site-packages/robominer_drivers'...
+[37.521s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/motor_serial_interface.py
+[37.523s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/temperature_sensor.py
+[37.524s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch
+[37.526s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/two_unos_com_id.launch.py
+[37.528s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/single_motor.launch.py
+[37.529s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/single_motor_com_id.launch.py
+[37.531s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/old_module_com_id.launch.py
+[37.532s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/right_module_com_id.launch.py
+[37.534s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/four_motor_modules.launch.py
+[37.535s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/ament_index/resource_index/package_run_dependencies/robominer_drivers
+[37.536s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/ament_index/resource_index/parent_prefix_path/robominer_drivers
+[37.537s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/ament_prefix_path.sh
+[37.538s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/ament_prefix_path.dsv
+[37.539s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/path.sh
+[37.540s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/path.dsv
+[37.541s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.bash
+[37.543s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.sh
+[37.549s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.zsh
+[37.556s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.dsv
+[37.557s] -- Installing: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/package.dsv
+[37.559s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/ament_index/resource_index/packages/robominer_drivers
+[37.561s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/cmake/robominer_driversConfig.cmake
+[37.563s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/cmake/robominer_driversConfig-version.cmake
+[37.564s] -- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/package.xml
+[37.566s] Invoked command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --install /home/olimex/dev_ws/src/robominer/build/robominer_drivers

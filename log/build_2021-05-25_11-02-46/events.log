@@ -1,0 +1,424 @@
+[0.000000] (-) TimerEvent: {}
+[0.002298] (-) JobUnselected: {'identifier': 'robominer_bringup'}
+[0.003067] (-) JobUnselected: {'identifier': 'robominer_locomotion_control'}
+[0.005001] (-) JobUnselected: {'identifier': 'robominer_msgs'}
+[0.008702] (robominer_drivers) JobQueued: {'identifier': 'robominer_drivers', 'dependencies': OrderedDict()}
+[0.009442] (robominer_drivers) JobStarted: {'identifier': 'robominer_drivers'}
+[0.097975] (-) TimerEvent: {}
+[0.190009] (robominer_drivers) JobProgress: {'identifier': 'robominer_drivers', 'progress': 'cmake'}
+[0.198277] (-) TimerEvent: {}
+[0.201976] (robominer_drivers) JobProgress: {'identifier': 'robominer_drivers', 'progress': 'build'}
+[0.210258] (robominer_drivers) Command: {'cmd': ['/usr/bin/cmake', '--build', '/home/olimex/dev_ws/src/robominer/build/robominer_drivers', '--', '-j4', '-l4'], 'cwd': '/home/olimex/dev_ws/src/robominer/build/robominer_drivers', 'env': OrderedDict([('LESSOPEN', '| /usr/bin/lesspipe %s'), ('LANGUAGE', 'en'), ('USER', 'olimex'), ('LC_TIME', 'C.UTF-8'), ('XDG_SEAT', 'seat0'), ('SSH_AGENT_PID', '1089'), ('XDG_SESSION_TYPE', 'x11'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/olimex/dev_ws/install/robominer_msgs/lib:/opt/ros/foxy/opt/yaml_cpp_vendor/lib:/opt/ros/foxy/opt/rviz_ogre_vendor/lib:/opt/ros/foxy/lib/aarch64-linux-gnu:/opt/ros/foxy/lib'), ('HOME', '/home/olimex'), ('OLDPWD', '/home/olimex/dev_ws'), ('DESKTOP_SESSION', 'xfce'), ('ROS_PYTHON_VERSION', '3'), ('GTK_MODULES', 'gail:atk-bridge'), ('XDG_SEAT_PATH', '/org/freedesktop/DisplayManager/Seat0'), ('LC_MONETARY', 'C.UTF-8'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('COLCON_PREFIX_PATH', '/home/olimex/dev_ws/install'), ('ROS_DISTRO', 'foxy'), ('LOGNAME', 'olimex'), ('WINDOWID', '33554435'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', 'c1'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/foxy/bin:/home/olimex/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games'), ('SESSION_MANAGER', 'local/a64-olinuxino-wf:@/tmp/.ICE-unix/857,unix/a64-olinuxino-wf:/tmp/.ICE-unix/857'), ('GDM_LANG', 'en'), ('PAPERSIZE', 'a4'), ('XDG_SESSION_PATH', '/org/freedesktop/DisplayManager/Session0'), ('XDG_MENU_PREFIX', 'xfce-'), ('LC_ADDRESS', 'C.UTF-8'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0.0'), ('LANG', 'C.UTF-8'), ('XDG_CURRENT_DESKTOP', 'XFCE'), ('LC_TELEPHONE', 'C.UTF-8'), ('XDG_SESSION_DESKTOP', 'xfce'), ('XAUTHORITY', '/home/olimex/.Xauthority'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/ssh-fpXGU7OQX5N7/agent.857'), ('XDG_GREETER_DATA_DIR', '/var/lib/lightdm-data/olimex'), ('AMENT_PREFIX_PATH', '/home/olimex/dev_ws/install/robominer_msgs:/home/olimex/dev_ws/install/robominer_drivers:/opt/ros/foxy'), ('SHELL', '/bin/bash'), ('LC_NAME', 'C.UTF-8'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'xfce'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'C.UTF-8'), ('LC_IDENTIFICATION', 'C.UTF-8'), ('XDG_VTNR', '7'), ('PWD', '/home/olimex/dev_ws/src/robominer/build/robominer_drivers'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-xfce:/etc/xdg:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/xfce4:/usr/share/xfce:/usr/local/share/:/usr/share/:/usr/share'), ('PYTHONPATH', '/home/olimex/dev_ws/install/robominer_msgs/lib/python3.8/site-packages:/home/olimex/dev_ws/install/robominer_drivers/lib/python3.8/site-packages:/opt/ros/foxy/lib/python3.8/site-packages'), ('LC_NUMERIC', 'C.UTF-8'), ('LC_PAPER', 'C.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6001'), ('CMAKE_PREFIX_PATH', '/home/olimex/dev_ws/install/robominer_msgs:/home/olimex/dev_ws/install/robominer_drivers:/opt/ros/foxy')]), 'shell': False}
+[0.298742] (-) TimerEvent: {}
+[0.400525] (-) TimerEvent: {}
+[0.502048] (-) TimerEvent: {}
+[0.603482] (-) TimerEvent: {}
+[0.705061] (-) TimerEvent: {}
+[0.806540] (-) TimerEvent: {}
+[0.843797] (robominer_drivers) StdoutLine: {'line': b'\x1b[35m\x1b[1mScanning dependencies of target tlv493d_tca9548a_whiskers\x1b[0m\n'}
+[0.906840] (-) TimerEvent: {}
+[1.008327] (-) TimerEvent: {}
+[1.045630] (robominer_drivers) StdoutLine: {'line': b'[ 30%] Built target bno080_imu\n'}
+[1.108651] (-) TimerEvent: {}
+[1.131191] (robominer_drivers) StdoutLine: {'line': b'[ 40%] \x1b[32mBuilding CXX object CMakeFiles/tlv493d_tca9548a_whiskers.dir/src/Whiskers_MUX_node.cpp.o\x1b[0m\n'}
+[1.208956] (-) TimerEvent: {}
+[1.310615] (-) TimerEvent: {}
+[1.412063] (-) TimerEvent: {}
+[1.513507] (-) TimerEvent: {}
+[1.614957] (-) TimerEvent: {}
+[1.716397] (-) TimerEvent: {}
+[1.817809] (-) TimerEvent: {}
+[1.919198] (-) TimerEvent: {}
+[2.020628] (-) TimerEvent: {}
+[2.122062] (-) TimerEvent: {}
+[2.223446] (-) TimerEvent: {}
+[2.324895] (-) TimerEvent: {}
+[2.426270] (-) TimerEvent: {}
+[2.527677] (-) TimerEvent: {}
+[2.629127] (-) TimerEvent: {}
+[2.730484] (-) TimerEvent: {}
+[2.831824] (-) TimerEvent: {}
+[2.933279] (-) TimerEvent: {}
+[3.034675] (-) TimerEvent: {}
+[3.136067] (-) TimerEvent: {}
+[3.237682] (-) TimerEvent: {}
+[3.339237] (-) TimerEvent: {}
+[3.440850] (-) TimerEvent: {}
+[3.542374] (-) TimerEvent: {}
+[3.643898] (-) TimerEvent: {}
+[3.745453] (-) TimerEvent: {}
+[3.846935] (-) TimerEvent: {}
+[3.948486] (-) TimerEvent: {}
+[4.049993] (-) TimerEvent: {}
+[4.151490] (-) TimerEvent: {}
+[4.253108] (-) TimerEvent: {}
+[4.354670] (-) TimerEvent: {}
+[4.456289] (-) TimerEvent: {}
+[4.557749] (-) TimerEvent: {}
+[4.659248] (-) TimerEvent: {}
+[4.760822] (-) TimerEvent: {}
+[4.862311] (-) TimerEvent: {}
+[4.963811] (-) TimerEvent: {}
+[5.065434] (-) TimerEvent: {}
+[5.167001] (-) TimerEvent: {}
+[5.268603] (-) TimerEvent: {}
+[5.370113] (-) TimerEvent: {}
+[5.471669] (-) TimerEvent: {}
+[5.573307] (-) TimerEvent: {}
+[5.675415] (-) TimerEvent: {}
+[5.777027] (-) TimerEvent: {}
+[5.878548] (-) TimerEvent: {}
+[5.980038] (-) TimerEvent: {}
+[6.081620] (-) TimerEvent: {}
+[6.183182] (-) TimerEvent: {}
+[6.284768] (-) TimerEvent: {}
+[6.386287] (-) TimerEvent: {}
+[6.487834] (-) TimerEvent: {}
+[6.589433] (-) TimerEvent: {}
+[6.690919] (-) TimerEvent: {}
+[6.792465] (-) TimerEvent: {}
+[6.893954] (-) TimerEvent: {}
+[6.995474] (-) TimerEvent: {}
+[7.097048] (-) TimerEvent: {}
+[7.198594] (-) TimerEvent: {}
+[7.300133] (-) TimerEvent: {}
+[7.401792] (-) TimerEvent: {}
+[7.503317] (-) TimerEvent: {}
+[7.604881] (-) TimerEvent: {}
+[7.706598] (-) TimerEvent: {}
+[7.808131] (-) TimerEvent: {}
+[7.909676] (-) TimerEvent: {}
+[8.011197] (-) TimerEvent: {}
+[8.112770] (-) TimerEvent: {}
+[8.214284] (-) TimerEvent: {}
+[8.315816] (-) TimerEvent: {}
+[8.417556] (-) TimerEvent: {}
+[8.519029] (-) TimerEvent: {}
+[8.620525] (-) TimerEvent: {}
+[8.722305] (-) TimerEvent: {}
+[8.823865] (-) TimerEvent: {}
+[8.925549] (-) TimerEvent: {}
+[9.027086] (-) TimerEvent: {}
+[9.128639] (-) TimerEvent: {}
+[9.230180] (-) TimerEvent: {}
+[9.331644] (-) TimerEvent: {}
+[9.433220] (-) TimerEvent: {}
+[9.534711] (-) TimerEvent: {}
+[9.636282] (-) TimerEvent: {}
+[9.737785] (-) TimerEvent: {}
+[9.839275] (-) TimerEvent: {}
+[9.940813] (-) TimerEvent: {}
+[10.042300] (-) TimerEvent: {}
+[10.143798] (-) TimerEvent: {}
+[10.245346] (-) TimerEvent: {}
+[10.346784] (-) TimerEvent: {}
+[10.448338] (-) TimerEvent: {}
+[10.549853] (-) TimerEvent: {}
+[10.651327] (-) TimerEvent: {}
+[10.752866] (-) TimerEvent: {}
+[10.854372] (-) TimerEvent: {}
+[10.955861] (-) TimerEvent: {}
+[11.057456] (-) TimerEvent: {}
+[11.158975] (-) TimerEvent: {}
+[11.260718] (-) TimerEvent: {}
+[11.362261] (-) TimerEvent: {}
+[11.463761] (-) TimerEvent: {}
+[11.565311] (-) TimerEvent: {}
+[11.666790] (-) TimerEvent: {}
+[11.768321] (-) TimerEvent: {}
+[11.869854] (-) TimerEvent: {}
+[11.971374] (-) TimerEvent: {}
+[12.072952] (-) TimerEvent: {}
+[12.174380] (-) TimerEvent: {}
+[12.275866] (-) TimerEvent: {}
+[12.377452] (-) TimerEvent: {}
+[12.478965] (-) TimerEvent: {}
+[12.580501] (-) TimerEvent: {}
+[12.682036] (-) TimerEvent: {}
+[12.783523] (-) TimerEvent: {}
+[12.885105] (-) TimerEvent: {}
+[12.986619] (-) TimerEvent: {}
+[13.088107] (-) TimerEvent: {}
+[13.189716] (-) TimerEvent: {}
+[13.291210] (-) TimerEvent: {}
+[13.392761] (-) TimerEvent: {}
+[13.494267] (-) TimerEvent: {}
+[13.595764] (-) TimerEvent: {}
+[13.697332] (-) TimerEvent: {}
+[13.798788] (-) TimerEvent: {}
+[13.900341] (-) TimerEvent: {}
+[14.001843] (-) TimerEvent: {}
+[14.103371] (-) TimerEvent: {}
+[14.204874] (-) TimerEvent: {}
+[14.306353] (-) TimerEvent: {}
+[14.407859] (-) TimerEvent: {}
+[14.509487] (-) TimerEvent: {}
+[14.611038] (-) TimerEvent: {}
+[14.712571] (-) TimerEvent: {}
+[14.814051] (-) TimerEvent: {}
+[14.915529] (-) TimerEvent: {}
+[15.017147] (-) TimerEvent: {}
+[15.118604] (-) TimerEvent: {}
+[15.220082] (-) TimerEvent: {}
+[15.321668] (-) TimerEvent: {}
+[15.423182] (-) TimerEvent: {}
+[15.524662] (-) TimerEvent: {}
+[15.626178] (-) TimerEvent: {}
+[15.727678] (-) TimerEvent: {}
+[15.829265] (-) TimerEvent: {}
+[15.930793] (-) TimerEvent: {}
+[16.032441] (-) TimerEvent: {}
+[16.133956] (-) TimerEvent: {}
+[16.235473] (-) TimerEvent: {}
+[16.337048] (-) TimerEvent: {}
+[16.438643] (-) TimerEvent: {}
+[16.540255] (-) TimerEvent: {}
+[16.641807] (-) TimerEvent: {}
+[16.743383] (-) TimerEvent: {}
+[16.845034] (-) TimerEvent: {}
+[16.946722] (-) TimerEvent: {}
+[17.048317] (-) TimerEvent: {}
+[17.149848] (-) TimerEvent: {}
+[17.251450] (-) TimerEvent: {}
+[17.353037] (-) TimerEvent: {}
+[17.454571] (-) TimerEvent: {}
+[17.556114] (-) TimerEvent: {}
+[17.657777] (-) TimerEvent: {}
+[17.759333] (-) TimerEvent: {}
+[17.860921] (-) TimerEvent: {}
+[17.962447] (-) TimerEvent: {}
+[18.064134] (-) TimerEvent: {}
+[18.165718] (-) TimerEvent: {}
+[18.267247] (-) TimerEvent: {}
+[18.368853] (-) TimerEvent: {}
+[18.470380] (-) TimerEvent: {}
+[18.571873] (-) TimerEvent: {}
+[18.673483] (-) TimerEvent: {}
+[18.775015] (-) TimerEvent: {}
+[18.876592] (-) TimerEvent: {}
+[18.978128] (-) TimerEvent: {}
+[19.079696] (-) TimerEvent: {}
+[19.181316] (-) TimerEvent: {}
+[19.282848] (-) TimerEvent: {}
+[19.384428] (-) TimerEvent: {}
+[19.485929] (-) TimerEvent: {}
+[19.587524] (-) TimerEvent: {}
+[19.689127] (-) TimerEvent: {}
+[19.790756] (-) TimerEvent: {}
+[19.892450] (-) TimerEvent: {}
+[19.993902] (-) TimerEvent: {}
+[20.095336] (-) TimerEvent: {}
+[20.196846] (-) TimerEvent: {}
+[20.298536] (-) TimerEvent: {}
+[20.399969] (-) TimerEvent: {}
+[20.501444] (-) TimerEvent: {}
+[20.602857] (-) TimerEvent: {}
+[20.704331] (-) TimerEvent: {}
+[20.805751] (-) TimerEvent: {}
+[20.907185] (-) TimerEvent: {}
+[21.008632] (-) TimerEvent: {}
+[21.110062] (-) TimerEvent: {}
+[21.211502] (-) TimerEvent: {}
+[21.312983] (-) TimerEvent: {}
+[21.414437] (-) TimerEvent: {}
+[21.515926] (-) TimerEvent: {}
+[21.617459] (-) TimerEvent: {}
+[21.719114] (-) TimerEvent: {}
+[21.820703] (-) TimerEvent: {}
+[21.922250] (-) TimerEvent: {}
+[22.023788] (-) TimerEvent: {}
+[22.125362] (-) TimerEvent: {}
+[22.226861] (-) TimerEvent: {}
+[22.328428] (-) TimerEvent: {}
+[22.430053] (-) TimerEvent: {}
+[22.531564] (-) TimerEvent: {}
+[22.633144] (-) TimerEvent: {}
+[22.734624] (-) TimerEvent: {}
+[22.836065] (-) TimerEvent: {}
+[22.937649] (-) TimerEvent: {}
+[23.039239] (-) TimerEvent: {}
+[23.140872] (-) TimerEvent: {}
+[23.242372] (-) TimerEvent: {}
+[23.343907] (-) TimerEvent: {}
+[23.445500] (-) TimerEvent: {}
+[23.547119] (-) TimerEvent: {}
+[23.648749] (-) TimerEvent: {}
+[23.750288] (-) TimerEvent: {}
+[23.851741] (-) TimerEvent: {}
+[23.953242] (-) TimerEvent: {}
+[24.054667] (-) TimerEvent: {}
+[24.156106] (-) TimerEvent: {}
+[24.257774] (-) TimerEvent: {}
+[24.359354] (-) TimerEvent: {}
+[24.460921] (-) TimerEvent: {}
+[24.562463] (-) TimerEvent: {}
+[24.663962] (-) TimerEvent: {}
+[24.765627] (-) TimerEvent: {}
+[24.867160] (-) TimerEvent: {}
+[24.968672] (-) TimerEvent: {}
+[25.070169] (-) TimerEvent: {}
+[25.171642] (-) TimerEvent: {}
+[25.273236] (-) TimerEvent: {}
+[25.374684] (-) TimerEvent: {}
+[25.476273] (-) TimerEvent: {}
+[25.577928] (-) TimerEvent: {}
+[25.679468] (-) TimerEvent: {}
+[25.781038] (-) TimerEvent: {}
+[25.882538] (-) TimerEvent: {}
+[25.983962] (-) TimerEvent: {}
+[26.085481] (-) TimerEvent: {}
+[26.186944] (-) TimerEvent: {}
+[26.288489] (-) TimerEvent: {}
+[26.389970] (-) TimerEvent: {}
+[26.491586] (-) TimerEvent: {}
+[26.593169] (-) TimerEvent: {}
+[26.694689] (-) TimerEvent: {}
+[26.796253] (-) TimerEvent: {}
+[26.897770] (-) TimerEvent: {}
+[26.999283] (-) TimerEvent: {}
+[27.100850] (-) TimerEvent: {}
+[27.202368] (-) TimerEvent: {}
+[27.304034] (-) TimerEvent: {}
+[27.405654] (-) TimerEvent: {}
+[27.507184] (-) TimerEvent: {}
+[27.608723] (-) TimerEvent: {}
+[27.710254] (-) TimerEvent: {}
+[27.811779] (-) TimerEvent: {}
+[27.913360] (-) TimerEvent: {}
+[28.014865] (-) TimerEvent: {}
+[28.116383] (-) TimerEvent: {}
+[28.217916] (-) TimerEvent: {}
+[28.319410] (-) TimerEvent: {}
+[28.420966] (-) TimerEvent: {}
+[28.522478] (-) TimerEvent: {}
+[28.623979] (-) TimerEvent: {}
+[28.725601] (-) TimerEvent: {}
+[28.827158] (-) TimerEvent: {}
+[28.928706] (-) TimerEvent: {}
+[29.030267] (-) TimerEvent: {}
+[29.131800] (-) TimerEvent: {}
+[29.233406] (-) TimerEvent: {}
+[29.335001] (-) TimerEvent: {}
+[29.436497] (-) TimerEvent: {}
+[29.537997] (-) TimerEvent: {}
+[29.639490] (-) TimerEvent: {}
+[29.741075] (-) TimerEvent: {}
+[29.842579] (-) TimerEvent: {}
+[29.944123] (-) TimerEvent: {}
+[30.045789] (-) TimerEvent: {}
+[30.147483] (-) TimerEvent: {}
+[30.249166] (-) TimerEvent: {}
+[30.350865] (-) TimerEvent: {}
+[30.452593] (-) TimerEvent: {}
+[30.554084] (-) TimerEvent: {}
+[30.655642] (-) TimerEvent: {}
+[30.757283] (-) TimerEvent: {}
+[30.858718] (-) TimerEvent: {}
+[30.960320] (-) TimerEvent: {}
+[31.061823] (-) TimerEvent: {}
+[31.163350] (-) TimerEvent: {}
+[31.264937] (-) TimerEvent: {}
+[31.366376] (-) TimerEvent: {}
+[31.467868] (-) TimerEvent: {}
+[31.569494] (-) TimerEvent: {}
+[31.671010] (-) TimerEvent: {}
+[31.772599] (-) TimerEvent: {}
+[31.874122] (-) TimerEvent: {}
+[31.975798] (-) TimerEvent: {}
+[32.077424] (-) TimerEvent: {}
+[32.178930] (-) TimerEvent: {}
+[32.280511] (-) TimerEvent: {}
+[32.382084] (-) TimerEvent: {}
+[32.483636] (-) TimerEvent: {}
+[32.585263] (-) TimerEvent: {}
+[32.686802] (-) TimerEvent: {}
+[32.788488] (-) TimerEvent: {}
+[32.889952] (-) TimerEvent: {}
+[32.991389] (-) TimerEvent: {}
+[33.092986] (-) TimerEvent: {}
+[33.194461] (-) TimerEvent: {}
+[33.295909] (-) TimerEvent: {}
+[33.397391] (-) TimerEvent: {}
+[33.498833] (-) TimerEvent: {}
+[33.600306] (-) TimerEvent: {}
+[33.701750] (-) TimerEvent: {}
+[33.803196] (-) TimerEvent: {}
+[33.904696] (-) TimerEvent: {}
+[34.006151] (-) TimerEvent: {}
+[34.107598] (-) TimerEvent: {}
+[34.209126] (-) TimerEvent: {}
+[34.310589] (-) TimerEvent: {}
+[34.412046] (-) TimerEvent: {}
+[34.513660] (-) TimerEvent: {}
+[34.615160] (-) TimerEvent: {}
+[34.631732] (robominer_drivers) StdoutLine: {'line': b'[ 50%] \x1b[32m\x1b[1mLinking CXX executable tlv493d_tca9548a_whiskers\x1b[0m\n'}
+[34.715478] (-) TimerEvent: {}
+[34.816957] (-) TimerEvent: {}
+[34.918426] (-) TimerEvent: {}
+[35.020277] (-) TimerEvent: {}
+[35.122027] (-) TimerEvent: {}
+[35.223602] (-) TimerEvent: {}
+[35.325458] (-) TimerEvent: {}
+[35.427709] (-) TimerEvent: {}
+[35.529598] (-) TimerEvent: {}
+[35.631147] (-) TimerEvent: {}
+[35.732828] (-) TimerEvent: {}
+[35.834391] (-) TimerEvent: {}
+[35.935733] (-) TimerEvent: {}
+[36.037160] (-) TimerEvent: {}
+[36.138580] (-) TimerEvent: {}
+[36.240095] (-) TimerEvent: {}
+[36.341586] (-) TimerEvent: {}
+[36.442987] (-) TimerEvent: {}
+[36.544423] (-) TimerEvent: {}
+[36.645885] (-) TimerEvent: {}
+[36.667320] (robominer_drivers) StdoutLine: {'line': b'[100%] Built target tlv493d_tca9548a_whiskers\n'}
+[36.746193] (-) TimerEvent: {}
+[36.758385] (robominer_drivers) CommandEnded: {'returncode': 0}
+[36.846669] (-) TimerEvent: {}
+[36.948465] (-) TimerEvent: {}
+[36.995401] (robominer_drivers) JobProgress: {'identifier': 'robominer_drivers', 'progress': 'install'}
+[37.048939] (-) TimerEvent: {}
+[37.081348] (robominer_drivers) Command: {'cmd': ['/usr/bin/cmake', '--install', '/home/olimex/dev_ws/src/robominer/build/robominer_drivers'], 'cwd': '/home/olimex/dev_ws/src/robominer/build/robominer_drivers', 'env': OrderedDict([('LESSOPEN', '| /usr/bin/lesspipe %s'), ('LANGUAGE', 'en'), ('USER', 'olimex'), ('LC_TIME', 'C.UTF-8'), ('XDG_SEAT', 'seat0'), ('SSH_AGENT_PID', '1089'), ('XDG_SESSION_TYPE', 'x11'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/home/olimex/dev_ws/install/robominer_msgs/lib:/opt/ros/foxy/opt/yaml_cpp_vendor/lib:/opt/ros/foxy/opt/rviz_ogre_vendor/lib:/opt/ros/foxy/lib/aarch64-linux-gnu:/opt/ros/foxy/lib'), ('HOME', '/home/olimex'), ('OLDPWD', '/home/olimex/dev_ws'), ('DESKTOP_SESSION', 'xfce'), ('ROS_PYTHON_VERSION', '3'), ('GTK_MODULES', 'gail:atk-bridge'), ('XDG_SEAT_PATH', '/org/freedesktop/DisplayManager/Seat0'), ('LC_MONETARY', 'C.UTF-8'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('COLCON_PREFIX_PATH', '/home/olimex/dev_ws/install'), ('ROS_DISTRO', 'foxy'), ('LOGNAME', 'olimex'), ('WINDOWID', '33554435'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', 'c1'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/foxy/bin:/home/olimex/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games'), ('SESSION_MANAGER', 'local/a64-olinuxino-wf:@/tmp/.ICE-unix/857,unix/a64-olinuxino-wf:/tmp/.ICE-unix/857'), ('GDM_LANG', 'en'), ('PAPERSIZE', 'a4'), ('XDG_SESSION_PATH', '/org/freedesktop/DisplayManager/Session0'), ('XDG_MENU_PREFIX', 'xfce-'), ('LC_ADDRESS', 'C.UTF-8'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':0.0'), ('LANG', 'C.UTF-8'), ('XDG_CURRENT_DESKTOP', 'XFCE'), ('LC_TELEPHONE', 'C.UTF-8'), ('XDG_SESSION_DESKTOP', 'xfce'), ('XAUTHORITY', '/home/olimex/.Xauthority'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('SSH_AUTH_SOCK', '/tmp/ssh-fpXGU7OQX5N7/agent.857'), ('XDG_GREETER_DATA_DIR', '/var/lib/lightdm-data/olimex'), ('AMENT_PREFIX_PATH', '/home/olimex/dev_ws/install/robominer_msgs:/home/olimex/dev_ws/install/robominer_drivers:/opt/ros/foxy'), ('SHELL', '/bin/bash'), ('LC_NAME', 'C.UTF-8'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'xfce'), ('LESSCLOSE', '/usr/bin/lesspipe %s %s'), ('LC_MEASUREMENT', 'C.UTF-8'), ('LC_IDENTIFICATION', 'C.UTF-8'), ('XDG_VTNR', '7'), ('PWD', '/home/olimex/dev_ws/src/robominer/build/robominer_drivers'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-xfce:/etc/xdg:/etc/xdg'), ('XDG_DATA_DIRS', '/usr/share/xfce4:/usr/share/xfce:/usr/local/share/:/usr/share/:/usr/share'), ('PYTHONPATH', '/home/olimex/dev_ws/install/robominer_msgs/lib/python3.8/site-packages:/home/olimex/dev_ws/install/robominer_drivers/lib/python3.8/site-packages:/opt/ros/foxy/lib/python3.8/site-packages'), ('LC_NUMERIC', 'C.UTF-8'), ('LC_PAPER', 'C.UTF-8'), ('COLCON', '1'), ('VTE_VERSION', '6001'), ('CMAKE_PREFIX_PATH', '/home/olimex/dev_ws/install/robominer_msgs:/home/olimex/dev_ws/install/robominer_drivers:/opt/ros/foxy')]), 'shell': False}
+[37.149290] (-) TimerEvent: {}
+[37.158168] (robominer_drivers) StdoutLine: {'line': b'-- Install configuration: ""\n'}
+[37.160134] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/bno080_imu\n'}
+[37.163600] (robominer_drivers) StdoutLine: {'line': b'-- Installing: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/tlv493d_tca9548a_whiskers\n'}
+[37.173918] (robominer_drivers) StdoutLine: {'line': b'-- Set runtime path of "/home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/tlv493d_tca9548a_whiskers" to ""\n'}
+[37.175738] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/pythonpath.sh\n'}
+[37.177278] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/pythonpath.dsv\n'}
+[37.178448] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/python3.8/site-packages/robominer_drivers\n'}
+[37.179690] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/python3.8/site-packages/robominer_drivers/__init__.py\n'}
+[37.249535] (-) TimerEvent: {}
+[37.350955] (-) TimerEvent: {}
+[37.452426] (-) TimerEvent: {}
+[37.471182] (robominer_drivers) StdoutLine: {'line': b"Listing '/home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/python3.8/site-packages/robominer_drivers'...\n"}
+[37.529108] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/motor_serial_interface.py\n'}
+[37.531227] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/lib/robominer_drivers/temperature_sensor.py\n'}
+[37.532986] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch\n'}
+[37.534523] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/two_unos_com_id.launch.py\n'}
+[37.536394] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/single_motor.launch.py\n'}
+[37.538025] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/single_motor_com_id.launch.py\n'}
+[37.539434] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/old_module_com_id.launch.py\n'}
+[37.541337] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/right_module_com_id.launch.py\n'}
+[37.542600] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/launch/four_motor_modules.launch.py\n'}
+[37.543696] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/ament_index/resource_index/package_run_dependencies/robominer_drivers\n'}
+[37.544882] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/ament_index/resource_index/parent_prefix_path/robominer_drivers\n'}
+[37.546023] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/ament_prefix_path.sh\n'}
+[37.547011] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/ament_prefix_path.dsv\n'}
+[37.547918] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/path.sh\n'}
+[37.549192] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/environment/path.dsv\n'}
+[37.550297] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.bash\n'}
+[37.551616] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.sh\n'}
+[37.553931] (-) TimerEvent: {}
+[37.556094] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.zsh\n'}
+[37.563846] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/local_setup.dsv\n'}
+[37.565848] (robominer_drivers) StdoutLine: {'line': b'-- Installing: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/package.dsv\n'}
+[37.567704] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/ament_index/resource_index/packages/robominer_drivers\n'}
+[37.569261] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/cmake/robominer_driversConfig.cmake\n'}
+[37.571117] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/cmake/robominer_driversConfig-version.cmake\n'}
+[37.572863] (robominer_drivers) StdoutLine: {'line': b'-- Up-to-date: /home/olimex/dev_ws/src/robominer/install/robominer_drivers/share/robominer_drivers/package.xml\n'}
+[37.574171] (robominer_drivers) CommandEnded: {'returncode': 0}
+[37.654683] (-) TimerEvent: {}
+[37.723554] (robominer_drivers) JobEnded: {'identifier': 'robominer_drivers', 'rc': 0}
+[37.731267] (-) EventReactorShutdown: {}

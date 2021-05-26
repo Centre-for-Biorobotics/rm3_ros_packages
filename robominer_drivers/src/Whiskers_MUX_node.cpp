@@ -67,7 +67,8 @@
 
 
    
-
+bool use_debug_mode = false;
+bool use_console_print = true;
 
 
 
@@ -89,10 +90,19 @@ using namespace std;
 /**
  * Executable entry point.
  * 
- * @return Error code: 0 if ok, otherwise 1.
+ * @return Error code: see sensorGrid::setup()
  */
 int main(int argc, char **argv)
 {    
+    printf("ROS node with arguments\n\n");
+    
+    printf("Arguments count: %d\n",argc);
+    for(int a=0; a<argc; a++)
+    {
+        char* arg = argv[a];
+        printf("%d:  %s\n",a,arg);
+    }
+    
     RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing. Please wait...\n");
     
     // GRID OBJECT CONSTRUCTION
@@ -153,13 +163,16 @@ WhiskersPublisher::WhiskersPublisher(SensorGrid * _grid) : rclcpp::Node("whisker
     publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
     timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));
     grid = _grid;
+    this->declare_parameter<bool>("debug_mode",false);
+    this->declare_parameter<bool>("console_print",true);
+    timer_p_ = this->create_wall_timer(PARAM_UPDATE_INTERVAL,std::bind(&WhiskersPublisher::parameters_update, this));
 #ifdef DEBUG
     lastLoop = 0;
 #endif
 }
 
 /**
- * Callback function for the timer interrupt in ROS. Publishes at defined intervals (PUBLISH_INTERVAL).
+ * Callback function for a timer interrupt in ROS. Publishes at defined intervals (PUBLISH_INTERVAL).
  */
 void WhiskersPublisher::timer_callback(void)
 {
@@ -170,6 +183,8 @@ void WhiskersPublisher::timer_callback(void)
     lastLoop = now;      
     debug("\n>>>> Publishing @ %.2f Hz\n", loopFreq);
 #endif
+    
+    
       
     // Acquire data from sensors
 
@@ -251,8 +266,18 @@ void WhiskersPublisher::timer_callback(void)
 #endif
 }
 
-
-
+/**
+ * Callback function for a timer interrupt in ROS. Checks the parameter server and updates parameters
+ * at defined intervals (PARAM_UPDATE_INTERVAL).
+ */
+void WhiskersPublisher::parameters_update(void)
+{
+    RCLCPP_INFO(this->get_logger(), "PARAMETERS UPDATE");
+    this->get_parameter("debug_mode",::use_debug_mode);
+    this->get_parameter("console_print",::use_console_print);
+    printf("Debug mode: %s\n",::use_debug_mode ? "true" : "false");
+    printf("Console print: %s\n",::use_console_print ? "true" : "false");   
+}
 
 
 
