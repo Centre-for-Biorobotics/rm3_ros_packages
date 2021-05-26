@@ -46,8 +46,12 @@
  * integer. The result is stored in "txString", which can be used for data
  * acquisition purposes in the future (e.g., send to SimuLink via Serial).
  * 
+ * To activate debug messages in the console, the parameter "debug_mode"
+ * must be set to true. If sensor data should be printed to the console, the
+ * parameter "use_console_print" must be set to true. These two parameters can
+ * be set in the launch file of this node.
+ * 
  * To run this code on Olimex, uncomment "#define OLIMEX" in "Whiskers_MUX_node.h".
- * To view debug messages, uncomment "#define DEBUG" in "Whiskers_MUX_node.h".
  * 
  * When running on an Ubuntu computer (Desktop/laptop), a USB-to-I2C
  * adapter can be used. Please note the name of the i2c bus using "dmesg"
@@ -69,6 +73,7 @@
    
 bool use_debug_mode = false;
 bool use_console_print = true;
+bool params_initialized = false;
 
 
 
@@ -93,20 +98,14 @@ using namespace std;
  * @return Error code: see sensorGrid::setup()
  */
 int main(int argc, char **argv)
-{    
-    printf("ROS node with arguments\n\n");
-    
-    printf("Arguments count: %d\n",argc);
-    for(int a=0; a<argc; a++)
-    {
-        char* arg = argv[a];
-        printf("%d:  %s\n",a,arg);
-    }
-    
-    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing. Please wait...\n");
+{   
+    // ROS SETUP 
+    rclcpp::init(argc, argv);    
+     
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing...\n");
     
     // GRID OBJECT CONSTRUCTION
-    SensorGrid grid(Cartesian, Grid, true, true); // Representation, Message format, Hall sensors in fast mode?, Send polar radius if Spherical/compressed?
+    SensorGrid grid(Cartesian, Grid, true); // Representation, Message format, Hall sensors in fast mode?
     
     // SENSORS AND MUX SETUP 
     int ret = grid.setup(); 
@@ -118,22 +117,17 @@ int main(int argc, char **argv)
     {
         RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor read checks.\n");
     }
-#ifdef DEBUG
-    debug("\n<<<< SETUP ended. Waiting for some seconds...\n");
-    delay(5000);
-#endif
-    
-    // ROS SETUP 
-    rclcpp::init(argc, argv);    
+    if(::use_debug_mode && ::params_initialized) { printf("\n<<<< SETUP ended. Waiting for some seconds...\n"); ::delay(5000); }
 
     // MAIN LOOP 
     RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Starting to publish.\n");
     rclcpp::spin(std::make_shared<WhiskersPublisher>(&grid)); // This constructs node and then spins it.
 
     // ON EXIT
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Clean exit in progress; return code %d.\n",ret); 
     rclcpp::shutdown();  
     Wire.end();
-    debug("\n>>>> Good-bye!\n\n");    
+    
     return ret;
 }
 
@@ -166,9 +160,7 @@ WhiskersPublisher::WhiskersPublisher(SensorGrid * _grid) : rclcpp::Node("whisker
     this->declare_parameter<bool>("debug_mode",false);
     this->declare_parameter<bool>("console_print",true);
     timer_p_ = this->create_wall_timer(PARAM_UPDATE_INTERVAL,std::bind(&WhiskersPublisher::parameters_update, this));
-#ifdef DEBUG
     lastLoop = 0;
-#endif
 }
 
 /**
@@ -177,14 +169,11 @@ WhiskersPublisher::WhiskersPublisher(SensorGrid * _grid) : rclcpp::Node("whisker
 void WhiskersPublisher::timer_callback(void)
 {
     // Calculate actual publishing frequency
-#ifdef DEBUG
-    volatile unsigned long now = millis();
+
+    volatile unsigned long now = ::millis();
     loopFreq = 1000.0 / float(now - lastLoop);
     lastLoop = now;      
-    debug("\n>>>> Publishing @ %.2f Hz\n", loopFreq);
-#endif
-    
-    
+    if(::use_debug_mode && ::params_initialized) { printf("\n>>>> Publishing @ %.2f Hz\n", loopFreq); }    
       
     // Acquire data from sensors
 
@@ -260,10 +249,9 @@ void WhiskersPublisher::timer_callback(void)
     }      
     publisher_->publish(message);      
       
-      // Print readings to console
-#ifdef CONSOLE_PRINT
+    // Print readings to console
+
     grid->printReadingsToConsole();     
-#endif
 }
 
 /**
@@ -272,11 +260,9 @@ void WhiskersPublisher::timer_callback(void)
  */
 void WhiskersPublisher::parameters_update(void)
 {
-    RCLCPP_INFO(this->get_logger(), "PARAMETERS UPDATE");
     this->get_parameter("debug_mode",::use_debug_mode);
     this->get_parameter("console_print",::use_console_print);
-    printf("Debug mode: %s\n",::use_debug_mode ? "true" : "false");
-    printf("Console print: %s\n",::use_console_print ? "true" : "false");   
+    params_initialized = true;
 }
 
 
@@ -305,22 +291,16 @@ using namespace std;
  * 
  * @param _r The type of representation of sensor data (Cartesian or Spherical).
  * @param _f The type of message representation for displaying sensor data
- *           (PlainText, Compressed or Grid). Note: will print only if CONSOLE_PRINT
- *           is #define'd.
+ *           (PlainText, Compressed or Grid). Note: will print only if use_console_print
+ *           is true.
  * @param _fastMode [optional; default: true] If true, the sensors are being
- *                  read in a higher frequency than when set to false.
- * @param _sendPolarRadius [optional; default: true] If true, the sensor data 
- *                         printed when using Compressed message format
- *                         and Spherical representation will include the third
- *                         value as polar radius, otherwise not (only two values
- *                         will be printed).
+ *                  read in a higher frequency than when set to false. 
  */
-SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode, bool _sendPolarRadius)
+SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode)
 {
     init = true;    // we are in init mode during setup
     r = _r;
     f = _f;
-    sendPolarRadius = _sendPolarRadius;
     fastMode = _fastMode;
     txString = new unsigned char[MAXBUF];
     txIndex = 0; 
@@ -336,7 +316,7 @@ SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode, bool
  */
 int SensorGrid::setup(void)
 {
-    debug("\n>>>> SETUP\n");     
+    if(::use_debug_mode && ::params_initialized) { printf("\n>>>> SETUP\n"); }
     
     int worstError = 0; 
     
@@ -345,11 +325,11 @@ int SensorGrid::setup(void)
     
     Wire.begin((uint8_t)I2C_BUS_ID);
     
-    debug("\n >>> Disabling 8 physical multiplexers\n");
+    if(::use_debug_mode && ::params_initialized) { printf("\n >>> Disabling 8 physical multiplexers\n"); }
     
     muxForceDisableAll();
     
-    debug("\n >>> Preparing sensor objects TLV493D for the grid\n");
+    if(::use_debug_mode && ::params_initialized) { printf("\n >>> Preparing sensor objects TLV493D for the grid\n"); }
     for(uint8_t m=0; m<NUM_MUX; m++)
     { 
         for(uint8_t i=0; i<NUM_SENSORS; i++)
@@ -358,7 +338,7 @@ int SensorGrid::setup(void)
         }
     }
     
-    debug("\n >>> Constructing multiplexers, initializing sensors TLV493D\n");
+    if(::use_debug_mode && ::params_initialized) { printf("\n >>> Constructing multiplexers, initializing sensors TLV493D\n"); }
     for(uint8_t m=0; m<NUM_MUX; m++)
     { 
         multiplexers.push_back(Multiplexer(MUX_STARTADDR+m));
@@ -370,8 +350,8 @@ int SensorGrid::setup(void)
         for(uint8_t i=0; i<NUM_SENSORS; i++)
         {
             multiplexers[m].selectChannel(i,true);
-            //delay(50);
-            debug("  >> Now initializing sensor %d.%d\n",m,i);
+            //::delay(50);
+            if(::use_debug_mode && ::params_initialized) { printf("  >> Now initializing sensor %d.%d\n",m,i); }
             int ret = sensors[m][i].initialize(fastMode);            
             if(ret > worstError)
             {
@@ -415,7 +395,7 @@ void SensorGrid::muxDisablePrevious(uint8_t muxNum)
     }
     else
     {
-        debug("  >> Skipping disable (only 1 MUX in use).\n");
+        if(::use_debug_mode && ::params_initialized) { printf("  >> Skipping disable (only 1 MUX in use).\n"); }
     }    
 }
 
@@ -428,7 +408,7 @@ void SensorGrid::muxForceDisableAll(uint8_t totalNum)
 {
     for(int m=MUX_STARTADDR; m<MUX_STARTADDR+totalNum; m++)
     {
-        debug("  >> Disabling multiplexer at address 0x%02X\n",m);
+        if(::use_debug_mode && ::params_initialized) { printf("  >> Disabling multiplexer at address 0x%02X\n",m); }
         Wire.beginTransmission(m);
         Wire.write(0);
         Wire.endTransmission();
@@ -440,9 +420,12 @@ void SensorGrid::muxForceDisableAll(uint8_t totalNum)
  * to console. The type of console output (plain text or compressed) depends
  * on the value of "f".
  */
- #ifdef CONSOLE_PRINT
 void SensorGrid::printReadingsToConsole(void)
 {
+    if(!::use_console_print || !::params_initialized)
+    {
+        return;
+    }
     if(f == PlainText)
     {    
         for(uint8_t m=0;m<NUM_MUX;m++)
@@ -472,10 +455,12 @@ void SensorGrid::printReadingsToConsole(void)
             for(uint8_t i=0;i<NUM_SENSORS;i++)
             {
                 uint8_t numValues = 3;
-                if(r == Spherical && !sendPolarRadius)
-                {
+#ifdef SEND_POLAR_RADIUS
+                if(r == Spherical)
+                {        
                     numValues = 2;
                 }
+#endif
                 for(int j=0;j<numValues;j++)
                 {
                     unsigned char * encoded = new unsigned char[2];
@@ -583,14 +568,13 @@ void SensorGrid::printSetupResult(void)
     {
         for(int i=0; i<NUM_SENSORS; i++)
         {
-            debug("  %s  ",sensors[m][i].initOK ? "OK" : "XX");
+            if(::use_debug_mode && ::params_initialized) { printf("  %s  ",sensors[m][i].initOK ? "OK" : "XX"); }
         }
-        debug("\n");
+        if(::use_debug_mode && ::params_initialized) { printf("\n"); }
     }
-    debug("\n\n");
+    if(::use_debug_mode && ::params_initialized) { printf("\n\n"); }
 }
 
-#endif
 
 /**
  * Concatenates characters into the class-global string txIndex.
@@ -613,7 +597,7 @@ void SensorGrid::writeTx(unsigned char c)
  */
 SensorGrid::Multiplexer::Multiplexer(uint8_t addr)
 {
-    //debug(">>>> Constructing Multiplexer object with address 0x%02X\n",addr);
+    //::debug(">>>> Constructing Multiplexer object with address 0x%02X\n",addr);
     address = addr;
 }
 
@@ -622,7 +606,7 @@ SensorGrid::Multiplexer::Multiplexer(uint8_t addr)
  */
 void SensorGrid::Multiplexer::disable(void)
 {
-    debug("  >> Disabling multiplexer at address 0x%02X\n",address);
+    if(::use_debug_mode && ::params_initialized) { printf("  >> Disabling multiplexer at address 0x%02X\n",address); }
     Wire.beginTransmission(address);
     Wire.write(0);
     Wire.endTransmission();
@@ -642,10 +626,10 @@ void SensorGrid::Multiplexer::selectChannel(uint8_t ch, bool init)
     // or more than one multiplexer.
     if(init == false && NUM_MUX == 1 && NUM_SENSORS == 1) 
     {   
-        debug("  >> Skipping channel selection: 0X%02X, ch. %d\n",address,ch);
+        if(::use_debug_mode && ::params_initialized) { printf("  >> Skipping channel selection: 0X%02X, ch. %d\n",address,ch); }
         return; 
     }
-    debug("  >> Selecting channel: 0X%02X, ch. %d\n",address,ch);
+    if(::use_debug_mode && ::params_initialized) { printf("  >> Selecting channel: 0X%02X, ch. %d\n",address,ch); }
     Wire.beginTransmission(address);
     Wire.write(1 << ch);
     Wire.endTransmission();  
@@ -656,7 +640,7 @@ void SensorGrid::Multiplexer::selectChannel(uint8_t ch, bool init)
  */
 SensorGrid::HallSensor::HallSensor()
 {
-    //debug(">>>> Constructing HallSensor object using default constructor\n");
+    //::debug(">>>> Constructing HallSensor object using default constructor\n");
     for(int i=0; i<3; i++)
     {
         data[i] = 0.0;
@@ -700,20 +684,19 @@ int SensorGrid::HallSensor::initialize(bool fastMode, Representation r)
     while(!checkOK && attemptNum < 5)
     {
         attemptNum++;  
-        debug("   > Attempt: %d/5\n",(attemptNum));
+        if(::use_debug_mode && ::params_initialized) { printf("   > Attempt: %d/5\n",(attemptNum)); }
         sensor.begin();  
         if(fastMode)
         {
             bool ret = sensor.setAccessMode(sensor.FASTMODE);
             if(ret == BUS_ERROR)
             {
-                debug("   > Bus error on access mode = FASTMODE\n");
+                if(::use_debug_mode && ::params_initialized) { printf("   > Bus error on access mode = FASTMODE\n"); }
                 continue;
             }
             else if(ret == BUS_OK)
             {
                 initOK = true;
-                //printf("Sensor %d.%d successfully initialized.\n", pos[0],pos[1]);
             }
         }
         sensor.disableTemp();  
@@ -726,13 +709,10 @@ int SensorGrid::HallSensor::initialize(bool fastMode, Representation r)
     {
         if(checkOK)
         {
-            //printf("(0) Sensor %d.%d initialized and reading ok.\n", pos[0],pos[1]);
             return 0;
         }
-        //printf("(1) Sensor %d.%d initialized but reading failed.\n", pos[0],pos[1]);
         return 1;
     }
-    //printf("(2) Sensor %d.%d not initialized.\n", pos[0],pos[1]);
     return 2;
 }
 
@@ -747,26 +727,26 @@ bool SensorGrid::HallSensor::check(Representation r)
 {
     bool ret = false;
     uint8_t readNum = 0;
-    debug("  >> Checking sensor %d.%d\n",pos[0],pos[1]);
+    if(::use_debug_mode && ::params_initialized) { printf("  >> Checking sensor %d.%d\n",pos[0],pos[1]); }
     while(readNum < MAX_READS_ZEROS)
     {                    
-        debug("   > Reading data (%d/%d)\n",(readNum+1),MAX_READS_ZEROS);
+        if(::use_debug_mode && ::params_initialized) { printf("   > Reading data (%d/%d)\n",(readNum+1),MAX_READS_ZEROS); }
         if(read(r) != 0)
         {
-            debug("  << Reading failed\n");
+            if(::use_debug_mode && ::params_initialized) { printf("  << Reading failed\n"); }
             break;
         }
         readNum++;    
         if(data[0] != 0 || data[1] != 0 || data[2] != 0)
         {
             ret = true;
-            debug("  << Good data\n");
+            if(::use_debug_mode && ::params_initialized) { printf("  << Good data\n"); }
             break;
         }            
     }
     if(!ret)
     {
-        debug("  << Check failed\n");
+        if(::use_debug_mode && ::params_initialized) { printf("  << Check failed\n"); }
     }
     return ret;
 }
@@ -787,16 +767,15 @@ int SensorGrid::HallSensor::read(Representation r)
 {
     if(!initOK)
     {
-        debug("   > Not reading sensor %d.%d (not initialized)\n",pos[0],pos[1]);
+        if(::use_debug_mode && ::params_initialized) { printf("   > Not reading sensor %d.%d (not initialized)\n",pos[0],pos[1]); }
         return -1;
     }
-    //debug("   > Attempting to read sensor %d.%d\n",pos[0],pos[1]);
     uint16_t dly = sensor.getMeasurementDelay();
-    delay(dly);
+    ::delay(dly);
     Tlv493d_Error_t err = sensor.updateData();
     if(err != TLV493D_NO_ERROR)
     {
-        debug("   < Error reading sensor %d.%d. Error (%d) was: %s\n",pos[0],pos[1],errno,strerror(errno));
+        if(::use_debug_mode && ::params_initialized) { printf("   < Error reading sensor %d.%d. Error (%d) was: %s\n",pos[0],pos[1],errno,strerror(errno)); }
         hasError = true;
         return err;
     }
