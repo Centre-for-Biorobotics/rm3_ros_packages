@@ -51,7 +51,6 @@
 // Global variables related to console output
 extern bool use_debug_mode;
 extern bool use_console_print;
-extern bool params_initialized;     
 
 // Representation of sensor data
 enum Representation {  
@@ -132,12 +131,12 @@ class SensorGrid
         void muxDisablePrevious(uint8_t muxNum);        
         void muxForceDisableAll(uint8_t totalNum = 8);
         void printSetupResult(void);
-        void printReadingsToConsole(void);         
+        void printReadingsToConsole(void);     
+        bool init;        
 
     private:
     
-        uint16_t txIndex;   
-        bool init;        
+        uint16_t txIndex;               
         void writeTx(unsigned char c);
 };
 
