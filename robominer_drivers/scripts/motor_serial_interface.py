@@ -57,7 +57,7 @@ class SerialInterface(Node):
 		self.sub_motor_setpoint = self.create_subscription(MotorModuleCommand, self.motor_topic_name, self.motorCommandsCallback, 10)
 
 		self.transmitting_timer_period = 0.2 # for sending rpm setpoint to arduino at 5Hz
-		self.receiving_timer_period = 1 # arduino sends back rpm and current sensing every 1 second
+		self.receiving_timer_period = 0.2 # arduino sends back rpm and current sensing every 1 second
 
 		self.sending_timer = self.create_timer(self.transmitting_timer_period, self.sendToArduino)
 		self.receiving_timer = self.create_timer(self.receiving_timer_period, self.readFromArduino)
@@ -95,7 +95,7 @@ class SerialInterface(Node):
 		"""
 		self.motor_module_msg = MotorModuleFeedback() # custom message
 
-		self.packet_length = len(data_packet) # determine data packet length
+		self.packet_length = len(data_packet) # determine data payload length (+ header length = 4 is included)
 		self.header_length = 4
 
 		# calculate XOR checksum of 'data' part of packet
@@ -115,9 +115,10 @@ class SerialInterface(Node):
 
 		if self.packet_length == 11: 		# no current measurement
 			checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
-		elif self.packet_length == 15: 		# with current measurement
+		elif self.packet_length == 19: 		# with current and voltage measurement
 			self.motor_module_msg.motor_current_ma = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
-			checksum_byte = struct.unpack('b', bytes(data_packet[10+self.header_length:11+self.header_length]))[0]
+			self.motor_module_msg.motor_voltage_v = struct.unpack('f', data_packet[10+self.header_length:14+self.header_length])[0]	
+			checksum_byte = struct.unpack('b', bytes(data_packet[14+self.header_length:15+self.header_length]))[0]
 
 		if self.chk != 0:
 			self.get_logger().info('Checksum problem')

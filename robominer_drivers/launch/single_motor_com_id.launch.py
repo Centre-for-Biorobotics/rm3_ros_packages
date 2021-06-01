@@ -7,7 +7,7 @@ def generate_launch_description():
 	return LaunchDescription([
 		Node(
 			package='robominer_drivers', 
-			namespace='motor0',
+			namespace='motorX',
 			executable='motor_serial_interface.py',
 			name='motor_serial_interface',
 			output='screen',
