@@ -4,3 +4,6 @@ __pycache__/
 
 # swap files
 **/*.swp
+
+# Windows Desktop configuration files
+**/desktop.ini

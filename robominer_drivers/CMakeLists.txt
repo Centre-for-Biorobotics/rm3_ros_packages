@@ -27,11 +27,23 @@ find_package(robominer_msgs)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
+include_directories(include) # This makes it possible to find header files in the include folder
+
 add_executable(bno080_imu src/BNO080_imu.cpp src/BNO080_i2c.cpp)
 ament_target_dependencies(bno080_imu rclcpp std_msgs sensor_msgs)
 
+add_executable(tlv493d_tca9548a_whiskers
+  src/Whiskers_MUX_node.cpp
+  src/arduino_to_olimex/Olimexino.cpp
+  src/arduino_to_olimex/Wire.cpp
+  src/tlv493d_lib/util/RegMask.cpp
+  src/tlv493d_lib/util/BusInterface.cpp
+  src/tlv493d_lib/Tlv493d.cpp)
+ament_target_dependencies(tlv493d_tca9548a_whiskers rclcpp std_msgs robominer_msgs)
+
 install(TARGETS
   bno080_imu
+  tlv493d_tca9548a_whiskers
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules
