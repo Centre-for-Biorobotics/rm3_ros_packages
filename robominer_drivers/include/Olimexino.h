@@ -13,7 +13,7 @@
 using namespace std;
 
 
-void delay(uint32_t);
+void delay(uint16_t);
 void print(unsigned char *buf, int size);
 unsigned long millis(void);
 

@@ -49,7 +49,7 @@ void TwoWire::begin(uint8_t busAddress)
 
 void TwoWire::begin(void)
 {	
-	debug("TwoWire::begin(): Using pre-defined bus name %s\n",busName);
+	//if(::use_debug_mode) { printf("TwoWire::begin(): Using pre-defined bus name %s\n",busName); }
 	begin(busName); // assuming there has been already a bus name set
 }
 
@@ -64,10 +64,10 @@ void TwoWire::begin(char * _busName)
 	file = open(_busName, O_RDWR);
 	if (file < 0) {
 		/* ERROR HANDLING; you can check errno to see what went wrong */
-		debug("TwoWire::begin(): Error opening I2C bus %s.\n",_busName);
+		if(::use_debug_mode) { printf("     TwoWire::begin(): Error opening I2C bus %s.\n",_busName); }
 	}	
 	snprintf(busName, 19, "%s", _busName);
-	debug("TwoWire::begin(): I2C bus is now open: %s\n",busName);
+	if(::use_debug_mode) { printf("     TwoWire::begin(): I2C bus is now open: %s\n",busName); }
 }
 
 /**
@@ -80,7 +80,7 @@ bool TwoWire::selectSlave(uint8_t address)
 {
 	if (ioctl(file, I2C_SLAVE, address) < 0) {
 		/* ERROR HANDLING; you can check errno to see what went wrong */
-		debug("TwoWire::selectSlave(): Error opening slave device 0x%02X.\n", address);
+		if(::use_debug_mode) { printf("     TwoWire::selectSlave(): Error opening slave device 0x%02X.\n", address); }
 		return false;
 	}	
 	slaveAddress = address;
@@ -119,7 +119,7 @@ int TwoWire::endTransmission(bool b)
 	int ret = -1;
 	if(b)
 	{
-		debug("TwoWire::endTransmission(): Warning: I2C stop condition is not supported on this platform.\n");
+		if(::use_debug_mode) { printf("     TwoWire::endTransmission(): Warning: I2C stop condition is not supported on this platform.\n"); }
 	}
 	
 	if(txBufSize != 0)
@@ -128,9 +128,11 @@ int TwoWire::endTransmission(bool b)
 		ssize_t bytesToSend = (ssize_t)txBufSize;
 		ssize_t bytesWritten = ::write(file, txBuffer, bytesToSend);		
 		if (bytesWritten != bytesToSend) {
-			debug("TwoWire::endTransmission(): Error writing to slave 0x%02X: Unexpected number of bytes.\n",slaveAddress);					
-			//debug("  bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten);
-			//debug("  errno: %s\n",strerror(errno));
+            /*
+			if(::use_debug_mode) { printf("     TwoWire::endTransmission(): Error writing to slave 0x%02X: Unexpected number of bytes.\n",slaveAddress); }
+			if(::use_debug_mode) { printf("       bytesToSend: %ld\n  bytesWritten: %ld\n",bytesToSend,bytesWritten); }
+			if(::use_debug_mode) { printf("       errno: %s\n",strerror(errno)); }
+            */
 			ret = 1;
 		}	
 	}
@@ -182,7 +184,7 @@ uint8_t TwoWire::read(void)
 {
 	if(bufIndex >= bufSize)
 	{
-		debug("TwoWire::read(): Error reading from buffer: index exceeds amount of data currently in buffer.\n");
+		if(::use_debug_mode) { printf("     TwoWire::read(): Error reading from buffer: index exceeds amount of data currently in buffer.\n"); }
 		bufIndex = 0;
 	}	
 	bufIndex++;
@@ -202,16 +204,16 @@ uint8_t TwoWire::requestFrom(uint8_t address, uint8_t quantity)
 	beginTransmission(address);
 	// clamp to buffer length
 	if(quantity > BUFFER_LENGTH){
-		debug("TwoWire::requestFrom(): Error: Too many bytes requested. Please increase BUFFER_LENGTH.\n");
+		if(::use_debug_mode) { printf("TwoWire::requestFrom(): Error: Too many bytes requested. Please increase BUFFER_LENGTH.\n"); }
 		quantity = BUFFER_LENGTH;
 	}
 	// perform blocking read into buffer
 	int r = ::read(file, buffer, quantity);
 	if(r != quantity)
 	{
-	  debug("TwoWire::requestFrom(): Error reading slave device 0x%02X: Unexpected number of bytes.\n",address);
-	  //debug("  bytes expected: %d\n  bytes read: %d\n",quantity, r);
-	  //debug("  errno: %s\n",strerror(errno));
+	  //if(::use_debug_mode) { printf("     TwoWire::requestFrom(): Error reading slave device 0x%02X: Unexpected number of bytes.\n",address); }
+	  //if(::use_debug_mode) { printf("       bytes expected: %d\n  bytes read: %d\n",quantity, r); }
+	  //if(::use_debug_mode) { printf("       errno: %s\n",strerror(errno)); }
 	  return 0;
 	}
 	// set new buffer size value
@@ -242,7 +244,7 @@ void TwoWire::end(void)
 	if(file != 0)
 	{
 		close(file);
-		debug("TwoWire::end(): Bus closed\n");
+		if(::use_debug_mode) { printf("     TwoWire::end(): Bus closed\n"); }
 	}
 }
 
