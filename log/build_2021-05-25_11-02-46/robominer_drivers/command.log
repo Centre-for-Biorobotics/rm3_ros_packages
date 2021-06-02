@@ -1,4 +1,0 @@
-Invoking command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
-Invoked command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --build /home/olimex/dev_ws/src/robominer/build/robominer_drivers -- -j4 -l4
-Invoking command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --install /home/olimex/dev_ws/src/robominer/build/robominer_drivers
-Invoked command in '/home/olimex/dev_ws/src/robominer/build/robominer_drivers' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/foxy /usr/bin/cmake --install /home/olimex/dev_ws/src/robominer/build/robominer_drivers
