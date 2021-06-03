@@ -22,7 +22,10 @@ def generate_launch_description():
     imu_interface = Node(
         package='robominer_drivers',
         executable='bno080_imu',
-        name='bno080_imu'
+        name='bno080_imu',
+	remappings=[
+		("imu","front_imu")
+	]
         )
     temperature_interface = Node(
         package='robominer_drivers',
