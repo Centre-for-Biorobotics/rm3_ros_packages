@@ -207,7 +207,7 @@ void PiWMSNode::parse_wms_message(std::string message_string)
                     wms_checksum_ = substr; 
                     break;
             }
-            publish_odometry(x, y, heading);
+            publish_odometry(x, y, heading, speed);
 
             iter_++;
         }

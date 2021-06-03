@@ -37,7 +37,7 @@ private:
     void read_sample();
     void pub_callback(std::string pi_wms_string);
     void parse_wms_message(std::string message_string);
-    void publish_odometry(float x, float y, float heading);
+    void publish_odometry(float x, float y, float heading, float speed);
 
 
 };
