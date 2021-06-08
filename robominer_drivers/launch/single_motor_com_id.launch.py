@@ -1,7 +1,7 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-
+# AB0LB3F3
 
 def generate_launch_description():
 	return LaunchDescription([
@@ -12,7 +12,7 @@ def generate_launch_description():
 			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_right'},
-						{'arduino_sn': "AK08KRS8"}]
+						{'arduino_sn': "AB0LB3F3"}]
 			)
 		# Node(
 		# 	package='robominers_serial_interface', 
