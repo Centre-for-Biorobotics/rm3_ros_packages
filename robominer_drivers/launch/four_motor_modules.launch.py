@@ -38,7 +38,7 @@ def generate_launch_description():
 			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'front_left'},
-						{'arduino_sn': 'AB0LB3F4'}]
+						{'arduino_sn': 'AQ00PUPC'}]
 			)
 		return LaunchDescription([
 			front_right,
