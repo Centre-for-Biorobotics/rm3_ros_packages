@@ -38,13 +38,13 @@ def generate_launch_description():
             'launch',
             'open_loop_steering.launch.py')
         ))
-    bag_recording = launch.actions.ExecuteProcess(
-        cmd=['ros2', 'bag', 'record', '-a'], 
-        output='screen'
-        )
+#    bag_recording = launch.actions.ExecuteProcess(
+#        cmd=['ros2', 'bag', 'record', '-a'], 
+#        output='screen'
+#        )
 
     return launch.LaunchDescription([
-        bag_recording,
+#        bag_recording,
         serial_peripherals,
         imu_interface,
         temperature_interface,
