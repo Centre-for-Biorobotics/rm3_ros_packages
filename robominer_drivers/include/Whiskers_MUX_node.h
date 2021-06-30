@@ -52,6 +52,9 @@
 extern bool use_debug_mode;
 extern bool use_console_print;
 
+// Global variable defining whether parameter server values should be polled
+extern bool use_parameter_server;
+
 // Representation of sensor data
 enum Representation {  
   Cartesian,

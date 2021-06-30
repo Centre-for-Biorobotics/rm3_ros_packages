@@ -71,8 +71,9 @@
 
 
    
-bool use_debug_mode = false;
+bool use_debug_mode = true;
 bool use_console_print = true;
+bool use_parameter_server = false;
 
 
 
@@ -160,12 +161,14 @@ WhiskersPublisher::WhiskersPublisher(SensorGrid * _grid) : rclcpp::Node("whisker
     publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
     timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));
     grid = _grid;
-    this->declare_parameter<bool>("debug_mode",false);
-    this->declare_parameter<bool>("console_print",true);
-    this->get_parameter("debug_mode",::use_debug_mode);
-    this->get_parameter("console_print",::use_console_print);
-    if(::use_debug_mode) { printf("WhiskersPublisher constructor called.\n"); }
-    timer_p_ = this->create_wall_timer(PARAM_UPDATE_INTERVAL,std::bind(&WhiskersPublisher::parameters_update, this));
+    if(::use_parameter_server)
+    {
+        this->declare_parameter<bool>("debug_mode",::use_debug_mode);
+        this->declare_parameter<bool>("console_print",::use_console_print);    
+        this->get_parameter("debug_mode",::use_debug_mode);
+        this->get_parameter("console_print",::use_console_print);    
+        timer_p_ = this->create_wall_timer(PARAM_UPDATE_INTERVAL,std::bind(&WhiskersPublisher::parameters_update, this));
+    }
     lastLoop = 0;
 }
 
