@@ -37,6 +37,13 @@ Currently included interfaces to:
 - Whisker sensor array,
 - Pacific Inertial Wheel Motion Sensor.
 
+### whisker sensors interface
+- *whiskers_launch.py* launches the node under the name 'whiskers_publisher' to interface a total of 64 sensors. Set parameters:
+    - *debug_mode*: `True` enables debugging messages on the console
+    - *console_print*: `True` enables printing of data from the sensors. The format of the printout can be chosen when constructing the SensorGrid object.
+
+- When running the node using `ros2 run robominer_drivers tlv493d_tca9548a_whiskers`, both parameters are initialized as `true`.
+
 ### PI WMS
 The C++ node that interfaces the PI WMS device uses the [serial port library](https://github.com/wjwwood/serial). To use it, clone this ROS2 version:
 
