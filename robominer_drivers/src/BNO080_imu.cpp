@@ -24,6 +24,7 @@
 // #include <tf2/LinearMath/Quaternion.h>
 
 #include "BNO080_i2c.h"
+//#include "SparkFun_BNO080.h"
 
 #include <unistd.h>   // for usleep
 
@@ -69,6 +70,9 @@ private:
       message.angular_velocity.z = gyroZ;
 
 //    myIMU.getLinAccel(linAccelX, linAccelY, linAccelZ, linAccuracy);
+      linAccelX = myIMU.getLinAccelX();
+      linAccelY = myIMU.getLinAccelY();
+      linAccelZ = myIMU.getLinAccelZ();
       message.linear_acceleration.x = linAccelX;
       message.linear_acceleration.y = linAccelY;
       message.linear_acceleration.z = linAccelZ;
@@ -117,10 +121,11 @@ int main(int argc, char * argv[])
 //  myIMU.enableRotationVector(50);
 //  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled rotation vector");
 //  usleep(2000);
-
-  myIMU.enableGyroIntegratedRotationVector(50);
+  myIMU.enableLinearAccelerometer(100); //Send data update every 100ms
+  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
+  myIMU.enableGyroIntegratedRotationVector(100);
   RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
-  RCLCPP_WARN(rclcpp::get_logger("bno080_imu"), "Enabling linear acceleration simulaneously may break the output.");
+  myIMU.enableGyroIntegratedRotationVector(100);
   usleep(2000);
 
   rclcpp::spin(std::make_shared<Bno080ImuPublisher>());

@@ -20,79 +20,24 @@
 
 	SparkFun code, firmware, and software is released under the MIT License.
 	Please see LICENSE.md for further details.
-
-  Original filename: SparkFun_BNO080_Arduino_Library.cpp
-
-  2021-03-24 Jaan Rebane - ported initial driver for Olimex board
-                         - disabled SPI
 */
 
-#include "BNO080_i2c.h"
+#include "SparkFun_BNO080.h"
 
-#include <stdint.h>          // for uint_8t
-#include <stdio.h>           // for printf
-#include <math.h>            // For sqrt
-
-#include <unistd.h>          // for sleep
-
-#include <fcntl.h>           /* For O_RDWR */
-#include <sys/ioctl.h>       // For ioctl
-
-#include <stdlib.h>          // For exit()
-#include <string>            // For std::string
-
-// #include "I2Cdev.h"
-#include <linux/i2c-dev.h>
-
-#define byte uint8_t
-
-//Attempt communication with the device
+//Attempt I2C communication with the device
 //Return true if we got a 'Polo' back from Marco
-
-/* BNO080::BNO080() {
-    devAddr = BNO080_DEFAULT_ADDRESS;
-    busAddr = "/dev/i2c-0";
-} */
-
-
-/*** Specific address constructor.
- * @param address I2C address
- * @see MPU6050_DEFAULT_ADDRESS
- * @see MPU6050_ADDRESS_AD0_LOW
- * @see MPU6050_ADDRESS_AD0_HIGH
- */
-/* BNO080::BNO080(uint8_t address, std::string bus) {
-    devAddr = address;
-    busAddr = bus;
-} */
-
-bool BNO080::begin(uint8_t address, std::string bus, uint8_t intPin)
+boolean BNO080::begin(uint8_t deviceAddress, TwoWire &wirePort, uint8_t intPin)
 {
-	devAddr = address; //If provided, store the I2C address from user
-	busAddr = bus;	//Grab which port the user wants us to use
-
-	// TODO: change these hardcoded values for i2c-1 and 0x4a, use: busAddr and devAddr or similar.
-	file = open("/dev/i2c-1", O_RDWR);
-	if (file < 0) {
-		printf("Error opening file /dev/i2c-1\n");
-		exit(1);
-	}
-	if (ioctl(file, I2C_SLAVE, 0x4b) < 0) {
-   	  printf("Error opening slave device.\n");
-	  exit(1);
-	}
-	if (_int != 255)
-	{
-        // If using SPI:
-		// pinMode(_int, INPUT_PULLUP);
-	}
+	_deviceAddress = deviceAddress; //If provided, store the I2C address from user
+	_i2cPort = &wirePort;			//Grab which port the user wants us to use
+	_int = intPin;					//Get the pin that the user wants to use for interrupts. By default, it's 255 and we'll not use it in dataAvailable() function.
+	
 
 	//We expect caller to begin their I2C port, with the speed of their choice external to the library
 	//But if they forget, we start the hardware here.
 	//_i2cPort->begin();
 
 	//Begin by resetting the IMU
-	if (_printDebug) { printf("Soft reset\n"); }
 	softReset();
 
 	//Check communication with device
@@ -100,31 +45,28 @@ bool BNO080::begin(uint8_t address, std::string bus, uint8_t intPin)
 	shtpData[1] = 0;							  //Reserved
 
 	//Transmit packet on channel 2, 2 bytes
-	if (_printDebug) { printf("begin transmit packet ch 2, 2 bytes\n"); }
 	sendPacket(CHANNEL_CONTROL, 2);
-        if (_printDebug) { printf("end transmit packet ch 2, 2 bytes\n"); }
 
 	//Now we wait for response
-        // printf("Test line \n");
 	if (receivePacket() == true)
 	{
 		if (shtpData[0] == SHTP_REPORT_PRODUCT_ID_RESPONSE)
 		{
 			if (_printDebug == true)
 			{
-				printf("SW Version Major: 0x");
-				printf("%x \n",shtpData[2]);
-				printf(" SW Version Minor: 0x");
-				printf("%x \n",shtpData[3]);
+				_debugPort->print(F("SW Version Major: 0x"));
+				_debugPort->print(shtpData[2], HEX);
+				_debugPort->print(F(" SW Version Minor: 0x"));
+				_debugPort->print(shtpData[3], HEX);
 				uint32_t SW_Part_Number = ((uint32_t)shtpData[7] << 24) | ((uint32_t)shtpData[6] << 16) | ((uint32_t)shtpData[5] << 8) | ((uint32_t)shtpData[4]);
-				printf(" SW Part Number: 0x");
-				printf("%x \n",SW_Part_Number);
+				_debugPort->print(F(" SW Part Number: 0x"));
+				_debugPort->print(SW_Part_Number, HEX);
 				uint32_t SW_Build_Number = ((uint32_t)shtpData[11] << 24) | ((uint32_t)shtpData[10] << 16) | ((uint32_t)shtpData[9] << 8) | ((uint32_t)shtpData[8]);
-				printf(" SW Build Number: 0x");
-				printf("%x \n",SW_Build_Number);
+				_debugPort->print(F(" SW Build Number: 0x"));
+				_debugPort->print(SW_Build_Number, HEX);
 				uint16_t SW_Version_Patch = ((uint16_t)shtpData[13] << 8) | ((uint16_t)shtpData[12]);
-				printf(" SW Version Patch: 0x");
-				printf("%x \n",SW_Version_Patch);
+				_debugPort->print(F(" SW Version Patch: 0x"));
+				_debugPort->println(SW_Version_Patch, HEX);
 			}
 			return (true);
 		}
@@ -134,11 +76,12 @@ bool BNO080::begin(uint8_t address, std::string bus, uint8_t intPin)
 }
 
 
+
 //Calling this function with nothing sets the debug port to Serial
 //You can also call it with other streams like Serial1, SerialUSB, etc.
-void BNO080::enableDebugging()
+void BNO080::enableDebugging(Stream &debugPort)
 {
-	// _debugPort = &debugPort;
+	_debugPort = &debugPort;
 	_printDebug = true;
 }
 
@@ -156,9 +99,8 @@ uint16_t BNO080::getReadings(void)
 	//See issue 13: https://github.com/sparkfun/SparkFun_BNO080_Arduino_Library/issues/13
 	if (_int != 255)
 	{
-        // We don't have SPI:
-		// if (digitalRead(_int) == HIGH)
-		//	return 0;
+		if (digitalRead(_int) == HIGH)
+			return 0;
 	}
 
 	if (receivePacket() == true)
@@ -172,10 +114,10 @@ uint16_t BNO080::getReadings(void)
 		{
 			return parseCommandReport(); //This will update responses to commands, calibrationStatus, etc.
 		}
-		else if(shtpHeader[2] == CHANNEL_GYRO)
-		{
-		        return parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
-		}
+    else if(shtpHeader[2] == CHANNEL_GYRO)
+    {
+      return parseInputReport(); //This will update the rawAccelX, etc variables depending on which feature report is found
+    }
 	}
 	return 0;
 }
@@ -362,7 +304,7 @@ uint16_t BNO080::parseInputReport(void)
 	{
 		if (_printDebug == true)
 		{
-			printf("!");
+			_debugPort->println(F("!"));
 		}
 		//The BNO080 responds with this report to command requests. It's up to use to remember which command we issued.
 		uint8_t command = shtpData[5 + 2]; //This is the Command byte of the response
@@ -371,7 +313,7 @@ uint16_t BNO080::parseInputReport(void)
 		{
 			if (_printDebug == true)
 			{
-				printf("ME Cal report found!");
+				_debugPort->println(F("ME Cal report found!"));
 			}
 			calibrationStatus = shtpData[5 + 5]; //R0 - Status (0 = success, non-zero = fail)
 		}
@@ -878,7 +820,7 @@ bool BNO080::readFRSdata(uint16_t recordID, uint8_t startLocation, uint8_t words
 			{
 				if (counter++ > 100)
 					return (false); //Give up
-				usleep(1000);
+				delay(1);
 			}
 
 			//We have the packet, inspect it for the right contents
@@ -907,7 +849,7 @@ bool BNO080::readFRSdata(uint16_t recordID, uint8_t startLocation, uint8_t words
 		if (spot >= MAX_METADATA_SIZE)
 		{
 			if (_printDebug == true)
-				printf("metaData array over run. Returning.");
+				_debugPort->println(F("metaData array over run. Returning."));
 			return (true); //We have run out of space in our array. Bail.
 		}
 
@@ -930,10 +872,10 @@ void BNO080::softReset(void)
 	sendPacket(CHANNEL_EXECUTABLE, 1); //Transmit packet on channel 1, 1 byte
 
 	//Read all incoming data and flush it
-	usleep(50000);
+	delay(50);
 	while (receivePacket() == true)
 		; //delay(1);
-	usleep(50000);
+	delay(50);
 	while (receivePacket() == true)
 		; //delay(1);
 }
@@ -948,10 +890,10 @@ void BNO080::modeOn(void)
 	sendPacket(CHANNEL_EXECUTABLE, 1); //Transmit packet on channel 1, 1 byte
 
 	//Read all incoming data and flush it
-	usleep(50000);
+	delay(50);
 	while (receivePacket() == true)
 		; //delay(1);
-	usleep(50000);
+	delay(50);
 	while (receivePacket() == true)
 		; //delay(1);
 }
@@ -966,10 +908,10 @@ void BNO080::modeSleep(void)
 	sendPacket(CHANNEL_EXECUTABLE, 1); //Transmit packet on channel 1, 1 byte
 
 	//Read all incoming data and flush it
-	usleep(50000);
+	delay(50);
 	while (receivePacket() == true)
 		; //delay(1);
-	usleep(50000);
+	delay(50);
 	while (receivePacket() == true)
 		; //delay(1);
 }
@@ -1143,7 +1085,7 @@ void BNO080::endCalibration()
 
 //See page 51 of reference manual - ME Calibration Response
 //Byte 5 is parsed during the readPacket and stored in calibrationStatus
-bool BNO080::calibrationComplete()
+boolean BNO080::calibrationComplete()
 {
 	if (calibrationStatus == 0)
 		return (true);
@@ -1295,71 +1237,104 @@ void BNO080::saveCalibration()
 
 //Wait a certain time for incoming I2C bytes before giving up
 //Returns false if failed
-
-bool BNO080::waitForI2C()
+boolean BNO080::waitForI2C()
 {
-	//for (uint8_t counter = 0; counter < 100; counter++) //Don't got more than 255
-	//{
-	//	if (_i2cPort->available() > 0)
-	//		return (true);
-		usleep(1000);
-	//}
+	for (uint8_t counter = 0; counter < 100; counter++) //Don't got more than 255
+	{
+		if (_i2cPort->available() > 0)
+			return (true);
+		delay(1);
+	}
 
-	//if (_printDebug == true)
-	//	printf("I2C timeout?\n");
-	return (true);
-	// return (false);  // CORRECT
+	if (_printDebug == true)
+		_debugPort->println(F("I2C timeout"));
+	return (false);
 }
-
 
 //Blocking wait for BNO080 to assert (pull low) the INT pin
 //indicating it's ready for comm. Can take more than 104ms
 //after a hardware reset
-// bool BNO080::waitForSPI()
-// {
-// 	for (uint8_t counter = 0; counter < 125; counter++) //Don't got more than 255
-// 	{
-// 		if (digitalRead(_int) == LOW)
-// 			return (true);
-// 		if (_printDebug == true)
-// 			printf("SPI Wait");
-// 		delay(1);
-// 	}
-// 
-// 	if (_printDebug == true)
-// 		printf("SPI INT timeout");
-// 	return (false);
-// }
+boolean BNO080::waitForSPI()
+{
+	for (uint8_t counter = 0; counter < 125; counter++) //Don't got more than 255
+	{
+		if (digitalRead(_int) == LOW)
+			return (true);
+		if (_printDebug == true)
+			_debugPort->println(F("SPI Wait"));
+		delay(1);
+	}
+
+	if (_printDebug == true)
+		_debugPort->println(F("SPI INT timeout"));
+	return (false);
+}
 
 //Check to see if there is any new data available
 //Read the contents of the incoming packet into the shtpData array
-bool BNO080::receivePacket(void)
+boolean BNO080::receivePacket(void)
 {
-    //Do I2C
+	if (_i2cPort == NULL) //Do SPI
 	{
-		// _i2cPort->requestFrom((uint8_t)_deviceAddress, (size_t)4); //Ask for four bytes to find out how much data we need to read
-		// WRAPPED AS:
-		//I2Cdev::readBytes(devAddr, busAddr, 0, 4, buffer);
-		int readresult = read(file, buffer, 4);
-		if (readresult != 4) {
-		    if (_printDebug) printf("ERROR asking 4 bytes. Result: %i\n",readresult);
-		    //return (false);
-		}
-		else {
-		    /* buffer contains the read */
-		}
-		// printf("%i \n",readresult);
+		if (digitalRead(_int) == HIGH)
+			return (false); //Data is not available
 
+		//Old way: if (waitForSPI() == false) return (false); //Something went wrong
+
+		//Get first four bytes to find out how much data we need to read
+
+		_spiPort->beginTransaction(SPISettings(_spiPortSpeed, MSBFIRST, SPI_MODE3));
+		digitalWrite(_cs, LOW);
+
+		//Get the first four bytes, aka the packet header
+		uint8_t packetLSB = _spiPort->transfer(0);
+		uint8_t packetMSB = _spiPort->transfer(0);
+		uint8_t channelNumber = _spiPort->transfer(0);
+		uint8_t sequenceNumber = _spiPort->transfer(0); //Not sure if we need to store this or not
+
+		//Store the header info
+		shtpHeader[0] = packetLSB;
+		shtpHeader[1] = packetMSB;
+		shtpHeader[2] = channelNumber;
+		shtpHeader[3] = sequenceNumber;
+
+		//Calculate the number of data bytes in this packet
+		uint16_t dataLength = (((uint16_t)packetMSB) << 8) | ((uint16_t)packetLSB);
+		dataLength &= ~(1 << 15); //Clear the MSbit.
+		//This bit indicates if this package is a continuation of the last. Ignore it for now.
+		//TODO catch this as an error and exit
+		if (dataLength == 0)
+		{
+			//Packet is empty
+			printHeader();
+			return (false); //All done
+		}
+		dataLength -= 4; //Remove the header bytes from the data count
+
+		//Read incoming data into the shtpData array
+		for (uint16_t dataSpot = 0; dataSpot < dataLength; dataSpot++)
+		{
+			uint8_t incoming = _spiPort->transfer(0xFF);
+			if (dataSpot < MAX_PACKET_SIZE)	//BNO080 can respond with upto 270 bytes, avoid overflow
+				shtpData[dataSpot] = incoming; //Store data into the shtpData array
+		}
+
+		digitalWrite(_cs, HIGH); //Release BNO080
+
+		_spiPort->endTransaction();
+		printPacket();
+	}
+	else //Do I2C
+	{
+		_i2cPort->requestFrom((uint8_t)_deviceAddress, (size_t)4); //Ask for four bytes to find out how much data we need to read
 		if (waitForI2C() == false)
 			return (false); //Error
 
 		//Get the first four bytes, aka the packet header
-		uint8_t packetLSB = buffer[0];
-		uint8_t packetMSB = buffer[1];
-		uint8_t channelNumber = buffer[2];
-		uint8_t sequenceNumber = buffer[3]; //Not sure if we need to store this or not
-
-		if (_printDebug) printf("Recv: LSB %02x MSB %02x channel %02x sequence %02x \n",buffer[0],buffer[1],buffer[2],buffer[3]);
+		uint8_t packetLSB = _i2cPort->read();
+		uint8_t packetMSB = _i2cPort->read();
+		uint8_t channelNumber = _i2cPort->read();
+		uint8_t sequenceNumber = _i2cPort->read(); //Not sure if we need to store this or not
 
 		//Store the header info.
 		shtpHeader[0] = packetLSB;
@@ -1370,23 +1345,19 @@ bool BNO080::receivePacket(void)
 		//Calculate the number of data bytes in this packet
 		uint16_t dataLength = (((uint16_t)packetMSB) << 8) | ((uint16_t)packetLSB);
 		dataLength &= ~(1 << 15); //Clear the MSbit.
-
 		//This bit indicates if this package is a continuation of the last. Ignore it for now.
 		//TODO catch this as an error and exit
 
 		// if (_printDebug == true)
 		// {
-		// 	printf("receivePacket (I2C): dataLength is: ");
-		// 	printf(dataLength);
+		// 	_debugPort->print(F("receivePacket (I2C): dataLength is: "));
+		// 	_debugPort->println(dataLength);
 		// }
-
-		if (_printDebug) printf("dataLength: %i \n",dataLength);
 
 		if (dataLength == 0)
 		{
 			//Packet is empty
 			return (false); //All done
-			// Then the flush loops stop and IMU can continue.
 		}
 		dataLength -= 4; //Remove the header bytes from the data count
 
@@ -1399,7 +1370,7 @@ bool BNO080::receivePacket(void)
 //Sends multiple requests to sensor until all data bytes are received from sensor
 //The shtpData buffer has max capacity of MAX_PACKET_SIZE. Any bytes over this amount will be lost.
 //Arduino I2C read limit is 32 bytes. Header is 4 bytes, so max data we can read per interation is 28 bytes
-bool BNO080::getData(uint16_t bytesRemaining)
+boolean BNO080::getData(uint16_t bytesRemaining)
 {
 	uint16_t dataSpot = 0; //Start at the beginning of shtpData array
 
@@ -1410,28 +1381,22 @@ bool BNO080::getData(uint16_t bytesRemaining)
 		if (numberOfBytesToRead > (I2C_BUFFER_LENGTH - 4))
 			numberOfBytesToRead = (I2C_BUFFER_LENGTH - 4);
 
-		//The first four bytes are header bytes and are throw away
-		// I2Cdev::readBytes(devAddr, busAddr, 0, bytesRemaining+4, buffer);
-		int readresult = read(file, buffer, numberOfBytesToRead+4);
-		if (readresult != numberOfBytesToRead+4) {
-		    if (_printDebug) printf("Error reading data in getData(): %i\n",readresult);
-		    return (false);
-		  } else {
-                    if (_printDebug) printf("Success reading: %02x %02x %02x %02x %02x %02x \n",buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5]);
-		    /* buffer contains the data */
-		  }
-
+		_i2cPort->requestFrom((uint8_t)_deviceAddress, (size_t)(numberOfBytesToRead + 4));
 		if (waitForI2C() == false)
 			return (0); //Error
 
-		for (uint8_t x = 4; x < numberOfBytesToRead + 4; x++)
-		{
-			uint8_t incoming = buffer[x];
+		//The first four bytes are header bytes and are throw away
+		_i2cPort->read();
+		_i2cPort->read();
+		_i2cPort->read();
+		_i2cPort->read();
 
+		for (uint8_t x = 0; x < numberOfBytesToRead; x++)
+		{
+			uint8_t incoming = _i2cPort->read();
 			if (dataSpot < MAX_PACKET_SIZE)
 			{
 				shtpData[dataSpot++] = incoming; //Store data into the shtpData array
-				if (_printDebug) { printf("%i ",incoming); }
 			}
 			else
 			{
@@ -1441,76 +1406,71 @@ bool BNO080::getData(uint16_t bytesRemaining)
 
 		bytesRemaining -= numberOfBytesToRead;
 	}
-	if (_printDebug) printf("\n");
 	return (true); //Done!
 }
 
 //Given the data packet, send the header then the data
 //Returns false if sensor does not ACK
 //TODO - Arduino has a max 32 byte send. Break sending into multi packets if needed.
-bool BNO080::sendPacket(uint8_t channelNumber, uint8_t dataLength)
+boolean BNO080::sendPacket(uint8_t channelNumber, uint8_t dataLength)
 {
 	uint8_t packetLength = dataLength + 4; //Add four bytes for the header
 
-// 	if (_i2cPort == NULL) //Do SPI
-// 	{
-// 		//Wait for BNO080 to indicate it is available for communication
-// 		if (waitForSPI() == false)
-// 			return (false); //Something went wrong
-// 
-// 		//BNO080 has max CLK of 3MHz, MSB first,
-// 		//The BNO080 uses CPOL = 1 and CPHA = 1. This is mode3
-// 		_spiPort->beginTransaction(SPISettings(_spiPortSpeed, MSBFIRST, SPI_MODE3));
-// 		digitalWrite(_cs, LOW);
-// 
-// 		//Send the 4 byte packet header
-// 		_spiPort->transfer(packetLength & 0xFF);			 //Packet length LSB
-// 		_spiPort->transfer(packetLength >> 8);				 //Packet length MSB
-// 		_spiPort->transfer(channelNumber);					 //Channel number
-// 		_spiPort->transfer(sequenceNumber[channelNumber]++); //Send the sequence number, increments with each packet sent, different counter for each channel
-// 
-// 		//Send the user's data packet
-// 		for (uint8_t i = 0; i < dataLength; i++)
-// 		{
-// 			_spiPort->transfer(shtpData[i]);
-// 		}
-// 
-// 		digitalWrite(_cs, HIGH);
-// 		_spiPort->endTransaction();
-// 	}
-//	else //Do I2C
+	if (_i2cPort == NULL) //Do SPI
+	{
+		//Wait for BNO080 to indicate it is available for communication
+		if (waitForSPI() == false)
+			return (false); //Something went wrong
+
+		//BNO080 has max CLK of 3MHz, MSB first,
+		//The BNO080 uses CPOL = 1 and CPHA = 1. This is mode3
+		_spiPort->beginTransaction(SPISettings(_spiPortSpeed, MSBFIRST, SPI_MODE3));
+		digitalWrite(_cs, LOW);
+
+		//Send the 4 byte packet header
+		_spiPort->transfer(packetLength & 0xFF);			 //Packet length LSB
+		_spiPort->transfer(packetLength >> 8);				 //Packet length MSB
+		_spiPort->transfer(channelNumber);					 //Channel number
+		_spiPort->transfer(sequenceNumber[channelNumber]++); //Send the sequence number, increments with each packet sent, different counter for each channel
+
+		//Send the user's data packet
+		for (uint8_t i = 0; i < dataLength; i++)
+		{
+			_spiPort->transfer(shtpData[i]);
+		}
+
+		digitalWrite(_cs, HIGH);
+		_spiPort->endTransaction();
+	}
+	else //Do I2C
 	{
 		//if(packetLength > I2C_BUFFER_LENGTH) return(false); //You are trying to send too much. Break into smaller packets.
 
-//		_i2cPort->beginTransmission(_deviceAddress);
-	        buffer[0] = packetLength & 0xFF;
-        	buffer[1] = packetLength >> 8;
-	        buffer[2] = channelNumber;
-        	buffer[3] = sequenceNumber[channelNumber]++;
+		_i2cPort->beginTransmission(_deviceAddress);
 
-        //Send the user's data packet
+		//Send the 4 byte packet header
+		_i2cPort->write(packetLength & 0xFF);			  //Packet length LSB
+		_i2cPort->write(packetLength >> 8);				  //Packet length MSB
+		_i2cPort->write(channelNumber);					  //Channel number
+		_i2cPort->write(sequenceNumber[channelNumber]++); //Send the sequence number, increments with each packet sent, different counter for each channel
+
+		//Send the user's data packet
 		for (uint8_t i = 0; i < dataLength; i++)
 		{
-          		buffer[i+4] = shtpData[i];
+			_i2cPort->write(shtpData[i]);
 		}
 
-		// I2Cdevlib:
-		// I2Cdev::writeBytes(devAddr, busAddr, 0, 4 + dataLength, buffer);
+		uint8_t i2cResult = _i2cPort->endTransmission();
 
-		// i2c-dev.h:
-		if (write(file, buffer, 4+dataLength) != 4+dataLength) {
-   		  printf("Write to I2C buffers failed!\n");
-		  return(false);
+		if (i2cResult != 0)
+		{
+			if (_printDebug == true)
+			{
+				_debugPort->print(F("sendPacket(I2C): endTransmission returned: "));
+				_debugPort->println(i2cResult);
+			}
+			return (false);
 		}
-
-		if (_printDebug)
-			printf("Wr buf / %s %i -- %x %x %x %x %x %x %x \n",busAddr.c_str(),devAddr,buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6]);
-		//Send the 4 byte packet header
-		//_i2cPort->write(packetLength & 0xFF);			  //Packet length LSB
-		//_i2cPort->write(packetLength >> 8);				  //Packet length MSB
-		//_i2cPort->write(channelNumber);					  //Channel number
-		//_i2cPort->write(sequenceNumber[channelNumber]++); //Send the sequence number, increments with each packet sent, different counter for each channel
-
 	}
 
 	return (true);
@@ -1524,54 +1484,54 @@ void BNO080::printPacket(void)
 		uint16_t packetLength = (uint16_t)shtpHeader[1] << 8 | shtpHeader[0];
 
 		//Print the four byte header
-		printf("Header:");
+		_debugPort->print(F("Header:"));
 		for (uint8_t x = 0; x < 4; x++)
 		{
-			printf(" ");
+			_debugPort->print(F(" "));
 			if (shtpHeader[x] < 0x10)
-				printf("0");
-			printf("%x",shtpHeader[x]);
+				_debugPort->print(F("0"));
+			_debugPort->print(shtpHeader[x], HEX);
 		}
 
 		uint8_t printLength = packetLength - 4;
 		if (printLength > 40)
 			printLength = 40; //Artificial limit. We don't want the phone book.
 
-		printf(" Body:");
+		_debugPort->print(F(" Body:"));
 		for (uint8_t x = 0; x < printLength; x++)
 		{
-			printf(" ");
+			_debugPort->print(F(" "));
 			if (shtpData[x] < 0x10)
-				printf("0");
-			printf("%x",shtpData[x]);
+				_debugPort->print(F("0"));
+			_debugPort->print(shtpData[x], HEX);
 		}
 
 		if (packetLength & 1 << 15)
 		{
-			printf(" [Continued packet] ");
+			_debugPort->println(F(" [Continued packet] "));
 			packetLength &= ~(1 << 15);
 		}
 
-		printf(" Length:");
-		printf("%i \n",packetLength);
+		_debugPort->print(F(" Length:"));
+		_debugPort->print(packetLength);
 
-		printf(" Channel:");
+		_debugPort->print(F(" Channel:"));
 		if (shtpHeader[2] == 0)
-			printf("Command");
+			_debugPort->print(F("Command"));
 		else if (shtpHeader[2] == 1)
-			printf("Executable");
+			_debugPort->print(F("Executable"));
 		else if (shtpHeader[2] == 2)
-			printf("Control");
+			_debugPort->print(F("Control"));
 		else if (shtpHeader[2] == 3)
-			printf("Sensor-report");
+			_debugPort->print(F("Sensor-report"));
 		else if (shtpHeader[2] == 4)
-			printf("Wake-report");
+			_debugPort->print(F("Wake-report"));
 		else if (shtpHeader[2] == 5)
-			printf("Gyro-vector");
+			_debugPort->print(F("Gyro-vector"));
 		else
-			printf("hex %0x",shtpHeader[2]);
+			_debugPort->print(shtpHeader[2]);
 
-		printf("\n");
+		_debugPort->println();
 	}
 }
 
@@ -1581,14 +1541,14 @@ void BNO080::printHeader(void)
 	if (_printDebug == true)
 	{
 		//Print the four byte header
-		printf("Header:");
+		_debugPort->print(F("Header:"));
 		for (uint8_t x = 0; x < 4; x++)
 		{
-			printf(" ");
+			_debugPort->print(F(" "));
 			if (shtpHeader[x] < 0x10)
-				printf("0");
-			printf("%0x",shtpHeader[x]);
+				_debugPort->print(F("0"));
+			_debugPort->print(shtpHeader[x], HEX);
 		}
-		printf("\n");
+		_debugPort->println();
 	}
 }
