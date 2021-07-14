@@ -23,8 +23,8 @@
 #include "sensor_msgs/msg/imu.hpp"
 // #include <tf2/LinearMath/Quaternion.h>
 
-#include "BNO080_i2c.h"
-//#include "SparkFun_BNO080.h"
+//#include "BNO080_i2c.h"
+#include "SparkFun_BNO080.h"
 
 #include <unistd.h>   // for usleep
 
