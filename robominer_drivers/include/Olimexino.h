@@ -14,7 +14,12 @@ using namespace std;
 
 
 void delay(uint16_t);
-void print(unsigned char *buf, int size);
+void print(unsigned char *, int);
+bool definePin(std::string);
+bool pinMode(int, int);
+bool pinMode(std::string, int);
+bool digitalWrite(int, int);
+bool digitalWrite(std::string, int);
 unsigned long millis(void);
 
 
