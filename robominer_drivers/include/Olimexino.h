@@ -7,8 +7,17 @@
 #include <unistd.h>
 #include <string>
 #include <math.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <chrono>
 
 #define PI M_PI
+#define INPUT 0
+#define OUTPUT 1
+#define LOW 0
+#define HIGH 1
 
 using namespace std;
 
