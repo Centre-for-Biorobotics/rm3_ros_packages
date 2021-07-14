@@ -41,12 +41,12 @@
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //Registers
-const byte CHANNEL_COMMAND = 0;
-const byte CHANNEL_EXECUTABLE = 1;
-const byte CHANNEL_CONTROL = 2;
-const byte CHANNEL_REPORTS = 3;
-const byte CHANNEL_WAKE_REPORTS = 4;
-const byte CHANNEL_GYRO = 5;
+const uint8_t CHANNEL_COMMAND = 0;
+const uint8_t CHANNEL_EXECUTABLE = 1;
+const uint8_t CHANNEL_CONTROL = 2;
+const uint8_t CHANNEL_REPORTS = 3;
+const uint8_t CHANNEL_WAKE_REPORTS = 4;
+const uint8_t CHANNEL_GYRO = 5;
 
 //All the ways we can configure or talk to the BNO080, figure 34, page 36 reference manual
 //These are used for low level communication with the sensor, on channel 2
@@ -112,9 +112,7 @@ const byte CHANNEL_GYRO = 5;
 class BNO080
 {
 public:
-	boolean begin(uint8_t deviceAddress = BNO080_DEFAULT_ADDRESS, TwoWire &wirePort = Wire, uint8_t intPin = 255); //By default use the default I2C addres, and use Wire port, and don't declare an INT pin
-
-	void enableDebugging(Stream &debugPort = Serial); //Turn on debug printing. If user doesn't specify then Serial will be used.
+	bool begin(uint8_t deviceAddress = BNO080_DEFAULT_ADDRESS, TwoWire &wirePort = Wire, uint8_t intPin = 255); //By default use the default I2C addres, and use Wire port, and don't declare an INT pin
 
 	void softReset();	  //Try to reset the IMU via software
 	uint8_t resetReason(); //Query the IMU for the reason it last reset
@@ -123,13 +121,11 @@ public:
 
 	float qToFloat(int16_t fixedPointValue, uint8_t qPoint); //Given a Q value, converts fixed point floating to regular floating point number
 
-	boolean waitForI2C(); //Delay based polling for I2C traffic
-	boolean waitForSPI(); //Delay based polling for INT pin to go low
-	boolean receivePacket(void);
-	boolean getData(uint16_t bytesRemaining); //Given a number of bytes, send the requests in I2C_BUFFER_LENGTH chunks
-	boolean sendPacket(uint8_t channelNumber, uint8_t dataLength);
+	bool waitForI2C(); //Delay based polling for I2C traffic
+	bool receivePacket(void);
+	bool getData(uint16_t bytesRemaining); //Given a number of bytes, send the requests in I2C_BUFFER_LENGTH chunks
+	bool sendPacket(uint8_t channelNumber, uint8_t dataLength);
 	void printPacket(void); //Prints the current shtp header and data packets
-	void printHeader(void); //Prints the current shtp header (only)
 
 	void enableRotationVector(uint16_t timeBetweenReports);
 	void enableGameRotationVector(uint16_t timeBetweenReports);
@@ -198,7 +194,7 @@ public:
 	void endCalibration();
 	void saveCalibration();
 	void requestCalibrationStatus(); //Sends command to get status
-	boolean calibrationComplete();   //Checks ME Cal response for byte 5, R0 - Status
+	bool calibrationComplete();   //Checks ME Cal response for byte 5, R0 - Status
 
 	uint8_t getTapDetector();
 	uint32_t getTimeStamp();
@@ -248,7 +244,7 @@ private:
 	//Variables
 	TwoWire *_i2cPort;		//The generic connection to user's chosen I2C hardware
 	uint8_t _deviceAddress; //Keeps track of I2C address. setI2CAddress changes this.
-	boolean _printDebug = false; //Flag to print debugging variables
+	bool _printDebug = false; //Flag to print debugging variables
 
 	//These are the raw sensor values (without Q applied) pulled from the user requested Input Report
 	uint16_t rawAccelX, rawAccelY, rawAccelZ, accelAccuracy;

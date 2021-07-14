@@ -32,7 +32,11 @@ find_package(serial REQUIRED)
 
 include_directories(include) # This makes it possible to find header files in the include folder
 
-add_executable(bno080_imu src/BNO080_imu.cpp src/BNO080_i2c.cpp)
+add_executable(bno080_imu
+  src/BNO080_imu.cpp
+  src/arduino_to_olimex/Olimexino.cpp
+  src/arduino_to_olimex/Wire.cpp
+  src/bno080_lib/src/SparkFun_BNO080.cpp)
 ament_target_dependencies(bno080_imu rclcpp std_msgs sensor_msgs)
 
 add_executable(tlv493d_tca9548a_whiskers

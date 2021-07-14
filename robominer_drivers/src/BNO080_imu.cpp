@@ -14,6 +14,8 @@
 //
 // Initial BNO080 node:
 // Jaan Rebane 2021-03-25
+// Modified:
+// Kilian Ochs 2021-07-14
 
 #include <chrono>
 #include <memory>
@@ -25,8 +27,6 @@
 
 //#include "BNO080_i2c.h"
 #include "SparkFun_BNO080.h"
-
-#include <unistd.h>   // for usleep
 
 BNO080 myIMU;
 
@@ -55,11 +55,11 @@ private:
       float linAccelX=0.0, linAccelY=0.0, linAccelZ=0.0;
       float gyroX=0.0, gyroY=0.0, gyroZ=0.0;
       float qx=0.0, qy=0.0, qz=0.0, qw=0.0;
-      byte linAccuracy = 0;
-      byte gyroAccuracy = 0;
-      //byte magAccuracy = 0;
+      //uint8_t linAccuracy = 0;
+      //uint8_t gyroAccuracy = 0;
+      //uint8_t magAccuracy = 0;
       float quatRadianAccuracy = 0;
-      byte quatAccuracy = 0;
+      uint8_t quatAccuracy = 0;
 
 //    myIMU.getGyro(gyroX, gyroY, gyroZ, gyroAccuracy);
       gyroX = myIMU.getFastGyroX();
@@ -126,7 +126,7 @@ int main(int argc, char * argv[])
   myIMU.enableGyroIntegratedRotationVector(100);
   RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
   myIMU.enableGyroIntegratedRotationVector(100);
-  usleep(2000);
+  delay(2);
 
   rclcpp::spin(std::make_shared<Bno080ImuPublisher>());
   rclcpp::shutdown();
