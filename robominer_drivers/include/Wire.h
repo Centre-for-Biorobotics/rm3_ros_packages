@@ -10,6 +10,8 @@
 #define BUFFER_LENGTH 100
 #define NAME_LENGTH 20
 
+extern bool wire_use_debug_mode;
+
 class TwoWire
 {
 	public:

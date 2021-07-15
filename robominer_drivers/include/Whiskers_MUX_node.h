@@ -52,7 +52,6 @@
 extern bool use_debug_mode;
 extern bool use_console_print;
 
-
 // Representation of sensor data
 enum Representation {  
   Cartesian,

@@ -20,35 +20,44 @@
 
 	SparkFun code, firmware, and software is released under the MIT License.
 	Please see LICENSE.md for further details.
+    
+  Library stripped down to I2C functionality only.
+  Kilian Ochs, TALLINN Centre for Biorobotics, 2021-07-15
+  
 */
 
 #include "SparkFun_BNO080.h"
 
 //Attempt I2C communication with the device
 //Return true if we got a 'Polo' back from Marco
-bool BNO080::begin(uint8_t deviceAddress, TwoWire &wirePort, uint8_t intPin)
+bool BNO080::begin(uint8_t deviceAddress, TwoWire &wirePort)
 {
 	_deviceAddress = deviceAddress; //If provided, store the I2C address from user
 	_i2cPort = &wirePort;			//Grab which port the user wants us to use
 
 	//We expect caller to begin their I2C port, with the speed of their choice external to the library
 	//But if they forget, we start the hardware here.
-	//_i2cPort->begin();
+	_i2cPort->begin();
 
 	//Begin by resetting the IMU
+    if (_printDebug == true) printf("Resetting IMU\n");
 	softReset();
 
 	//Check communication with device
+    if (_printDebug == true) printf("Checking communication\n");
 	shtpData[0] = SHTP_REPORT_PRODUCT_ID_REQUEST; //Request the product ID and reset info
 	shtpData[1] = 0;							  //Reserved
 
 	//Transmit packet on channel 2, 2 bytes
+    if (_printDebug == true) printf("Transmitting packet\n");
 	sendPacket(CHANNEL_CONTROL, 2);
 
 	//Now we wait for response
+    if (_printDebug == true) printf("Awaiting response\n");
 	if (receivePacket() == true)
 	{
-		if (shtpData[0] == SHTP_REPORT_PRODUCT_ID_RESPONSE)
+		if (_printDebug == true) printf("Received packet\n");
+        if (shtpData[0] == SHTP_REPORT_PRODUCT_ID_RESPONSE)
 		{
 			if (_printDebug == true)
 			{
@@ -1209,7 +1218,7 @@ void BNO080::saveCalibration()
 //Returns false if failed
 bool BNO080::waitForI2C()
 {
-	for (uint8_t counter = 0; counter < 100; counter++) //Don't got more than 255
+	for (uint8_t counter = 0; counter < 255; counter++) //Don't got more than 255
 	{
 		if (_i2cPort->available() > 0)
 			return (true);

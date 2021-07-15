@@ -112,7 +112,7 @@ const uint8_t CHANNEL_GYRO = 5;
 class BNO080
 {
 public:
-	bool begin(uint8_t deviceAddress = BNO080_DEFAULT_ADDRESS, TwoWire &wirePort = Wire, uint8_t intPin = 255); //By default use the default I2C addres, and use Wire port, and don't declare an INT pin
+	bool begin(uint8_t deviceAddress = BNO080_DEFAULT_ADDRESS, TwoWire &wirePort = Wire); //By default use the default I2C addres, and use Wire port
 
 	void softReset();	  //Try to reset the IMU via software
 	uint8_t resetReason(); //Query the IMU for the reason it last reset

@@ -17,23 +17,43 @@
 // Modified:
 // Kilian Ochs 2021-07-14
 
-#include <chrono>
-#include <memory>
-
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/string.hpp"
-#include "sensor_msgs/msg/imu.hpp"
-// #include <tf2/LinearMath/Quaternion.h>
-
-//#include "BNO080_i2c.h"
-#include "SparkFun_BNO080.h"
+#include "BNO080_imu.h"
 
 BNO080 myIMU;
-
 using namespace std::chrono_literals;
+ 
+int main(int argc, char * argv[])
+{
+  rclcpp::init(argc, argv);
+  Wire.begin(1);  // Start I²C on bus 1 (Olimex). This won't have any effect if the bus has already been opened before.
+  
+  if (myIMU.begin(I2C_ADDRESS,Wire) == false)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection.\n",I2C_ADDRESS);
+    rclcpp::shutdown();
+    return -1;
+  }
 
-/* This example creates a subclass of Node and uses std::bind() to register a
- * member function as a callback from the timer. */
+  myIMU.enableLinearAccelerometer(100); //Send data update every 100ms
+  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
+  myIMU.enableGyroIntegratedRotationVector(100);
+  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
+  delay(2);
+
+  rclcpp::spin(std::make_shared<Bno080ImuPublisher>());
+  rclcpp::shutdown();
+  return 0;
+}
+
+Bno080ImuPublisher::Bno080ImuPublisher(BNO080 * _myIMU) : rclcpp::Node("bno080_imu")
+{
+    myIMU = _myIMU;
+    publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
+    timer_ = this->create_wall_timer(
+      BNO080_PUBLISH_INTERVAL, std::bind(&Bno080ImuPublisher::timer_callback, this)
+    );
+}
+
 
 class Bno080ImuPublisher : public rclcpp::Node
 {
@@ -43,7 +63,7 @@ public:
   {
     publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
     timer_ = this->create_wall_timer(
-      50ms, std::bind(&Bno080ImuPublisher::timer_callback, this));
+      100ms, std::bind(&Bno080ImuPublisher::timer_callback, this));
   }
 
 private:
@@ -102,33 +122,3 @@ private:
   size_t count_;
 };
 
-int main(int argc, char * argv[])
-{
-  rclcpp::init(argc, argv);
-  if (myIMU.begin() == false)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at default I2C address. Check the connection.\n");
-    rclcpp::shutdown();
-    return -1;
-  }
-
-//  myIMU.enableLinearAccelerometer(50);
-//  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
-
-//  myIMU.enableGyro(50);
-//  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro");
-
-//  myIMU.enableRotationVector(50);
-//  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled rotation vector");
-//  usleep(2000);
-  myIMU.enableLinearAccelerometer(100); //Send data update every 100ms
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
-  myIMU.enableGyroIntegratedRotationVector(100);
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
-  myIMU.enableGyroIntegratedRotationVector(100);
-  delay(2);
-
-  rclcpp::spin(std::make_shared<Bno080ImuPublisher>());
-  rclcpp::shutdown();
-  return 0;
-}
