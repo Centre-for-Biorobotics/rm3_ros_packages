@@ -15,110 +15,171 @@
 // Initial BNO080 node:
 // Jaan Rebane 2021-03-25
 // Modified:
-// Kilian Ochs 2021-07-14
+// Kilian Ochs 2021-07-15
+
+/**
+ * Kilian Ochs, 15.07.2021
+ * Centre for Biorobotics, TALTECH, Tallinn
+ * Robominers experimental setup
+ * 
+ * This sketch is used to interface IMU BNO080 on the Adafruit/Sparkfun
+ * breakout board.
+ * 
+ * Instructs the sensor to acquire linear accelerations, rotation vectors
+ * and gyroscope data at defined intervals, then polls the sensor at a
+ * defined interval, retrieving the latest data of all sets and publishing
+ * messages of type "Imu" under the topic "/imu" in the ROS2 environment.
+ * 
+ * Define sensor update intervals and polling/publishing frequency in
+ * "BNO080_imu.h".
+ * 
+ * When running on an Ubuntu computer (Desktop/laptop), a USB-to-I2C
+ * adapter can be used. Please note the name of the i2c bus using "dmesg"
+ * after plugging in the adapter. To define platform-specific bus IDs,
+ * see "BNO080_imu.h".
+ *  
+ * To be compiled for a Linux-based system.
+ * This is a ported version of the library originally provided for Arduino
+ * (see https://downloads.arduino.cc/libraries/github.com/sparkfun/SparkFun_BNO080_Cortex_Based_IMU-1.1.10.zip).
+ *
+ * Note: Define all constants in "BNO080_imu.h".
+ */
 
 #include "BNO080_imu.h"
 
-BNO080 myIMU;
-using namespace std::chrono_literals;
+
+
+
+/*******************************
+ * 
+ * MAIN METHOD
+ * 
+ *******************************/
  
+ 
+ 
+ 
+
+using namespace std;
+
+/**
+ * Executable entry point.
+ * 
+ * @return Error code: 0 on clean exit.
+ */ 
 int main(int argc, char * argv[])
 {
-  rclcpp::init(argc, argv);
-  Wire.begin(1);  // Start I²C on bus 1 (Olimex). This won't have any effect if the bus has already been opened before.
+    // ROS SETUP
+    rclcpp::init(argc, argv);
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Initializing...\n");
+
+    // BNO080 OBJECT CONSTRUCTION AND INITIALIZATION
+    BNO080 imu;
+    Wire.begin(BNO080_I2C_BUS_ID);  // Start I²C on chosen bus. This won't have any effect if the bus has already been opened before.
+    if (imu.begin(I2C_ADDRESS,Wire) == false)
+    {
+        RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection.\n",I2C_ADDRESS);
+        rclcpp::shutdown();
+        return -1;
+    }
+    imu.enableLinearAccelerometer(UPDATE_INTERVAL_LIN_ACC); 
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
+    imu.enableGyroIntegratedRotationVector(UPDATE_INTERVAL_ROT);
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
+    delay(2);
   
-  if (myIMU.begin(I2C_ADDRESS,Wire) == false)
-  {
-    RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection.\n",I2C_ADDRESS);
+    // NODE CONSTRUCTION
+    Bno080ImuPublisher *imuPub = new Bno080ImuPublisher(&imu);
+    shared_ptr<Bno080ImuPublisher> sharedImuPub(imuPub); // Convert raw pointer to shared pointer
+  
+    // KEEP SPINNING   
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Starting to publish.\n");  
+    rclcpp::spin(sharedImuPub);
+    
+    // ON EXIT
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Clean exit in progress.\n"); 
     rclcpp::shutdown();
-    return -1;
-  }
-
-  myIMU.enableLinearAccelerometer(100); //Send data update every 100ms
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
-  myIMU.enableGyroIntegratedRotationVector(100);
-  RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
-  delay(2);
-
-  rclcpp::spin(std::make_shared<Bno080ImuPublisher>());
-  rclcpp::shutdown();
-  return 0;
+    Wire.end();
+    
+    return 0;
 }
 
-Bno080ImuPublisher::Bno080ImuPublisher(BNO080 * _myIMU) : rclcpp::Node("bno080_imu")
+
+
+
+/*******************************
+ * 
+ * ROS-SPECIFIC FUNCTIONALITY
+ * 
+ *******************************/
+
+
+
+
+using namespace std::chrono_literals;
+
+/**
+ * ROS node class constructor.
+ */
+Bno080ImuPublisher::Bno080ImuPublisher(BNO080 * _imu) : rclcpp::Node("bno080_imu")
 {
-    myIMU = _myIMU;
+    imu = _imu;
     publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
     timer_ = this->create_wall_timer(
-      BNO080_PUBLISH_INTERVAL, std::bind(&Bno080ImuPublisher::timer_callback, this)
+        BNO080_PUBLISH_INTERVAL, std::bind(&Bno080ImuPublisher::timer_callback, this)
     );
 }
 
-
-class Bno080ImuPublisher : public rclcpp::Node
+/**
+ * Callback function for a timer interrupt in ROS. Publishes at defined intervals (BNO080_PUBLISH_INTERVAL).
+ */
+void Bno080ImuPublisher::timer_callback(void)
 {
-public:
-  Bno080ImuPublisher()
-  : Node("bno080_imu"), count_(0)
-  {
-    publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
-    timer_ = this->create_wall_timer(
-      100ms, std::bind(&Bno080ImuPublisher::timer_callback, this));
-  }
-
-private:
-  void timer_callback()
-  {
     auto message = sensor_msgs::msg::Imu();
 
-    if (myIMU.dataAvailable() == true) {
-      float linAccelX=0.0, linAccelY=0.0, linAccelZ=0.0;
-      float gyroX=0.0, gyroY=0.0, gyroZ=0.0;
-      float qx=0.0, qy=0.0, qz=0.0, qw=0.0;
-      //uint8_t linAccuracy = 0;
-      //uint8_t gyroAccuracy = 0;
-      //uint8_t magAccuracy = 0;
-      float quatRadianAccuracy = 0;
-      uint8_t quatAccuracy = 0;
+    if (imu->dataAvailable() == true) {
+        float linAccelX, linAccelY, linAccelZ;
+        float gyroX, gyroY, gyroZ;
+        float qx, qy, qz, qw;
+        //uint8_t linAccuracy = 0;
+        //uint8_t gyroAccuracy = 0;
+        //uint8_t magAccuracy = 0;
+        float quatRadianAccuracy = 0;
+        uint8_t quatAccuracy = 0;
 
-//    myIMU.getGyro(gyroX, gyroY, gyroZ, gyroAccuracy);
-      gyroX = myIMU.getFastGyroX();
-      gyroY = myIMU.getFastGyroY();
-      gyroZ = myIMU.getFastGyroZ();
-      message.angular_velocity.x = gyroX;
-      message.angular_velocity.y = gyroY;
-      message.angular_velocity.z = gyroZ;
+        //    myIMU.getGyro(gyroX, gyroY, gyroZ, gyroAccuracy);
+        gyroX = imu->getFastGyroX();
+        gyroY = imu->getFastGyroY();
+        gyroZ = imu->getFastGyroZ();
+        message.angular_velocity.x = gyroX;
+        message.angular_velocity.y = gyroY;
+        message.angular_velocity.z = gyroZ;
 
-//    myIMU.getLinAccel(linAccelX, linAccelY, linAccelZ, linAccuracy);
-      linAccelX = myIMU.getLinAccelX();
-      linAccelY = myIMU.getLinAccelY();
-      linAccelZ = myIMU.getLinAccelZ();
-      message.linear_acceleration.x = linAccelX;
-      message.linear_acceleration.y = linAccelY;
-      message.linear_acceleration.z = linAccelZ;
+        //    myIMU.getLinAccel(linAccelX, linAccelY, linAccelZ, linAccuracy);
+        linAccelX = imu->getLinAccelX();
+        linAccelY = imu->getLinAccelY();
+        linAccelZ = imu->getLinAccelZ();
+        message.linear_acceleration.x = linAccelX;
+        message.linear_acceleration.y = linAccelY;
+        message.linear_acceleration.z = linAccelZ;
 
-      myIMU.getQuat(qx, qy, qz, qw, quatRadianAccuracy, quatAccuracy);
-//    qx = myIMU.getQuatI();
-//    qy = myIMU.getQuatJ();
-//    qz = myIMU.getQuatK();
-//    qw = myIMU.getQuatReal();
+        imu->getQuat(qx, qy, qz, qw, quatRadianAccuracy, quatAccuracy);
+        //    qx = imu->getQuatI();
+        //    qy = imu->getQuatJ();
+        //    qz = imu->getQuatK();
+        //    qw = imu->getQuatReal();
 
-      message.orientation.x = qx;
-      message.orientation.y = qy;
-      message.orientation.z = qz;
-      message.orientation.w = qw;
+        message.orientation.x = qx;
+        message.orientation.y = qy;
+        message.orientation.z = qz;
+        message.orientation.w = qw;
 
-      message.header.stamp = this->now();
+        message.header.stamp = this->now();
 
-      count_++;
+        // printf("%f %f %f %f %f %f %f %f %f %f\n",gyroX,gyroY,gyroZ,linAccelX,linAccelY,linAccelZ,qx,qy,qz,qw);
 
-      // printf("%f %f %f %f %f %f %f %f %f %f\n",gyroX,gyroY,gyroZ,linAccelX,linAccelY,linAccelZ,qx,qy,qz,qw);
-
-      publisher_->publish(message);
+        publisher_->publish(message);
     }
-  }
-  rclcpp::TimerBase::SharedPtr timer_;
-  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr publisher_;
-  size_t count_;
-};
+}
+
 

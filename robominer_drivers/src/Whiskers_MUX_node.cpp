@@ -22,7 +22,7 @@
  * 
  * This sketch is used to interface magnetic Hall sensors of type TLV493D
  * using several multiplexers of type TCA9548A. It publishes messages of
- * type "WhiskerArray" in the ROS2 environment.
+ * type "WhiskerArray" under the topic "/whiskers" in the ROS2 environment.
  * 
  * Continuously reads the sensors one by one, then prints all sensor
  * readings to Console in one burst. When reading the Console outputs
@@ -62,7 +62,7 @@
  * This is a ported version of the library originally made for the Adafruit Feather M0
  * (see gitHub: kilian2323/3dMagSensorsVisual).
  *
- * Note: Define all constants in Whiskers_MUX_node.h.
+ * Note: Define all constants in "Whiskers_MUX_node.h".
  */
 
 
@@ -156,9 +156,9 @@ using namespace std::chrono_literals;
  */
 WhiskersPublisher::WhiskersPublisher(SensorGrid * _grid) : rclcpp::Node("whiskers_interface")
 {
-    publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
-    timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));
     grid = _grid;
+    publisher_ = this->create_publisher<robominer_msgs::msg::WhiskerArray>("/whiskers", 10);
+    timer_ = this->create_wall_timer(PUBLISH_INTERVAL, std::bind(&WhiskersPublisher::timer_callback, this));    
 
     this->declare_parameter<bool>("debug_mode",::use_debug_mode);
     this->declare_parameter<bool>("console_print",::use_console_print);    
