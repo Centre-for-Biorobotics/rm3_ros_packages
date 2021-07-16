@@ -22,8 +22,8 @@
  * Centre for Biorobotics, TALTECH, Tallinn
  * Robominers experimental setup
  * 
- * This sketch is used to interface IMU BNO080 on the Adafruit/Sparkfun
- * breakout board.
+ * This sketch is used to interface IMU BNO080 on the Adafruit breakout
+ * board using a stripped-down Sparkfun library.
  * 
  * Instructs the sensor to acquire linear accelerations, rotation vectors
  * and gyroscope data at defined intervals, then polls the sensor at a
@@ -78,14 +78,14 @@ int main(int argc, char * argv[])
     Wire.begin(BNO080_I2C_BUS_ID);  // Start I²C on chosen bus. This won't have any effect if the bus has already been opened before.
     if (imu.begin(I2C_ADDRESS,Wire) == false)
     {
-        RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection.\n",I2C_ADDRESS);
+        RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection. Shutting down...",I2C_ADDRESS);
         rclcpp::shutdown();
         return -1;
     }
     imu.enableLinearAccelerometer(UPDATE_INTERVAL_LIN_ACC); 
-    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer");
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled linear accelerometer.");
     imu.enableGyroIntegratedRotationVector(UPDATE_INTERVAL_ROT);
-    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector");
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector.");
     delay(2);
   
     // NODE CONSTRUCTION
@@ -93,11 +93,11 @@ int main(int argc, char * argv[])
     shared_ptr<Bno080ImuPublisher> sharedImuPub(imuPub); // Convert raw pointer to shared pointer
   
     // KEEP SPINNING   
-    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Starting to publish.\n");  
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), ">>>>> Starting to publish. <<<<<");  
     rclcpp::spin(sharedImuPub);
     
     // ON EXIT
-    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Clean exit in progress.\n"); 
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Clean exit in progress."); 
     rclcpp::shutdown();
     Wire.end();
     

@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 {   
     // ROS SETUP 
     rclcpp::init(argc, argv);    
-    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing...\n");
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing...");
     
     // GRID OBJECT CONSTRUCTION
     SensorGrid grid(Cartesian, Grid, true); // Representation, Message format, Hall sensors in fast mode?
@@ -112,21 +112,21 @@ int main(int argc, char **argv)
     int ret = grid.setup(); 
     if(ret == 2)
     {
-        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor initialization.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.\n");
+        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor initialization.\nCheck NUM_MUX, NUM_SENSORS and hardware connections.");
     }
     else if(ret == 1)
     {
-        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor read checks.\n");
+        RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"), "Errors encountered during sensor read checks.");
     }
     if(::use_debug_mode) { printf("\n<<<< SETUP ended. Waiting for some seconds...\n"); ::delay(5000); }
     grid.init = false;
 
     // KEEP SPINNING   
-    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Starting to publish.\n");  
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), ">>>>> Starting to publish. <<<<<");  
     rclcpp::spin(sharedWhiskersPub);
 
     // ON EXIT
-    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Clean exit in progress; return code %d.\n",ret); 
+    RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Clean exit in progress; return code %d.",ret); 
     rclcpp::shutdown();  
     Wire.end();
     
@@ -206,14 +206,11 @@ void WhiskersPublisher::timer_callback(void)
             // Read sensor with selected type of representation
             if(grid->sensors[m][i].read(grid->r) > 0) // If code is -1, it means the sensor has never been initialized (-> ignore now).
                                                       // If code is > 0, it means there was a reading error, but the sensor has been initialized before.
-            {
-                char message[255]; 
-                sprintf ( message, "Error reading sensor %d.%d; initializing again\n", m,i);
-                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+            {                
+                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),"Error reading sensor %d.%d; initializing again.",m,i);
                 if(grid->sensors[m][i].initialize(grid->fastMode) == 2)
                 {
-                    sprintf ( message, "Previously initialized sensor %d.%d now disabled\n", m,i);
-                    RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+                    RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),"Previously initialized sensor %d.%d now disabled.",m,i);
                 }
             }                      
         }    
@@ -374,16 +371,12 @@ int SensorGrid::setup(void)
                 worstError = ret;
             }
             if(ret == 2)
-            {
-                char message[255]; 
-                sprintf ( message, "Sensor %d.%d initialization failed. Check the connection.\n", m,i );
-                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+            {                
+                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),"Sensor %d.%d initialization failed. Check the connection.",m,i);
             }
             else if(ret == 1)
             {
-                char message[255]; 
-                sprintf ( message, "Sensor %d.%d initialization ok, but read check failed.\n", m,i );
-                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),message);
+                RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),"Sensor %d.%d initialization ok, but read check failed.", m,i);
             }
         }
     }        
