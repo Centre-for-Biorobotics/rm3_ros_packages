@@ -27,6 +27,7 @@ import struct
 RPM_goal = 0
 rpm_est = 0
 
+
 motors_mapping = {
 	"front_right": "0",
 	"rear_right": "1",
@@ -45,6 +46,7 @@ class SerialInterface(Node):
 		self.which_arduino = self.get_parameter('arduino_sn').value
 
 		self.RPM_goal = 0
+		self.overcurrent = 0
 		# scan com ports to find the arduino that has the specified serial number and get its port
 		self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
 
@@ -57,7 +59,7 @@ class SerialInterface(Node):
 		self.sub_motor_setpoint = self.create_subscription(MotorModuleCommand, self.motor_topic_name, self.motorCommandsCallback, 10)
 
 		self.transmitting_timer_period = 0.2 # for sending rpm setpoint to arduino at 5Hz
-		self.receiving_timer_period = 0.2 # arduino sends back rpm and current sensing every 1 second
+		self.receiving_timer_period = 0.2 # arduino sends back rpm and current sensing every 200 milliseconds
 
 		self.sending_timer = self.create_timer(self.transmitting_timer_period, self.sendToArduino)
 		self.receiving_timer = self.create_timer(self.receiving_timer_period, self.readFromArduino)
@@ -99,7 +101,7 @@ class SerialInterface(Node):
 		self.header_length = 4
 
 		# calculate XOR checksum of 'data' part of packet
-		self.chk = self.calculateChecksum(data_packet[self.msg_start +4: self.msg_end ])
+		self.chk = self.calculateChecksum(data_packet[self.msg_start +4: self.msg_end])
 
 		# unpack packet:
 		motor_arduino_ID = struct.unpack('b', bytes(data_packet[0+self.header_length:1+self.header_length]))[0]
@@ -123,6 +125,13 @@ class SerialInterface(Node):
 		if self.chk != 0:
 			self.get_logger().info('Checksum problem')
 			# self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
+
+		if (self.motor_module_msg.motor_current_ma >= 8000.0): # current threshold at 8A
+			self.overcurrent += 1
+			self.get_logger().warn('High current: "%f" mA.' % (self.motor_module_msg.motor_current_ma))
+			if self.overcurrent >=10:
+				self.get_logger().error('Killing node due to high current.')
+				self.destroy_node()
 
 		self.publisher_motor_module.publish(self.motor_module_msg)
 

@@ -17,7 +17,7 @@ def generate_launch_description():
 			package='robominer_drivers', 
 			namespace='rear_right',
 			executable='motor_serial_interface.py',
-			name='serial_interface',
+			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_right'},
 						{'arduino_sn': 'AK08KMQ8'}]
