@@ -58,11 +58,9 @@ The nodes that interface the arduinos in the motor modules identify them by thei
 | Position | Serial Number |
 | --- | --- |
 | Front Right | AB0LB3F2 |
-| Rear Right | AK08KMQ8* |
+| Rear Right | AB0LB3F4 |
 | Rear Left | AB0LB3F3 |
 | Front Left | AQ00PUPC |
-
-\* old setup with Arduino Nano
 
 ---
 
