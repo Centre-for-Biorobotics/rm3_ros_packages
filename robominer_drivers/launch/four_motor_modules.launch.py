@@ -20,7 +20,7 @@ def generate_launch_description():
 			name='motor_serial_interface',
 			output='screen',
 			parameters=[{'motor_name': 'rear_right'},
-						{'arduino_sn': 'AK08KMQ8'}]
+						{'arduino_sn': 'AB0LB3F4'}]
 			)
 		rear_left = Node(
 			package='robominer_drivers', 
