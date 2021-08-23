@@ -7,3 +7,6 @@ __pycache__/
 
 # Windows Desktop configuration files
 **/desktop.ini
+
+# vscode configuration files
+.vscode/

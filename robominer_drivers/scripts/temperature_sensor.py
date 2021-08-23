@@ -18,42 +18,42 @@ from sensor_msgs.msg import Temperature
 path = '/sys/class/hwmon/hwmon6/temp1_input'
 
 class TemperatureSensor(Node):
-	def __init__(self):
-		super().__init__('temperature_sensor')
-		self.temperature = 0
-		self.publisher_temperature = self.create_publisher(Temperature, '/temperature_sensor/temperature', 10)
-		timer_period = 1.0  # seconds
-		self.timer = self.create_timer(timer_period, self.timer_callback)
+    def __init__(self):
+        super().__init__('temperature_sensor')
+        self.temperature = 0
+        self.publisher_temperature = self.create_publisher(Temperature, '/temperature_sensor/temperature', 10)
+        timer_period = 1.0  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
 
-	def timer_callback(self):
-		msg = Temperature()
-		try:
-			tempfile = open(path,'r')
-			tempValues = tempfile.readlines()
-			tempValue = int(str(tempValues[0]))
-			tempfile.close()
+    def timer_callback(self):
+        msg = Temperature()
+        try:
+            tempfile = open(path,'r')
+            tempValues = tempfile.readlines()
+            tempValue = int(str(tempValues[0]))
+            tempfile.close()
 
-			msg.temperature = tempValue/1000.0
-			msg.header.stamp = self.get_clock().now().to_msg()
-			self.publisher_temperature.publish(msg)
-			# self.get_logger().info('Publishing. Raw value: %s' % tempValue)
+            msg.temperature = tempValue/1000.0
+            msg.header.stamp = self.get_clock().now().to_msg()
+            self.publisher_temperature.publish(msg)
+            # self.get_logger().info('Publishing. Raw value: %s' % tempValue)
 
-		except OSError:
-			self.get_logger().error('Temperature data file not found!')
-			# If we would like to destroy the node:
-			# temperature_sensor.destroy_node()
-			# rclpy.shutdown()
-			# But we don't, we try again.
+        except OSError:
+            self.get_logger().error('Temperature data file not found!')
+            # If we would like to destroy the node:
+            # temperature_sensor.destroy_node()
+            # rclpy.shutdown()
+            # But we don't, we try again.
 
 def main(args=None):
-	rclpy.init(args=args)
-	temperature_sensor = TemperatureSensor()
-	temperature_sensor.get_logger().info('Started temperature sensor node.')
+    rclpy.init(args=args)
+    temperature_sensor = TemperatureSensor()
+    temperature_sensor.get_logger().info('Started temperature sensor node.')
 
-	rclpy.spin(temperature_sensor)
+    rclpy.spin(temperature_sensor)
 
-	temperature_sensor.destroy_node()
-	rclpy.shutdown()
+    temperature_sensor.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == '__main__':
-	main()
+    main()
