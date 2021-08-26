@@ -47,6 +47,8 @@
 
 #include "BNO080_imu.h"
 
+uint8_t use_i2c_address = 0x4B;   // The address of the IMU; please set via launch file parameter so it matches the hardware configuration:
+                                  // If pin D1 is pulled high, address is 0x4B, otherwise 0x4A.
 
 
 
@@ -71,14 +73,20 @@ int main(int argc, char * argv[])
 {
     // ROS SETUP
     rclcpp::init(argc, argv);
-    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Initializing...\n");
-
-    // BNO080 OBJECT CONSTRUCTION AND INITIALIZATION
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Initializing...\n");    
+    
+    // BNO080 OBJECT CONSTRUCTION
     BNO080 imu;
+  
+    // NODE CONSTRUCTION
+    Bno080ImuPublisher *imuPub = new Bno080ImuPublisher(&imu);
+    shared_ptr<Bno080ImuPublisher> sharedImuPub(imuPub); // Convert raw pointer to shared pointer
+    
+    // BNO080 OBJECT INITIALIZATION    
     Wire.begin(BNO080_I2C_BUS_ID);  // Start I²C on chosen bus. This won't have any effect if the bus has already been opened before.
-    if (imu.begin(I2C_ADDRESS,Wire) == false)
+    if (imu.begin(::use_i2c_address,Wire) == false)
     {
-        RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection. Shutting down...",I2C_ADDRESS);
+        RCLCPP_ERROR(rclcpp::get_logger("bno080_imu"), "BNO080 not detected at 0x%02X. Check the connection. Shutting down...",::use_i2c_address);
         rclcpp::shutdown();
         return -1;
     }
@@ -87,10 +95,6 @@ int main(int argc, char * argv[])
     imu.enableGyroIntegratedRotationVector(UPDATE_INTERVAL_ROT);
     RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), "Enabled gyro + rotation vector.");
     delay(2);
-  
-    // NODE CONSTRUCTION
-    Bno080ImuPublisher *imuPub = new Bno080ImuPublisher(&imu);
-    shared_ptr<Bno080ImuPublisher> sharedImuPub(imuPub); // Convert raw pointer to shared pointer
   
     // KEEP SPINNING   
     RCLCPP_INFO(rclcpp::get_logger("bno080_imu"), ">>>>> Starting to publish. <<<<<");  
@@ -124,10 +128,12 @@ using namespace std::chrono_literals;
 Bno080ImuPublisher::Bno080ImuPublisher(BNO080 * _imu) : rclcpp::Node("bno080_imu")
 {
     imu = _imu;
-    publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);
+    publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("/imu", 10);    
     timer_ = this->create_wall_timer(
         BNO080_PUBLISH_INTERVAL, std::bind(&Bno080ImuPublisher::timer_callback, this)
     );
+    this->declare_parameter<uint8_t>("i2c_address",::use_i2c_address);
+    this->get_parameter("i2c_address",::use_i2c_address);
 }
 
 /**
@@ -136,8 +142,10 @@ Bno080ImuPublisher::Bno080ImuPublisher(BNO080 * _imu) : rclcpp::Node("bno080_imu
 void Bno080ImuPublisher::timer_callback(void)
 {
     auto message = sensor_msgs::msg::Imu();
+    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"),"Spinning...");
 
     if (imu->dataAvailable() == true) {
+        RCLCPP_INFO(rclcpp::get_logger("bno080_imu"),"Data available");
         float linAccelX, linAccelY, linAccelZ;
         float gyroX, gyroY, gyroZ;
         float qx, qy, qz, qw;

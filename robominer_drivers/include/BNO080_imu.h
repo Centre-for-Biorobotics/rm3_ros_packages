@@ -14,7 +14,6 @@
 
 #define BNO080_OLIMEX                 // If #define'd, the platform to compile for is Olimex. Note: Only the I2C bus address
                                       // depends on this setting.
-#define I2C_ADDRESS 0x4B              // [0x4B] I²C address of IMU. If D1 pin is pulled high, address is 0x4B, otherwise 0x4A.
 #define UPDATE_INTERVAL_LIN_ACC 10   // IMU updates its linear acceleration data at this interval.
 #define UPDATE_INTERVAL_ROT 10       // IMU updates its rotation vectors and gyroscope data at this interval.
 #define BNO080_PUBLISH_INTERVAL 10ms // The IMU is being polled for data at this interval and the imu message is being published.
