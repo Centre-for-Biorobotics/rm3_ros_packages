@@ -142,10 +142,8 @@ Bno080ImuPublisher::Bno080ImuPublisher(BNO080 * _imu) : rclcpp::Node("bno080_imu
 void Bno080ImuPublisher::timer_callback(void)
 {
     auto message = sensor_msgs::msg::Imu();
-    RCLCPP_INFO(rclcpp::get_logger("bno080_imu"),"Spinning...");
 
     if (imu->dataAvailable() == true) {
-        RCLCPP_INFO(rclcpp::get_logger("bno080_imu"),"Data available");
         float linAccelX, linAccelY, linAccelZ;
         float gyroX, gyroY, gyroZ;
         float qx, qy, qz, qw;
