@@ -24,6 +24,7 @@ This is a high-level Python package that contains only launch files. Lower level
 
 - *open_loop_steering.launch.py:* launches nodes that interface with all motor modules, and an inverse kinematics node. A desired velocity from a joystick is used to calculate and pass RPM setpoints to all four motor modules.
 - *open_loop_steering_w_sensors.launch.py:* all the above, plus interfacing an IMU and a temperature sensor.
+- *imu_and_whiskers.launch.py:* launches interface nodes for whisker sensors and a bno080 imu.
 - *bag_record.launch.py:* recording a bag file with all topics in the ros2 network. File is saved in the launch location with the start time encoded in the filename.
 ---
 
