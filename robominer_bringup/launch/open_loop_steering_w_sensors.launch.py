@@ -1,10 +1,7 @@
-from launch import LaunchDescription
 import os
 
 import launch
-import launch.actions
-import launch.substitutions
-import launch_ros.actions
+
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
@@ -39,13 +36,8 @@ def generate_launch_description():
                 'launch',
                 'open_loop_steering.launch.py')
         ))
-#    bag_recording = launch.actions.ExecuteProcess(
-#        cmd=['ros2', 'bag', 'record', '-a'],
-#        output='screen'
-#        )
 
     return launch.LaunchDescription([
-        # bag_recording,
         serial_peripherals,
         imu_interface,
         temperature_interface,
