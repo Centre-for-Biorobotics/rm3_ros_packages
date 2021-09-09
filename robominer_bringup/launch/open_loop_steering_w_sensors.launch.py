@@ -19,7 +19,8 @@ def generate_launch_description():
     imu_interface = Node(
         package='robominer_drivers',
         executable='bno080_imu',
-        name='bno080_imu',
+        name='front_bno080_imu',
+	parameters=[{'i2c_address': 0x4A}],
         remappings=[
             ("imu", "front_imu")
             ]
