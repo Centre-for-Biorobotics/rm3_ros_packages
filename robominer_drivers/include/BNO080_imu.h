@@ -24,7 +24,7 @@
 
 // Set I2C bus address
 #ifdef BNO080_OLIMEX
-    #define BNO080_I2C_BUS_ID 1
+    #define BNO080_I2C_BUS_ID 2
 #else
     #define BNO080_I2C_BUS_ID 8
 #endif  

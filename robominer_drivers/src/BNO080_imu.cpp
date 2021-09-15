@@ -47,7 +47,7 @@
 
 #include "BNO080_imu.h"
 
-uint8_t use_i2c_address = 0x4B;   // The address of the IMU; please set via launch file parameter so it matches the hardware configuration:
+uint8_t use_i2c_address = 0x4A;   // The address of the IMU; please set via launch file parameter so it matches the hardware configuration:
                                   // If pin D1 is pulled high, address is 0x4B, otherwise 0x4A.
 
 
