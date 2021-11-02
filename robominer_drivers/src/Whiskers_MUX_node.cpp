@@ -322,11 +322,14 @@ SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode)
 
 void SensorGrid::powerdown(void)
 {
+    muxForceDisableAll();
     for(int m=0; m<NUM_MUX; m++)
     {
+        muxDisablePrevious(m);
         for(int i=0; i<NUM_SENSORS; i++)
         {
-            sensors[m][i].sensor.setAccessMode(POWERDOWNMODE);
+            multiplexers[m].selectChannel(i,true);
+            sensors[m][i].sensor.setAccessMode(sensors[m][i].sensor.POWERDOWNMODE);
         }
     }
 }    
