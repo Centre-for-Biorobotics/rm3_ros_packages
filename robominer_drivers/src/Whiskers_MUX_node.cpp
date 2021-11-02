@@ -320,6 +320,9 @@ SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode)
     txIndex = 0; 
 }
 
+/**
+ * Puts all sensors back into POWERDOWNMODE.
+ */
 void SensorGrid::powerdown(void)
 {
     muxForceDisableAll();

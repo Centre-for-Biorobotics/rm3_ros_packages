@@ -19,7 +19,7 @@
   Arduino IDE 1.8.3
 
   SparkFun code, firmware, and software is released under the MIT License.
-	Please see LICENSE.md for further details.
+  Please see LICENSE.md for further details.
 */
 
 #pragma once
