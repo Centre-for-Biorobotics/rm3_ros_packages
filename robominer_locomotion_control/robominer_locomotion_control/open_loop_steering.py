@@ -62,7 +62,11 @@ class OpenLoopSteering(Node):
 
         self.declare_parameter('on_robot')
         self.on_robot = self.get_parameter('on_robot').value
-        self.get_logger().info(f'on_robot: {self.on_robot}')
+
+        if not self.on_robot:
+            self.declare_parameter('which_sim')
+            self.which_sim = self.get_parameter('which_sim').get_parameter_value().string_value
+            self.get_logger().info(f'which simulator: {self.which_sim}')
 
         # fr rr rl fl
         self.platform_kinematics = np.array([
@@ -71,14 +75,21 @@ class OpenLoopSteering(Node):
             [1,   1, -(self.lx + self.ly)],
             [1,  -1, -(self.lx + self.ly)]])
 
-        if self.on_robot:
-            self.speed_multiplier = 1.5
+        if self.on_robot or self.which_sim=='gazebo':
+            if self.on_robot:
+                self.speed_multiplier = 1.5
+                self.get_logger().info(f'on robot')
+            else:
+                self.speed_multiplier = 0.2
+                self.get_logger().info(f'on gazebo')
+ 
             self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
             self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
             self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
             self.publisher_motor3_commands = self.create_publisher(MotorModuleCommand, '/motor3/motor_rpm_setpoint', 10)
         else:
+            self.get_logger().info(f'on vortex (probably)')
             self.speed_multiplier = 0.2
             self.sub_keyboard = self.create_subscription(Twist, 'cmd_vel', self.keyboardCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(Float64, '/motor0/motor_rpm_setpoint', 10)
@@ -95,10 +106,6 @@ class OpenLoopSteering(Node):
     
 
     def joystickCallback(self, msg):
-        # self.get_logger().info('joy data (x)): "%d"' %msg.buttons[2])
-        # self.get_logger().info('joy data (fb)): "%f"' %msg.axes[1])
-        # self.get_logger().info('joy data (rl)): "%f"' %msg.axes[0])
-        # self.get_logger().info('joy data (yaw)): "%f"' %msg.axes[2])
 
         self.cmd_vel_x = msg.axes[1]
         self.cmd_vel_y = msg.axes[0]
@@ -122,7 +129,7 @@ class OpenLoopSteering(Node):
         '''
         Publishes the results of inv.kin to 4 topics, one for each screw
         '''
-        if self.on_robot:
+        if self.on_robot or self.which_sim=='gazebo':
             self.motor_cmd = [MotorModuleCommand() for i in range(4)]
             # self.get_logger().info(str(self.motor_cmd))
             for m in range(4):
