@@ -8,7 +8,8 @@ def generate_launch_description():
         package='robominer_locomotion_control',
         executable='open_loop_steering',
         name='open_loop_steering',
-        output='screen'
+        output='screen',
+        parameters=[{'on_robot': True}]
         )
 
     return launch.LaunchDescription([
