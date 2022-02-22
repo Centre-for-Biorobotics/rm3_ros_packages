@@ -11,13 +11,15 @@ Publishes screw velocities
 """
 
 import rclpy
+from rclpy.parameter import Parameter
 
 from rclpy.node import Node
 
 from sensor_msgs.msg import Joy
 
-# from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist
 from robominer_msgs.msg import MotorModuleCommand
+from std_msgs.msg import Float64
 # from robominer_msgs.msg import AllMotorModuleCommand
 
 import numpy as np
@@ -55,8 +57,16 @@ class OpenLoopSteering(Node):
         self.cmd_vel_x = 0
         self.cmd_vel_y = 0
         self.cmd_vel_yaw = 0
-        self.speed_multiplier = 1.5
+        
         self.turbo_multiplier = 0
+
+        self.declare_parameter('on_robot')
+        self.on_robot = self.get_parameter('on_robot').value
+
+        if not self.on_robot:
+            self.declare_parameter('which_sim')
+            self.which_sim = self.get_parameter('which_sim').get_parameter_value().string_value
+            self.get_logger().info(f'which simulator: {self.which_sim}')
 
         # fr rr rl fl
         self.platform_kinematics = np.array([
@@ -65,18 +75,37 @@ class OpenLoopSteering(Node):
             [1,   1, -(self.lx + self.ly)],
             [1,  -1, -(self.lx + self.ly)]])
 
-        self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
-        self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
-        self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
-        self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
-        self.publisher_motor3_commands = self.create_publisher(MotorModuleCommand, '/motor3/motor_rpm_setpoint', 10)
+        if self.on_robot or self.which_sim=='gazebo':
+            if self.on_robot:
+                self.speed_multiplier = 1.5
+                self.get_logger().info(f'on robot')
+            else:
+                self.speed_multiplier = 0.2
+                self.get_logger().info(f'on gazebo')
+ 
+            self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
+            self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
+            self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
+            self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
+            self.publisher_motor3_commands = self.create_publisher(MotorModuleCommand, '/motor3/motor_rpm_setpoint', 10)
+        else:
+            self.get_logger().info(f'on vortex (probably)')
+            self.speed_multiplier = 0.2
+            self.sub_keyboard = self.create_subscription(Twist, 'cmd_vel', self.keyboardCallback, 10)
+            self.publisher_motor0_commands = self.create_publisher(Float64, '/motor0/motor_rpm_setpoint', 10)
+            self.publisher_motor1_commands = self.create_publisher(Float64, '/motor1/motor_rpm_setpoint', 10)
+            self.publisher_motor2_commands = self.create_publisher(Float64, '/motor2/motor_rpm_setpoint', 10)
+            self.publisher_motor3_commands = self.create_publisher(Float64, '/motor3/motor_rpm_setpoint', 10)
+
         self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
 
+    def keyboardCallback(self, msg):
+        self.cmd_vel_x = msg.linear.x
+        self.cmd_vel_y = msg.linear.y
+        self.cmd_vel_yaw = msg.angular.z
+    
+
     def joystickCallback(self, msg):
-        # self.get_logger().info('joy data (x)): "%d"' %msg.buttons[2])
-        # self.get_logger().info('joy data (fb)): "%f"' %msg.axes[1])
-        # self.get_logger().info('joy data (rl)): "%f"' %msg.axes[0])
-        # self.get_logger().info('joy data (yaw)): "%f"' %msg.axes[2])
 
         self.cmd_vel_x = msg.axes[1]
         self.cmd_vel_y = msg.axes[0]
@@ -100,15 +129,20 @@ class OpenLoopSteering(Node):
         '''
         Publishes the results of inv.kin to 4 topics, one for each screw
         '''
-        self.motor_cmd = [MotorModuleCommand() for i in range(4)]
-        # self.get_logger().info(str(self.motor_cmd))
-        for m in range(4):
-            self.motor_cmd[m].header.stamp = self.get_clock().now().to_msg()
-            self.motor_cmd[m].header.frame_id = motors[m]
-            self.motor_cmd[m].motor_id = motors_dict[motors[m]]
-            self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
-            # self.get_logger().info(str(self.motor_cmd[m]))
-        # self.motor_cmd[1].motor_rpm_goal = int(0)
+        if self.on_robot or self.which_sim=='gazebo':
+            self.motor_cmd = [MotorModuleCommand() for i in range(4)]
+            # self.get_logger().info(str(self.motor_cmd))
+            for m in range(4):
+                self.motor_cmd[m].header.stamp = self.get_clock().now().to_msg()
+                self.motor_cmd[m].header.frame_id = motors[m]
+                self.motor_cmd[m].motor_id = motors_dict[motors[m]]
+                self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
+            # self.motor_cmd[1].motor_rpm_goal = int(0)
+        else:
+            self.motor_cmd = [Float64() for i in range(4)]
+            for m in range(4):
+                self.motor_cmd[m].data = self.screw_speeds[m]
+                
         self.publisher_motor0_commands.publish(self.motor_cmd[0])
         self.publisher_motor1_commands.publish(self.motor_cmd[1])
         self.publisher_motor2_commands.publish(self.motor_cmd[2])
@@ -117,6 +151,7 @@ class OpenLoopSteering(Node):
 
 def main(args=None):
     rclpy.init(args=args)
+
     open_loop_steering = OpenLoopSteering()
 
     rclpy.spin(open_loop_steering)

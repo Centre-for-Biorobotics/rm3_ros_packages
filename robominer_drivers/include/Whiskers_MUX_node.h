@@ -125,14 +125,15 @@ class SensorGrid
         bool fastMode;
         Representation r;
         MessageFormat f;      
-        unsigned char endSignature[2];           
+        unsigned char endSignature[2]; 
+        bool init;       
         
+        void powerdown(void);            
         int setup(void);          
         void muxDisablePrevious(uint8_t muxNum);        
         void muxForceDisableAll(uint8_t totalNum = 8);
         void printSetupResult(void);
-        void printReadingsToConsole(void);     
-        bool init;        
+        void printReadingsToConsole(void);    
 
     private:
     

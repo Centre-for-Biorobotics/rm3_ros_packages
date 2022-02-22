@@ -1,11 +1,9 @@
-
 #ifndef TwoWire_h
 #define TwoWire_h
 
 #include <inttypes.h>
 #include <cstddef>
 #include <unistd.h>
-
 
 #define BUFFER_LENGTH 100
 #define NAME_LENGTH 20

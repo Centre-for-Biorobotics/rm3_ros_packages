@@ -33,7 +33,6 @@
 #ifndef TLV493D_H_INCLUDED
 #define TLV493D_H_INCLUDED
 
-
 #include <cstdio>
 #include "Wire.h"
 #include "BusInterface.h"

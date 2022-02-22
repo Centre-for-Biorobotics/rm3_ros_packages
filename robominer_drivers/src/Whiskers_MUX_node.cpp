@@ -128,6 +128,7 @@ int main(int argc, char **argv)
     // ON EXIT
     RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Clean exit in progress; return code %d.",ret); 
     rclcpp::shutdown();  
+    grid.powerdown();
     Wire.end();
     
     return ret;
@@ -318,6 +319,23 @@ SensorGrid::SensorGrid(Representation _r, MessageFormat _f, bool _fastMode)
     txString = new unsigned char[MAXBUF];
     txIndex = 0; 
 }
+
+/**
+ * Puts all sensors back into POWERDOWNMODE.
+ */
+void SensorGrid::powerdown(void)
+{
+    muxForceDisableAll();
+    for(int m=0; m<NUM_MUX; m++)
+    {
+        muxDisablePrevious(m);
+        for(int i=0; i<NUM_SENSORS; i++)
+        {
+            multiplexers[m].selectChannel(i,true);
+            sensors[m][i].sensor.setAccessMode(sensors[m][i].sensor.POWERDOWNMODE);
+        }
+    }
+}    
 
 /**
  * Opens the I2C bus, constructs and initializes the sensors.
