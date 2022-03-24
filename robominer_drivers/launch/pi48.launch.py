@@ -1,6 +1,10 @@
+import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+import launch
 
 def generate_launch_description():
     pi48_imu = Node(
@@ -22,7 +26,15 @@ def generate_launch_description():
         output='screen',
         remappings=[
             ("/imu/data_raw", "/pi48_imu/data_raw"),
-            ("/imu/data", "/pi48_imu/data")]
+            ("/imu/data", "/pi48_imu/complementary_data")]
+    )
+    madgwick_filter = launch.actions.IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('imu_filter_madgwick'),
+                'launch',
+                'imu_filter.launch.py')
+        )
     )
     static_transform = Node(
         package='tf2_ros',
@@ -33,6 +45,7 @@ def generate_launch_description():
     return LaunchDescription(
         [pi48_imu,
         complementary_filter,
+        madgwick_filter,
         static_transform
         ]
     )
