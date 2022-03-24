@@ -66,6 +66,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/motor_serial_interface.py
   scripts/temperature_sensor.py
+  scripts/pi48_interface.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
