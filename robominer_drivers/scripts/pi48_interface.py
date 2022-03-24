@@ -3,8 +3,13 @@
 Serial interface for Pacific Inertial IMU (pi-48).
 Based on TAU 'ros2_pi48_imu' package.
 
-The sensor is supposed to stream at 250Hz, but from USB we get data at approx.62.6Hz, and each bunch contains 4 packets.
+The sensor is supposed to stream at 250Hz, but from USB we get data at approx.62.5Hz, and each bunch contains 4 packets.
 TODO: figure out if this is OK, if not figure out what to do about it.
+
+In RM3 the pi48 is oriented as:
+x: right
+y: front
+z: up
 
 @author: Roza Gkliva
 @contact: roza.gkliva@ttu.ee
@@ -38,12 +43,12 @@ class pi48Interface(Node):
         # get device parameters and find device
         self.declare_parameter('device_name')
         self.declare_parameter('device_hwid')
-        self.get_logger().info(f'params ok')
+
         self.which_device = self.get_parameter('device_name').value
         self.device_hwid = self.get_parameter('device_hwid').value
 
         self.port = list(serial.tools.list_ports.grep(self.device_hwid))[1][0]
-        self.get_logger().info(f'device name: {self.which_device}, device hwid: {self.device_hwid}, port: {self.port}')
+        # self.get_logger().info(f'device name: {self.which_device}, device hwid: {self.device_hwid}, port: {self.port}')
 
         # start serial communication
         self.ser = serial.Serial(
@@ -85,14 +90,12 @@ class pi48Interface(Node):
 
         packet_string = binascii.b2a_hex(packet_bin)
         packet_string = str(packet_string.decode('utf-8'))
-        self.get_logger().info(f'full packet: {packet_string}')
 
         # locate the index
         packet_header = packet_string.find(index)
 
         # isolate packet payload based on index location and length of packet
         packet_string = packet_string[packet_header+4: packet_header+150]
-        self.get_logger().info(f'packet string: {packet_string}')
 
         ACC_X=int(packet_string[12:20],16)
         ACC_Y=int(packet_string[20:28],16)
