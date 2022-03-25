@@ -72,9 +72,9 @@ class pi48Interface(Node):
         @returns: /
         """
         
-        packet = self.ser.read(999)
+        packet_bin = self.ser.read(999)
         
-        if len(packet)>1:
+        if len(packet_bin)>1:
             packet_header = '4131'
 
             # convert entire packet to string:
@@ -87,10 +87,11 @@ class pi48Interface(Node):
             # self.get_logger().info(f'header index: {header_index}, payload length: {payload_length}')
 
             if payload_length == 108:
-                payload = packet_string[header_index+len(packet_header): header_index+150]   
+                payload = packet_string[header_index+len(packet_header): header_index+150]
                 self.publishImu(payload)
             else:
-                self.get_logger().info(f'bad packet')
+                self.get_logger().info(f'bad packet, payload length: {payload_length}, packet: {packet_string}')
+                # TODO: handle this
 
     def publishImu(self, payload):
         """
