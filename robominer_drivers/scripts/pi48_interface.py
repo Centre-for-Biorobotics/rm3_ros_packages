@@ -75,35 +75,48 @@ class pi48Interface(Node):
         packet = self.ser.read(999)
         
         if len(packet)>1:
-            self.publishImu(packet)
-            
-            
+            packet_header = '4131'
 
-    def publishImu(self, packet_bin):
+            # convert entire packet to string:
+            packet_string = binascii.b2a_hex(packet_bin)
+            packet_string = str(packet_string.decode('utf-8'))
+
+            # locate the index and calculate the length of one packet
+            header_index = packet_string.find(packet_header)
+            payload_length = packet_string[header_index+len(packet_header):].find(packet_header)
+            # self.get_logger().info(f'header index: {header_index}, payload length: {payload_length}')
+
+            if payload_length == 108:
+                payload = packet_string[header_index+len(packet_header): header_index+150]   
+                self.publishImu(payload)
+            else:
+                self.get_logger().info(f'bad packet')
+
+    def publishImu(self, payload):
         """
         Parses the IMU packet. Publishes the angular velocity and linear acceleration as imu message.
         @input: self
         @input: packet in binary format
         @returns: /
         """
-        index = '4131'      # this string should be at the start of each packet.
+        # index = '4131'      # this string should be at the start of each packet.
 
-        packet_string = binascii.b2a_hex(packet_bin)
-        packet_string = str(packet_string.decode('utf-8'))
+        # packet_string = binascii.b2a_hex(packet_bin)
+        # packet_string = str(packet_string.decode('utf-8'))
 
         # locate the index
-        packet_header = packet_string.find(index)
+        # packet_header = packet_string.find(index)
 
         # isolate packet payload based on index location and length of packet
-        packet_string = packet_string[packet_header+4: packet_header+150]
+        # packet_string = packet_string[packet_header+4: packet_header+150]
 
-        ACC_X=int(packet_string[12:20],16)
-        ACC_Y=int(packet_string[20:28],16)
-        ACC_Z=int(packet_string[28:36],16)
+        ACC_X=int(payload[12:20],16)
+        ACC_Y=int(payload[20:28],16)
+        ACC_Z=int(payload[28:36],16)
 
-        GYRO_X=int(packet_string[36:44],16)
-        GYRO_Y=int(packet_string[44:52],16)
-        GYRO_Z=int(packet_string[52:60],16)
+        GYRO_X=int(payload[36:44],16)
+        GYRO_Y=int(payload[44:52],16)
+        GYRO_Z=int(payload[52:60],16)
 
         ACC=np.array([ACC_X,ACC_Y,ACC_Z],dtype=np.uint32)
         GYRO=np.array([GYRO_X,GYRO_Y,GYRO_Z],dtype=np.uint32)
