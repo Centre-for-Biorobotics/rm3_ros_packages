@@ -45,7 +45,7 @@ def generate_launch_description():
     return LaunchDescription(
         [pi48_imu,
         complementary_filter,
-        madgwick_filter,
+        # madgwick_filter,
         static_transform
         ]
     )
