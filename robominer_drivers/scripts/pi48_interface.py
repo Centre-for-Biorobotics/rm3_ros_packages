@@ -40,6 +40,8 @@ class pi48Interface(Node):
         self.imu_msg = Imu()
         self.imu_pub = self.create_publisher(Imu, 'imu/data_raw', 10)
 
+        self.pi48_packet_length = 108 # characters
+
         # get device parameters and find device
         self.declare_parameter('device_name')
         self.declare_parameter('device_hwid')
@@ -67,31 +69,41 @@ class pi48Interface(Node):
 
     def readBuffer(self):
         """
-        Reads data from serial buffer. Calls to publish.
+        Reads data from serial buffer. Isolates the packet payload. Calls to publish.
         @input: self
         @returns: /
         """
-        
+
         packet_bin = self.ser.read(999)
-        
+
         if len(packet_bin)>1:
             packet_header = '4131'
+            packet_good = False
+            payload_length = 0
 
             # convert entire packet to string:
             packet_string = binascii.b2a_hex(packet_bin)
             packet_string = str(packet_string.decode('utf-8'))
 
-            # locate the index and calculate the length of one packet
+            # locate the index and slice the packet string after it
             header_index = packet_string.find(packet_header)
-            payload_length = packet_string[header_index+len(packet_header):].find(packet_header)
-            # self.get_logger().info(f'header index: {header_index}, payload length: {payload_length}')
+            buffer = packet_string[header_index + len(packet_header):]
 
-            if payload_length == 108:
-                payload = packet_string[header_index+len(packet_header): header_index+150]
-                self.publishImu(payload)
-            else:
-                self.get_logger().info(f'bad packet, payload length: {payload_length}, packet: {packet_string}')
-                # TODO: handle this
+            # use the issue of ~4 packets per buffer read to handle empty or incomplete packets
+            while (not packet_good):
+                # find the length of payload until the next header
+                payload_length = buffer.find(packet_header)
+
+                # if the payload has an appropriate length take it, if not move to the next packet in the buffer
+                if (payload_length == self.pi48_packet_length):
+                    packet_good = True
+                    # self.get_logger().info(f'good packet: {buffer[:payload_length]}')
+                    self.publishImu(buffer[:payload_length])
+                    break
+                else:
+                    # self.get_logger().info(f'bad packet: {packet_string}')
+                    buffer = buffer[payload_length + len(packet_header):]
+                    packet_good = False
 
     def publishImu(self, payload):
         """
@@ -100,16 +112,6 @@ class pi48Interface(Node):
         @input: packet in binary format
         @returns: /
         """
-        # index = '4131'      # this string should be at the start of each packet.
-
-        # packet_string = binascii.b2a_hex(packet_bin)
-        # packet_string = str(packet_string.decode('utf-8'))
-
-        # locate the index
-        # packet_header = packet_string.find(index)
-
-        # isolate packet payload based on index location and length of packet
-        # packet_string = packet_string[packet_header+4: packet_header+150]
 
         ACC_X=int(payload[12:20],16)
         ACC_Y=int(payload[20:28],16)
