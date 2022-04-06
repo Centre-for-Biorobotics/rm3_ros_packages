@@ -54,11 +54,11 @@ class OpenLoopSteering(Node):
         self.ly = 0.3 			# m lateral distance
         self.screw_radius = 0.055 	# m
         self.kinematics_timer_period = 0.1  # seconds
-        self.cmd_vel_x = 0
-        self.cmd_vel_y = 0
-        self.cmd_vel_yaw = 0
-        
-        self.turbo_multiplier = 0
+        self.cmd_vel_x = 0.0
+        self.cmd_vel_y = 0.0
+        self.cmd_vel_yaw = 0.0
+        self.speed_multiplier = 0.0
+        self.turbo_multiplier = 0.0
 
         self.declare_parameter('on_robot')
         self.on_robot = self.get_parameter('on_robot').value
@@ -116,6 +116,7 @@ class OpenLoopSteering(Node):
     def inverseKinematics(self):
         speed_multiplier = 0
         speed_multiplier += self.speed_multiplier + self.turbo_multiplier
+
         self.robot_twist = [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
 
         self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist) * speed_multiplier
