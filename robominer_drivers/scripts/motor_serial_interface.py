@@ -47,12 +47,12 @@ class SerialInterface(Node):
         self.which_arduino = self.get_parameter('arduino_sn').value
 
         self.RPM_goal = 0
-        self.overcurrent = 0
+        self.overcurrent = 0    # current safety threshold
 
         # incoming packet info
         self.packet_header = 'SYNC'
         self.packet_trailer = 'CNYS'
-        self.header_length = 4
+        self.header_length = len(self.packet_header)
 
         # scan com ports to find the arduino that has the specified serial number and get its port
         self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
@@ -83,7 +83,6 @@ class SerialInterface(Node):
         """
 
         self.packet = self.ser.read(999)
-        # self.get_logger().info( 'packet: %s, length: %d' %( str(self.packet), len(self.packet)))
 
         self.msg_start = -1
         self.msg_end = -1
@@ -93,15 +92,12 @@ class SerialInterface(Node):
             self.msg_start = self.packet.index(self.packet_header.encode('UTF-8')) if self.packet_header.encode('UTF-8') in self.packet else None
             self.msg_end = self.packet.index(self.packet_trailer.encode('UTF-8')) if self.packet_trailer.encode('UTF-8') in self.packet else None
 
-            # self.get_logger().info(f'packet length: {self.msg_end - self.msg_start}, msg start: {self.msg_start}, msg end: {self.msg_end}')
             # isolate data array (payload)
             self.data_packet = self.packet[ self.msg_start : self.msg_end ]
-            # try:
+
             if None not in (self.msg_start, self.msg_end):
                 if self.msg_start < self.msg_end:
                     self.extractMessage(self.data_packet)
-            # except:
-                # self.get_logger().info('!!! ERROR: self.msg_start !< self.msg_end')
 
     def extractMessage(self, data_packet):
         """
@@ -109,11 +105,10 @@ class SerialInterface(Node):
         """
         self.motor_module_msg = MotorModuleFeedback() # custom message
 
-        self.packet_length = len(data_packet) # determine data payload length (+ header length = 4 is included)
-        # self.header_length = 4
+        packet_length = len(data_packet) # determine data payload length (+ header length = 4 is included)
 
         # calculate XOR checksum of 'data' part of packet
-        self.chk = self.calculateChecksum(data_packet[self.msg_start +4: self.msg_end])
+        self.chk = self.calculateChecksum(data_packet[self.msg_start + self.header_length: self.msg_end])
 
         # unpack packet:
         motor_arduino_ID = struct.unpack('b', bytes(data_packet[0+self.header_length:1+self.header_length]))[0]
@@ -123,20 +118,19 @@ class SerialInterface(Node):
         rpm_est = struct.unpack('f', data_packet[2+self.header_length:6+self.header_length])[0]
 
         self.motor_module_msg.header.stamp = self.get_clock().now().to_msg()
-        self.motor_module_msg.header.frame_id = self.which_motor 
+        self.motor_module_msg.header.frame_id = self.which_motor
         self.motor_module_msg.motor_id = str(motor_arduino_ID)
         self.motor_module_msg.motor_rpm = rpm_est
 
-        if self.packet_length == 11: 		# no current measurement
+        if packet_length == 11: 		# no current measurement
             checksum_byte = struct.unpack('b', bytes(data_packet[6+self.header_length:7+self.header_length]))[0]
-        elif self.packet_length == 19: 		# with current and voltage measurement
+        elif packet_length == 19: 		# with current and voltage measurement
             self.motor_module_msg.motor_current_ma = struct.unpack('f', data_packet[6+self.header_length:10+self.header_length])[0]
-            self.motor_module_msg.motor_voltage_v = struct.unpack('f', data_packet[10+self.header_length:14+self.header_length])[0]	
+            self.motor_module_msg.motor_voltage_v = struct.unpack('f', data_packet[10+self.header_length:14+self.header_length])[0]
             checksum_byte = struct.unpack('b', bytes(data_packet[14+self.header_length:15+self.header_length]))[0]
 
         if self.chk != 0:
-            self.get_logger().info('Checksum problem')
-            # self.get_logger().info('Received motor ID: "%d", checksum (0x00 is good): "%f"' % (motor_arduino_ID, self.chk))
+            self.get_logger().info(f'Checksum problem: {data_packet}')
 
         if (self.motor_module_msg.motor_current_ma >= 8000.0): # current threshold at 8A
             self.overcurrent += 1
@@ -145,14 +139,13 @@ class SerialInterface(Node):
                 self.get_logger().error('Killing node due to high current.')
                 self.destroy_node()
 
-        self.publisher_motor_module.publish(self.motor_module_msg)  
+        self.publisher_motor_module.publish(self.motor_module_msg)
 
     def calculateChecksum(self, packet):
         """
         calculates XOR checksum of an array of bytes (packet) and returns the
         result.
         """
-
         checksum = 0
         for data in packet:
             checksum ^= data
@@ -160,21 +153,12 @@ class SerialInterface(Node):
 
     def motorCommandsCallback(self, msg):
         if str(msg.motor_id) == str(self.motor_ID):
-            # self.get_logger().info('got setpoint')
             self.RPM_goal = msg.motor_rpm_goal
-        # self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( msg.motor_rpm_goal, self.cmd_vel_y, self.cmd_vel_yaw))      
         return
-        # self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
-        # self.screw_speeds[0] = msg.fr_motor_rpm_goal
-        # self.screw_speeds[1] = msg.rr_motor_rpm_goal
-        # self.screw_speeds[2] = msg.rl_motor_rpm_goal
-        # self.screw_speeds[3] = msg.fl_motor_rpm_goal
-
-        # self.get_logger().info('RPMS: fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
 
     def sendToArduino(self):
         """
-        Packs data into array of bytes to form a packet. 
+        Packs data into array of bytes to form a packet.
         Writes packet to serial port.
         """
 
@@ -187,8 +171,6 @@ class SerialInterface(Node):
         outbuffer += struct.pack('B', checksum_out)
 
         outbuffer += '\n'.encode('UTF-8')
-
-        # self.get_logger().info( 'Sending: Motor ID: %d, RPM_goal: %d' %(self.motor_ID, RPM_goal))
 
         self.ser.write(outbuffer)  # writes to serial port
 
