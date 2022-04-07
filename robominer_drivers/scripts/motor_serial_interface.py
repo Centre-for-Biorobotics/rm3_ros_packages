@@ -48,6 +48,12 @@ class SerialInterface(Node):
 
         self.RPM_goal = 0
         self.overcurrent = 0
+
+        # incoming packet info
+        self.packet_header = 'SYNC'
+        self.packet_trailer = 'CNYS'
+        self.header_length = 4
+
         # scan com ports to find the arduino that has the specified serial number and get its port
         self.port = list(serial.tools.list_ports.grep(self.which_arduino))[0][0]
 
@@ -84,9 +90,10 @@ class SerialInterface(Node):
 
         if len(self.packet) >3:
             # find indices of header and end character:
-            self.msg_start = self.packet.index('SYNC'.encode('UTF-8')) if 'SYNC'.encode('UTF-8') in self.packet else None
-            self.msg_end = self.packet.index('\n'.encode('UTF-8')) if '\n'.encode('UTF-8') in self.packet else None
+            self.msg_start = self.packet.index(self.packet_header.encode('UTF-8')) if self.packet_header.encode('UTF-8') in self.packet else None
+            self.msg_end = self.packet.index(self.packet_trailer.encode('UTF-8')) if self.packet_trailer.encode('UTF-8') in self.packet else None
 
+            # self.get_logger().info(f'packet length: {self.msg_end - self.msg_start}, msg start: {self.msg_start}, msg end: {self.msg_end}')
             # isolate data array (payload)
             self.data_packet = self.packet[ self.msg_start : self.msg_end ]
             # try:
@@ -103,7 +110,7 @@ class SerialInterface(Node):
         self.motor_module_msg = MotorModuleFeedback() # custom message
 
         self.packet_length = len(data_packet) # determine data payload length (+ header length = 4 is included)
-        self.header_length = 4
+        # self.header_length = 4
 
         # calculate XOR checksum of 'data' part of packet
         self.chk = self.calculateChecksum(data_packet[self.msg_start +4: self.msg_end])
