@@ -77,7 +77,7 @@ class OpenLoopSteering(Node):
 
         if self.on_robot or self.which_sim=='gazebo':
             if self.on_robot:
-                self.speed_multiplier = 1.5
+                self.speed_multiplier = 1.0
                 self.get_logger().info(f'on robot')
             else:
                 self.speed_multiplier = 0.2
@@ -110,7 +110,7 @@ class OpenLoopSteering(Node):
         self.cmd_vel_x = msg.axes[1]
         self.cmd_vel_y = msg.axes[0]
         self.cmd_vel_yaw = msg.axes[2]
-        self.turbo_multiplier = (msg.buttons[5] * 1)
+        self.turbo_multiplier = (msg.buttons[5] * .5)
         # self.get_logger().info(str(self.turbo))
 
     def inverseKinematics(self):
