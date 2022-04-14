@@ -53,6 +53,7 @@ class OpenLoopSteering(Node):
         super().__init__('open_loop_steering')
         self.lx = 0.15 			# m longitudinal distance
         self.ly = 0.3 			# m lateral distance
+        self.screw_helix_angle = pi/6 # pi/6 for fl and rr screws, -pi/6 for fr and rl
         self.screw_radius = 0.078 	# m
         self.kinematics_timer_period = 0.1  # seconds
         self.cmd_vel_x = 0.0
@@ -72,17 +73,17 @@ class OpenLoopSteering(Node):
         # fr rr rl fl
 
         self.platform_kinematics = np.array([
-            [-tan(pi/6), -1, -(self.lx + tan(pi/6)*self.ly)],
-            [-tan(pi/6),  1, -(self.lx + tan(pi/6)*self.ly)],
-            [tan(pi/6),   1, -(self.lx + tan(pi/6)*self.ly)],
-            [tan(pi/6),  -1, -(self.lx + tan(pi/6)*self.ly)]])
+            [-1/tan(self.screw_helix_angle), -1, -(self.lx + self.ly / tan(self.screw_helix_angle))],
+            [-1/tan(self.screw_helix_angle),  1, -(self.lx + self.ly / tan(self.screw_helix_angle))],
+            [1/tan(self.screw_helix_angle),   1, -(self.lx + self.ly / tan(self.screw_helix_angle))],
+            [1/tan(self.screw_helix_angle),  -1, -(self.lx + self.ly / tan(self.screw_helix_angle))]])
 
         if self.on_robot or self.which_sim=='gazebo':
             if self.on_robot:
-                self.speed_multiplier = 1
+                self.speed_multiplier = 1.0
                 self.get_logger().info(f'on robot')
             else:
-                self.speed_multiplier = 1
+                self.speed_multiplier = 1.0
                 self.get_logger().info(f'on gazebo')
  
             self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
@@ -122,8 +123,8 @@ class OpenLoopSteering(Node):
         self.robot_twist = [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
 
         self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist) * speed_multiplier
-        # self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
-        # self.get_logger().info('fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
+        self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
+        self.get_logger().info('fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
 
         self.speedsBroadcast()
 
