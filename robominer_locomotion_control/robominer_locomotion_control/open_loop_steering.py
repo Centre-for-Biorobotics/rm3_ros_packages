@@ -55,6 +55,7 @@ class OpenLoopSteering(Node):
         self.ly = 0.3 			# m lateral distance
         self.screw_helix_angle = pi/6 # pi/6 for fl and rr screws, -pi/6 for fr and rl
         self.screw_radius = 0.078 	# m
+        self.radpersec_to_rpm = 30 / pi
         self.kinematics_timer_period = 0.1  # seconds
         self.cmd_vel_x = 0.0
         self.cmd_vel_y = 0.0
@@ -122,9 +123,9 @@ class OpenLoopSteering(Node):
 
         self.robot_twist = [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
 
-        self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist) * speed_multiplier
-        self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
-        self.get_logger().info('fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
+        self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm * speed_multiplier
+        # self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
+        # self.get_logger().info('fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
 
         self.speedsBroadcast()
 
