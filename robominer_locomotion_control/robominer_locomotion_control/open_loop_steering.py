@@ -6,7 +6,7 @@ Publishes screw velocities
 
 @author: Roza Gkliva
 @contact: roza.gkliva@ttu.ee
-@creation date: 29-08-2020 (started)
+@date: 29-08-2020
 
 """
 
@@ -20,7 +20,6 @@ from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
 from robominer_msgs.msg import MotorModuleCommand
 from std_msgs.msg import Float64
-# from robominer_msgs.msg import AllMotorModuleCommand
 
 import numpy as np
 from math import tan, pi
@@ -38,29 +37,22 @@ motors_dict = {
     "front_left": "3"
 }
 
-# speed_multiplier = 0
-
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}
-# motor_multiplier = np.array([[1,-1,-1,1],
-# 							[-1, 1, -1, 1],
-# 							[1, -1, 1, -1],
-# 							[-1, 1, 1, -1] ])
-
 
 class OpenLoopSteering(Node):
     def __init__(self):
         super().__init__('open_loop_steering')
-        self.lx = 0.15 			# m longitudinal distance
-        self.ly = 0.3 			# m lateral distance
-        self.screw_helix_angle = pi/6 # pi/6 for fl and rr screws, -pi/6 for fr and rl
-        self.screw_radius = 0.078 	# m
-        self.radpersec_to_rpm = 30 / pi
-        self.kinematics_timer_period = 0.1  # seconds
+        self.lx = 0.15                          # m longitudinal distance
+        self.ly = 0.3                           # m lateral distance
+        self.screw_helix_angle = pi/6.0         # pi/6 for fl and rr screws, -pi/6 for fr and rl
+        self.screw_radius = 0.078 	            # m
+        self.radpersec_to_rpm = 60.0 / (2*pi)
+        self.kinematics_timer_period = 0.1      # seconds
         self.cmd_vel_x = 0.0
         self.cmd_vel_y = 0.0
         self.cmd_vel_yaw = 0.0
-        self.speed_multiplier = 0.0
+        self.speed_multiplier = 0.0             # speed multiplier that is applied to the body velocity input
         self.turbo_multiplier = 0.0
 
         self.declare_parameter('on_robot')
@@ -71,8 +63,6 @@ class OpenLoopSteering(Node):
             self.which_sim = self.get_parameter('which_sim').get_parameter_value().string_value
             self.get_logger().info(f'which simulator: {self.which_sim}')
 
-        # fr rr rl fl
-
         self.platform_kinematics = np.array([
             [-1/tan(self.screw_helix_angle), -1, -(self.lx + self.ly / tan(self.screw_helix_angle))],
             [-1/tan(self.screw_helix_angle),  1, -(self.lx + self.ly / tan(self.screw_helix_angle))],
@@ -80,12 +70,11 @@ class OpenLoopSteering(Node):
             [1/tan(self.screw_helix_angle),  -1, -(self.lx + self.ly / tan(self.screw_helix_angle))]])
 
         if self.on_robot or self.which_sim=='gazebo':
+            self.speed_multiplier = .09
             if self.on_robot:
-                self.speed_multiplier = 1.0
                 self.get_logger().info(f'on robot')
             else:
-                self.speed_multiplier = 1.0
-                self.get_logger().info(f'on gazebo')
+                self.get_logger().info(f'on gazebo, speed multiplier: {self.speed_multiplier}')
  
             self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
@@ -104,44 +93,54 @@ class OpenLoopSteering(Node):
         self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
 
     def keyboardCallback(self, msg):
+        """
+        Callback function for the keyboard topic. Parses a keyboard message to body velocities in x, y, and yaw
+        @param: self
+        @param: msg - Twist message format
+        """
         self.cmd_vel_x = msg.linear.x
         self.cmd_vel_y = msg.linear.y
         self.cmd_vel_yaw = msg.angular.z
     
 
     def joystickCallback(self, msg):
-
+        """
+        Callback function for the joystick topic. Parses a joystick message to body velocities in x, y, and yaw
+        @param: self
+        @param: msg - Joy message format
+        """
         self.cmd_vel_x = msg.axes[1]
         self.cmd_vel_y = msg.axes[0]
         self.cmd_vel_yaw = msg.axes[2]
-        self.turbo_multiplier = (msg.buttons[5] * .5)
-        # self.get_logger().info(str(self.turbo))
+        self.turbo_multiplier = (msg.buttons[5] * .01)
 
     def inverseKinematics(self):
+        """
+        Solves the inverse kinematic problem to calculate actuator speeds from body velocity. 
+        Calls to publish the individual motor speeds.
+        @param: self
+        """
         speed_multiplier = 0
         speed_multiplier += self.speed_multiplier + self.turbo_multiplier
 
-        self.robot_twist = [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
+        self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]) * speed_multiplier
 
-        self.screw_speeds = 1/self.screw_radius * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm * speed_multiplier
-        # self.get_logger().info('x: "%f", y: "%f", yaw: "%f"' %( self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw))
-        # self.get_logger().info('fr: "%f", rr: "%f", rl: "%f", fl: "%f"' %( self.screw_speeds[0], self.screw_speeds[1], self.screw_speeds[2], self.screw_speeds[3]))
+        self.screw_speeds = (1.0/self.screw_radius) * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm
 
         self.speedsBroadcast()
 
     def speedsBroadcast(self):
         '''
-        Publishes the results of inv.kin to 4 topics, one for each screw
+        Publishes the results of inverse kinematics to 4 topics, one RPM setpoint for each screw.
+        @param: self
         '''
         if self.on_robot or self.which_sim=='gazebo':
             self.motor_cmd = [MotorModuleCommand() for i in range(4)]
-            # self.get_logger().info(str(self.motor_cmd))
             for m in range(4):
                 self.motor_cmd[m].header.stamp = self.get_clock().now().to_msg()
                 self.motor_cmd[m].header.frame_id = motors[m]
                 self.motor_cmd[m].motor_id = motors_dict[motors[m]]
                 self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
-            # self.motor_cmd[1].motor_rpm_goal = int(0)
         else:
             self.motor_cmd = [Float64() for i in range(4)]
             for m in range(4):
