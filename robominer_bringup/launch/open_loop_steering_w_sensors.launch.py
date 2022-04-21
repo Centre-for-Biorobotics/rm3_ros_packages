@@ -9,28 +9,32 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    serial_peripherals = launch.actions.IncludeLaunchDescription(
+    motor_interfaces = launch.actions.IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
                 get_package_share_directory('robominer_drivers'),
                 'launch',
                 'four_motor_modules.launch.py')
         ))
-    imu_interface = Node(
+    bno_imu_interface = Node(
         package='robominer_drivers',
         executable='bno080_imu',
-        name='front_bno080_imu',
-	parameters=[{'i2c_address': 0x4A}],
-        remappings=[
-            ("imu", "front_imu")
-            ]
+        name='bno080_imu',
+        parameters=[{'i2c_address': 0x4A}],
+        output='screen'
         )
+    pi48_imu_interface = Node(
+        package='robominer_drivers',
+        executable='pi48_interface.py',
+        name='pi48_imu',
+        output='screen'
+    )
     temperature_interface = Node(
         package='robominer_drivers',
         executable='temperature_sensor.py',
         name='temperature_sensor'
         )
-    steering_stuff = launch.actions.IncludeLaunchDescription(
+    steering_kinematics = launch.actions.IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
                 get_package_share_directory('robominer_locomotion_control'),
@@ -39,8 +43,9 @@ def generate_launch_description():
         ))
 
     return launch.LaunchDescription([
-        serial_peripherals,
-        imu_interface,
+        motor_interfaces,
+        bno_imu_interface,
+        pi48_imu_interface,
         temperature_interface,
-        steering_stuff
+        steering_kinematics
         ])

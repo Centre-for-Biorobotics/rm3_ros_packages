@@ -132,7 +132,7 @@ class SerialInterface(Node):
         if self.chk != 0:
             self.get_logger().info(f'Checksum problem: {data_packet}')
 
-        if (self.motor_module_msg.motor_current_ma >= 5000.0): # current threshold at 8A
+        if (self.motor_module_msg.motor_current_ma >= 5000.0): # current threshold at 5A
             self.overcurrent += 1
             self.get_logger().warn('High current: "%f" mA.' % (self.motor_module_msg.motor_current_ma))
             if self.overcurrent >=5:
