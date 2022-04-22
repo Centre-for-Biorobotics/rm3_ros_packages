@@ -31,6 +31,14 @@ def generate_launch_description():
             '/pi48_imu/data_raw',
             '/pi48_imu/complementary_data',
             '/whiskers',
+            '/spectrometer_left/spectrometer_frequency_command',
+            '/spectrometer_left/spectrometer_calibration',
+            '/spectrometer_left/reflectance_reading',
+            '/spectrometer_left/fluorescence_reading',
+            '/spectrometer_right/spectrometer_frequency_command',
+            '/spectrometer_right/spectrometer_calibration',
+            '/spectrometer_right/reflectance_reading',
+            '/spectrometer_right/fluorescence_reading'
             ],
         output='screen'
         )
