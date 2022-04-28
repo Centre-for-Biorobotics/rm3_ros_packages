@@ -9,6 +9,7 @@ Handles bidirectional communications between the two devices.
 
 """
 
+from paramiko import Transport
 import rclpy
 
 from rclpy.node import Node
@@ -47,7 +48,9 @@ class SerialInterface(Node):
         self.which_arduino = self.get_parameter('arduino_sn').value
 
         self.RPM_goal = 0
-        self.overcurrent = 0    # current safety threshold
+        self.overcurrent = 0    # current safety threshold counter
+        self.current_threshold = 6000.0  # mA
+        self.RPM_reset_counter = 0
 
         # incoming packet info
         self.packet_header = 'SYNC'
@@ -132,12 +135,26 @@ class SerialInterface(Node):
         if self.chk != 0:
             self.get_logger().info(f'Checksum problem: {data_packet}')
 
-        if (self.motor_module_msg.motor_current_ma >= 5000.0): # current threshold at 5A
+        # register in counter if motor draws high current and give a warning, otherwise reset the counter
+        if (self.motor_module_msg.motor_current_ma >= self.current_threshold): # current threshold at 6A
             self.overcurrent += 1
             self.get_logger().warn('High current: "%f" mA.' % (self.motor_module_msg.motor_current_ma))
-            if self.overcurrent >=5:
-                self.get_logger().error('Killing node due to high current.')
-                self.destroy_node()
+        else:
+            # sporadic high current readings will be ignored
+            self.overcurrent = 0
+
+        if self.overcurrent >= 5:
+            # self.get_logger().error('Killing node due to high current.')
+            # self.destroy_node()
+
+            # instead of destroy_node force RPM=0 for 9 seconds
+            self.get_logger().warn(f'Forced waiting (cause: high current)')
+            self.RPM_current_zero = True
+            self.RPM_reset_counter += 1
+
+        if self.RPM_reset_counter >= 9*5:
+            self.RPM_current_zero = False
+            self.RPM_reset_counter = 0
 
         self.publisher_motor_module.publish(self.motor_module_msg)
 
@@ -153,7 +170,10 @@ class SerialInterface(Node):
 
     def motorCommandsCallback(self, msg):
         if str(msg.motor_id) == str(self.motor_ID):
-            self.RPM_goal = msg.motor_rpm_goal
+            if self.RPM_current_zero == True:
+                self.RPM_goal = 0
+            else:
+                self.RPM_goal = msg.motor_rpm_goal
         return
 
     def sendToArduino(self):
