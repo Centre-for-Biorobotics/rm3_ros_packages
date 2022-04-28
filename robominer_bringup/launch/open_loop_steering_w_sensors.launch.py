@@ -21,14 +21,16 @@ def generate_launch_description():
         executable='bno080_imu',
         name='bno080_imu',
         parameters=[{'i2c_address': 0x4A}],
+        remappings=[("imu","bno080_imu")],
         output='screen'
         )
-    pi48_imu_interface = Node(
-        package='robominer_drivers',
-        executable='pi48_interface.py',
-        name='pi48_imu',
-        output='screen'
-    )
+    pi48_imu_interface = launch.actions.IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('robominer_drivers'),
+                'launch',
+                'pi48.launch.py')
+        ))
     temperature_interface = Node(
         package='robominer_drivers',
         executable='temperature_sensor.py',
