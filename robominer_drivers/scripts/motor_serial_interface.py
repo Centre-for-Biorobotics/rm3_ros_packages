@@ -9,7 +9,6 @@ Handles bidirectional communications between the two devices.
 
 """
 
-from paramiko import Transport
 import rclpy
 
 from rclpy.node import Node
@@ -49,8 +48,10 @@ class SerialInterface(Node):
 
         self.RPM_goal = 0
         self.overcurrent = 0    # current safety threshold counter
-        self.current_threshold = 6000.0  # mA
+        self.current_threshold = 5200.0  # mA
         self.RPM_reset_counter = 0
+        self.RPM_current_zero = False
+        self.RPM_wait = False
 
         # incoming packet info
         self.packet_header = 'SYNC'
@@ -144,16 +145,18 @@ class SerialInterface(Node):
             self.overcurrent = 0
 
         if self.overcurrent >= 5:
-            # self.get_logger().error('Killing node due to high current.')
-            # self.destroy_node()
-
             # instead of destroy_node force RPM=0 for 9 seconds
             self.get_logger().warn(f'Forced waiting (cause: high current)')
-            self.RPM_current_zero = True
+            self.RPM_wait = True
+            #self.RPM_current_zero = True
+            #self.RPM_reset_counter += 1
+        if self.RPM_wait:
             self.RPM_reset_counter += 1
-
+            self.RPM_current_zero = True
         if self.RPM_reset_counter >= 9*5:
+            self.get_logger().info(f'RPM not zero')
             self.RPM_current_zero = False
+            self.RPM_wait = False
             self.RPM_reset_counter = 0
 
         self.publisher_motor_module.publish(self.motor_module_msg)
