@@ -1,0 +1,8 @@
+#goal definition
+float64[3] setpoint_velocity
+---
+#result definition
+bool moved
+---
+#feedback definition
+bool moving
