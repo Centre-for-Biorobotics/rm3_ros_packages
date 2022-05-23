@@ -17,7 +17,7 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import Joy
 
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistStamped
 from robominer_msgs.msg import MotorModuleCommand
 from std_msgs.msg import Float64
 
@@ -76,7 +76,8 @@ class OpenLoopSteering(Node):
             else:
                 self.get_logger().info(f'on gazebo, speed multiplier: {self.speed_multiplier}')
  
-            self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
+            # self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
+            self.sub_keyboard = self.create_subscription(TwistStamped, 'move_cmd_vel', self.actionServerCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
             self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
             self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
@@ -91,6 +92,15 @@ class OpenLoopSteering(Node):
             self.publisher_motor3_commands = self.create_publisher(Float64, '/motor3/motor_rpm_setpoint', 10)
 
         self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
+
+    def actionServerCallback(self, msg):
+        """
+        Callback function for a topic that is published by the action server that interfaces the BT
+        @param: self
+        @param: msg - TwistStamped message format
+        """
+        twist_msg = msg.twist
+        self.keyboardCallback(twist_msg)
 
     def keyboardCallback(self, msg):
         """
