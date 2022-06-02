@@ -16,15 +16,17 @@ def generate_launch_description():
         package='teleop_twist_keyboard',
         executable='teleop_twist_keyboard',
         name='teleop_twist_keyboard',
+        remappings=[("cmd_vel","cmd_vel_keyboard")],
         output='screen'
         )
-        
+
     steering_node = launch_ros.actions.Node(
         package='robominer_locomotion_control',
         executable='open_loop_steering',
         name='open_loop_steering',
         output='screen',
-        parameters=[{'on_robot':False}]
+        parameters=[{'on_robot': False},
+                    {'which_sim': 'gazebo'}]
         )
 
     return launch.LaunchDescription([

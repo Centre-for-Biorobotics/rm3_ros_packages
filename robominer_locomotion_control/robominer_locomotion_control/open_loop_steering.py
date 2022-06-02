@@ -19,7 +19,7 @@ from sensor_msgs.msg import Joy
 
 from geometry_msgs.msg import Twist
 from robominer_msgs.msg import MotorModuleCommand
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Float64MultiArray
 
 import numpy as np
 from math import tan, pi
@@ -48,6 +48,7 @@ class OpenLoopSteering(Node):
         self.screw_helix_angle = pi/6.0         # pi/6 for fl and rr screws, -pi/6 for fr and rl
         self.screw_radius = 0.078 	            # m
         self.radpersec_to_rpm = 60.0 / (2*pi)
+        self.rpm_to_radpersec = 2*pi/60.0
         self.kinematics_timer_period = 0.1      # seconds
         self.cmd_vel_x = 0.0
         self.cmd_vel_y = 0.0
@@ -75,12 +76,17 @@ class OpenLoopSteering(Node):
                 self.get_logger().info(f'on robot')
             else:
                 self.get_logger().info(f'on gazebo, speed multiplier: {self.speed_multiplier}')
- 
-            self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
+
+            #self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
+            self.sub_keyboard = self.create_subscription(Twist, 'cmd_vel_keyboard', self.keyboardCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
             self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
             self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
             self.publisher_motor3_commands = self.create_publisher(MotorModuleCommand, '/motor3/motor_rpm_setpoint', 10)
+            if not self.on_robot:
+                # Rotation of screws on Gazebo
+                self.publisher_screw_rotation = self.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
+
         else:
             self.get_logger().info(f'on vortex (probably)')
             self.speed_multiplier = 0.2
@@ -101,7 +107,7 @@ class OpenLoopSteering(Node):
         self.cmd_vel_x = msg.linear.x
         self.cmd_vel_y = msg.linear.y
         self.cmd_vel_yaw = msg.angular.z
-    
+
 
     def joystickCallback(self, msg):
         """
@@ -116,7 +122,7 @@ class OpenLoopSteering(Node):
 
     def inverseKinematics(self):
         """
-        Solves the inverse kinematic problem to calculate actuator speeds from body velocity. 
+        Solves the inverse kinematic problem to calculate actuator speeds from body velocity.
         Calls to publish the individual motor speeds.
         @param: self
         """
@@ -141,11 +147,18 @@ class OpenLoopSteering(Node):
                 self.motor_cmd[m].header.frame_id = motors[m]
                 self.motor_cmd[m].motor_id = motors_dict[motors[m]]
                 self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
+            if not self.on_robot:
+                screw_velocities = Float64MultiArray()
+                screw_velocities.data.append(self.screw_speeds[0] * self.rpm_to_radpersec)
+                screw_velocities.data.append(-self.screw_speeds[1] * self.rpm_to_radpersec)
+                screw_velocities.data.append(self.screw_speeds[2] * self.rpm_to_radpersec)
+                screw_velocities.data.append(-self.screw_speeds[3] * self.rpm_to_radpersec)
+                self.publisher_screw_rotation.publish(screw_velocities)
         else:
             self.motor_cmd = [Float64() for i in range(4)]
             for m in range(4):
                 self.motor_cmd[m].data = self.screw_speeds[m]
-                
+
         self.publisher_motor0_commands.publish(self.motor_cmd[0])
         self.publisher_motor1_commands.publish(self.motor_cmd[1])
         self.publisher_motor2_commands.publish(self.motor_cmd[2])

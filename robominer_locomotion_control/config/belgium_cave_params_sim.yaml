@@ -1,0 +1,19 @@
+robot_detector:
+  ros__parameters:
+    aruco:
+      aruco_set: 'robot'
+      aruco_size: 0.25
+      aruco_dictionary: 'DICT_5X5_1000'
+      target_tags: [0]
+    camera:
+      # camera_matrix: [2.66566893e+03, 0.00000000e+00, 9.61185525e+02,0.00000000e+00, 2.66597907e+03, 5.41141356e+02,0.000000, 0.000000, 1.000000]
+      camera_matrix: [ 874.3532538, 0., 320.86448814, 0., 875.75581996, 238.11583721, 0., 0., 1. ]
+      # camera_distortion_coefficients: [8.98724180e-03, -5.17206313e-01, 1.29165517e-04, 1.14470127e-04, 3.21941848e+00]
+      camera_distortion_coefficients: [ -3.95871081e-03,  1.73829952e-01, -5.85940377e-04,  2.36117475e-04,  -2.36628253e+00 ]
+    topic_name: 'aruco_detect/field_transforms'
+    distance_between_tags: 0.15 # m
+ground_truth:
+  ros__parameters:
+    field_tags: [1,2,3,4]
+    robot_tag: 0
+    field_tag: 1
