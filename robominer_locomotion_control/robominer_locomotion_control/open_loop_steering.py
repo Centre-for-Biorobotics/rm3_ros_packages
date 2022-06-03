@@ -75,7 +75,7 @@ class OpenLoopSteering(Node):
                 self.get_logger().info(f'on robot')
             else:
                 self.get_logger().info(f'on gazebo, speed multiplier: {self.speed_multiplier}')
- 
+
             # self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
             self.sub_keyboard = self.create_subscription(TwistStamped, 'move_cmd_vel', self.actionServerCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
@@ -85,7 +85,8 @@ class OpenLoopSteering(Node):
         else:
             self.get_logger().info(f'on vortex (probably)')
             self.speed_multiplier = 0.2
-            self.sub_keyboard = self.create_subscription(Twist, 'cmd_vel', self.keyboardCallback, 10)
+            # self.sub_keyboard = self.create_subscription(Twist, 'cmd_vel', self.keyboardCallback, 10)
+            self.sub_keyboard = self.create_subscription(TwistStamped, 'move_cmd_vel', self.actionServerCallback, 10)
             self.publisher_motor0_commands = self.create_publisher(Float64, '/motor0/motor_rpm_setpoint', 10)
             self.publisher_motor1_commands = self.create_publisher(Float64, '/motor1/motor_rpm_setpoint', 10)
             self.publisher_motor2_commands = self.create_publisher(Float64, '/motor2/motor_rpm_setpoint', 10)

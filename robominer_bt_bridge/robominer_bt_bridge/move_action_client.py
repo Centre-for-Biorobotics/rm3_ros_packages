@@ -3,6 +3,7 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 
+from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
 from robominer_msgs.action import Move
 
@@ -14,6 +15,7 @@ class MoveActionClient(Node):
         self._action_client = ActionClient(self, Move, 'move')
 
         self.sub_joystick = self.create_subscription(Joy, 'joy', self.joystickCallback, 10)
+        self.sub_keyboard = self.create_subscription(Twist, 'cmd_vel', self.keyboardCallback, 10)
 
 
     def joystickCallback(self, msg):
@@ -22,6 +24,13 @@ class MoveActionClient(Node):
         self.cmd_vel_y = msg.axes[0]
         self.cmd_vel_yaw = msg.axes[3]
         self.turbo_multiplier = (msg.buttons[5] * .01)
+
+        self.send_goal(self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw)
+	
+    def keyboardCallback(self, msg):
+        self.cmd_vel_x = msg.linear.x
+        self.cmd_vel_y = msg.linear.y
+        self.cmd_vel_yaw = msg.angular.z
 
         self.send_goal(self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw)
 
