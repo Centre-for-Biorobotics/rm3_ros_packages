@@ -9,7 +9,8 @@ def generate_launch_description():
         executable='open_loop_steering',
         name='open_loop_steering',
         output='screen',
-        parameters=[{'on_robot': True}]
+        parameters=[{'on_robot': True},
+                    {'which_sim': 'gazebo'}]
         )
 
     return launch.LaunchDescription([
