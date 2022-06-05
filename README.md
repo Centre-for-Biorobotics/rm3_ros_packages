@@ -14,6 +14,7 @@ Requirements:
 
 - [robominer_bringup](#robominer_bringup)
 - [robominer_drivers](#robominer_drivers)
+- [robominer_bt_bridge](#robominer_bt_bridge)
 - [robominer_msgs](#robominer_msgs)
 - [robominer_locomotion_control](#robominer_locomotion_control)
 
@@ -71,7 +72,13 @@ The nodes that interface the arduinos in the motor modules identify them by thei
 
 ---
 
-### robominer_msgs
+## robominer_bt_bridge
+Python package that contains nodes that interface the behaviour tree, but are not part of it. 
+- *move_action_server:* Uses an action server to handle a request for planar movement as a `[x, y, yaw]` velocity vector. Publishes the information as a *TwistStamped* type message.
+
+---
+
+## robominer_msgs
 C++ package that contains all custom messages of the repository. Needs to be built first for other packages to be able to find the messages.
 ```
 # navigate to dev_ws/ and build custom messages
