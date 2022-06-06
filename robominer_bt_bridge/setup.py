@@ -25,6 +25,7 @@ setup(
         'console_scripts': [
             'move_action_client = robominer_bt_bridge.move_action_client:main',
             'move_action_server = robominer_bt_bridge.move_action_server:main',
+            'continuous_move_action_server = robominer_bt_bridge.continuous_move_action_server:main'
         ],
     },
 )
