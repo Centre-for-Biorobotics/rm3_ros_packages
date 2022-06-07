@@ -48,7 +48,7 @@ class OpenLoopSteering(Node):
         self.screw_helix_angle = pi/6.0         # pi/6 for fl and rr screws, -pi/6 for fr and rl
         self.screw_radius = 0.078 	            # m
         self.radpersec_to_rpm = 60.0 / (2*pi)
-        self.rpm_to_radpersec = 2*pi/60.0
+        self.rpm_to_radpersec = (2*pi) / 60.0
         self.kinematics_timer_period = 0.1      # seconds
         self.cmd_vel_x = 0.0
         self.cmd_vel_y = 0.0
@@ -142,7 +142,6 @@ class OpenLoopSteering(Node):
         self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]) * speed_multiplier
 
         self.screw_speeds = (1.0/self.screw_radius) * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm
-
         self.speedsBroadcast()
 
     def speedsBroadcast(self):
@@ -159,10 +158,10 @@ class OpenLoopSteering(Node):
                 self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
             if not self.on_robot:
                 screw_velocities = Float64MultiArray()
-                screw_velocities.data.append(self.screw_speeds[0] * self.rpm_to_radpersec)
-                screw_velocities.data.append(-self.screw_speeds[1] * self.rpm_to_radpersec)
-                screw_velocities.data.append(self.screw_speeds[2] * self.rpm_to_radpersec)
-                screw_velocities.data.append(-self.screw_speeds[3] * self.rpm_to_radpersec)
+                screw_velocities.data.append(-self.screw_speeds[0] * self.rpm_to_radpersec)
+                screw_velocities.data.append(self.screw_speeds[1] * self.rpm_to_radpersec)
+                screw_velocities.data.append(-self.screw_speeds[2] * self.rpm_to_radpersec)
+                screw_velocities.data.append(self.screw_speeds[3] * self.rpm_to_radpersec)
                 self.publisher_screw_rotation.publish(screw_velocities)
         else:
             self.motor_cmd = [Float64() for i in range(4)]
