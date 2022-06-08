@@ -148,11 +148,12 @@ class OpenLoopSteering(Node):
                 self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
             if not self.on_robot:
                 screw_velocities = Float64MultiArray()
-                # A division by ~40 was necessary to convert rad/s to whatever is used in velocity controller in gazebo.
-                screw_velocities.data.append(-int(self.screw_speeds[0]) * self.rpm_to_radpersec / 40.0)
-                screw_velocities.data.append(int(self.screw_speeds[1]) * self.rpm_to_radpersec / 40.0)
-                screw_velocities.data.append(-int(self.screw_speeds[2]) * self.rpm_to_radpersec / 40.0)
-                screw_velocities.data.append(int(self.screw_speeds[3]) * self.rpm_to_radpersec / 40.0)
+                # A division by a factor was necessary to convert rad/s to whatever is used in velocity controller in gazebo.
+                velCorrection = 1 / (0.0817176)
+                screw_velocities.data.append(-int(self.screw_speeds[0]) * self.rpm_to_radpersec / velCorrection)
+                screw_velocities.data.append(int(self.screw_speeds[1]) * self.rpm_to_radpersec / velCorrection)
+                screw_velocities.data.append(-int(self.screw_speeds[2]) * self.rpm_to_radpersec / velCorrection)
+                screw_velocities.data.append(int(self.screw_speeds[3]) * self.rpm_to_radpersec / velCorrection)
                 self.publisher_screw_rotation.publish(screw_velocities)
         else:
             self.motor_cmd = [Float64() for i in range(4)]
