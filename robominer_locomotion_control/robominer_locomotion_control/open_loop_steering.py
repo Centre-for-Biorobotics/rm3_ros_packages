@@ -149,7 +149,7 @@ class OpenLoopSteering(Node):
             if not self.on_robot:
                 screw_velocities = Float64MultiArray()
                 # A division by a factor was necessary to convert rad/s to whatever is used in velocity controller in gazebo.
-                velCorrection = 1 / (0.0817176)
+                velCorrection = 65.11432
                 screw_velocities.data.append(-int(self.screw_speeds[0]) * self.rpm_to_radpersec / velCorrection)
                 screw_velocities.data.append(int(self.screw_speeds[1]) * self.rpm_to_radpersec / velCorrection)
                 screw_velocities.data.append(-int(self.screw_speeds[2]) * self.rpm_to_radpersec / velCorrection)
