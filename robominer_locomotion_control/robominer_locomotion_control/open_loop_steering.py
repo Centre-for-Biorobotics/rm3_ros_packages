@@ -19,7 +19,7 @@ from sensor_msgs.msg import Joy
 
 from geometry_msgs.msg import Twist
 from robominer_msgs.msg import MotorModuleCommand
-from std_msgs.msg import Float64, Float64MultiArray
+from std_msgs.msg import Float64
 
 import numpy as np
 from math import tan, pi
@@ -83,9 +83,6 @@ class OpenLoopSteering(Node):
             self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
             self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
             self.publisher_motor3_commands = self.create_publisher(MotorModuleCommand, '/motor3/motor_rpm_setpoint', 10)
-            if not self.on_robot:
-                # Rotation of screws on Gazebo
-                self.publisher_screw_rotation = self.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
 
         else:
             self.get_logger().info(f'on vortex (probably)')
@@ -146,15 +143,6 @@ class OpenLoopSteering(Node):
                 self.motor_cmd[m].header.frame_id = motors[m]
                 self.motor_cmd[m].motor_id = motors_dict[motors[m]]
                 self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
-            if not self.on_robot:
-                screw_velocities = Float64MultiArray()
-                # A division by a factor was necessary to convert rad/s to whatever is used in velocity controller in gazebo.
-                velCorrection = 65.11432
-                screw_velocities.data.append(-int(self.screw_speeds[0]) * self.rpm_to_radpersec / velCorrection)
-                screw_velocities.data.append(int(self.screw_speeds[1]) * self.rpm_to_radpersec / velCorrection)
-                screw_velocities.data.append(-int(self.screw_speeds[2]) * self.rpm_to_radpersec / velCorrection)
-                screw_velocities.data.append(int(self.screw_speeds[3]) * self.rpm_to_radpersec / velCorrection)
-                self.publisher_screw_rotation.publish(screw_velocities)
         else:
             self.motor_cmd = [Float64() for i in range(4)]
             for m in range(4):
