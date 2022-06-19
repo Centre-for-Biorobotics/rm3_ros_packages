@@ -36,6 +36,8 @@ set(msg_files
   "msg/SpectrometerMeasurement.msg"
   "msg/SpectrometerCalibration.msg"
   "msg/SpectrometerFrequencyCommand.msg"
+  "msg/FiducialTransform.msg"
+  "msg/FiducialTransformArray.msg"
   )
 
 
