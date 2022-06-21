@@ -111,7 +111,7 @@ class OpenLoopSteering(Node):
         """
         self.cmd_vel_x = msg.axes[1]
         self.cmd_vel_y = msg.axes[0]
-        self.cmd_vel_yaw = msg.axes[2]
+        self.cmd_vel_yaw = msg.axes[3]
         self.turbo_multiplier = (msg.buttons[5] * .01)
 
     def inverseKinematics(self):
