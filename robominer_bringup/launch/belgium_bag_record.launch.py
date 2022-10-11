@@ -15,10 +15,6 @@ def generate_launch_description():
             # '/robot_euler',
             # '/robot_pose',
             '/joy',
-            # '/front_left/parameter_events',
-            # '/rear_left/parameter_events',
-            # '/front_right/parameter_events',
-            # '/rear_right/parameter_events',
             '/motor0/motor_rpm_setpoint',
             '/motor1/motor_rpm_setpoint',
             '/motor2/motor_rpm_setpoint',
@@ -44,7 +40,11 @@ def generate_launch_description():
             '/spectrometer_right/spectrometer_frequency_command',
             '/spectrometer_right/spectrometer_calibration',
             '/spectrometer_right/reflectance_reading',
-            '/spectrometer_right/fluorescence_reading'
+            '/spectrometer_right/fluorescence_reading',
+            '/mapData',
+            '/WhiskerPointCloud',
+            '/camera_jetson/color/image_raw',
+            '/robot_path'
             ],
         output='screen'
         )
