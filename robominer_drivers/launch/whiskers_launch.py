@@ -9,6 +9,6 @@ def generate_launch_description():
             executable='tlv493d_tca9548a_whiskers',
             name='whiskers_publisher',
             output='screen',
-            parameters=[{'debug_mode': True}, {'console_print': True}]
+            parameters=[{'debug_mode': False}, {'console_print': False}]
         )
     ])
