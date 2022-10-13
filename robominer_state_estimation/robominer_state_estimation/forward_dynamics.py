@@ -21,9 +21,6 @@ from robominer_msgs.msg import MotorModuleCommand
 
 import numpy as np
 
-# rows: motor modules {fl, fr, rl, rr}
-# cols: strafing direction {F, B, L, R}
-
 class DynamicsRM3(Node):
     def __init__(self):
         super().__init__('dynamic_state_estimation')
