@@ -45,10 +45,12 @@ class DynamicsRM3(Node):
         self.imu_orientation = Quaternion()
         if self.useImu:
             self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
+            # self.create_subscription(Imu, '/bno080_imu', self.imu_callback, 10)
 
         # Dynamic model variables
         # ------------------------------------------------
         self.dt = state_estimation_parameters['dynamics']['dt'] # Dynamic model integration period.
+        self.rpm_to_radpersec = (2*np.pi)/60.0
 
         self.eta = np.zeros(6) # variable to store the pose of the robot in the world frame
         self.eta_dot = np.zeros(6) # variable to store the velocity of the robot in the world frame
@@ -149,7 +151,7 @@ class DynamicsRM3(Node):
         # Update jacobian matrix based on measured roll, pitch and yaw
         ## TODO: updateJacobian(self.eta[3], self.eta[6], self.eta[5])
         # ---------------------------------------
-        self.tau = np.dot(self.sigma, np.dot(self.B, self.screw_velocities.transpose() ))
+        self.tau = np.dot(self.sigma, np.dot(self.B, self.rpm_to_radpersec * self.screw_velocities.transpose() ))
         self.nu_dot = np.dot(self.M_inv, (self.tau - np.dot(self.drag, self.nu)))
 
         self.nu += self.dt * self.nu_dot
@@ -169,10 +171,10 @@ class DynamicsRM3(Node):
         odom_msg = Odometry()
         odom_msg.header.stamp = self.get_clock().now().to_msg()
         odom_msg.header.frame_id = 'world'
-        odom_msg.child_frame_id = 'base_link'
-        odom_msg.pose.pose.position.x = self.eta[0] - 0.245
+        odom_msg.child_frame_id = 'dynamics'
+        odom_msg.pose.pose.position.x = self.eta[0]
         odom_msg.pose.pose.position.y = self.eta[1]
-        odom_msg.pose.pose.position.z = self.eta[2] + 0.23
+        odom_msg.pose.pose.position.z = self.eta[2]
         if self.useImu:
             odom_msg.pose.pose.orientation = self.imu_orientation
         else:
