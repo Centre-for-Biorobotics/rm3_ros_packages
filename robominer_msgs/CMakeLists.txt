@@ -25,6 +25,7 @@ find_package(ament_cmake REQUIRED)
 
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 set(msg_files
   "msg/MotorModuleFeedback.msg"
@@ -32,6 +33,11 @@ set(msg_files
   "msg/WhiskerPosInGrid.msg"
   "msg/Whisker.msg"
   "msg/WhiskerArray.msg"
+  "msg/SpectrometerMeasurement.msg"
+  "msg/SpectrometerCalibration.msg"
+  "msg/SpectrometerFrequencyCommand.msg"
+  "msg/FiducialTransform.msg"
+  "msg/FiducialTransformArray.msg"
   )
 
 
@@ -49,7 +55,7 @@ endif()
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
-  DEPENDENCIES builtin_interfaces std_msgs
+  DEPENDENCIES builtin_interfaces std_msgs geometry_msgs
  )
 
 ament_export_dependencies(rosidl_default_runtime)

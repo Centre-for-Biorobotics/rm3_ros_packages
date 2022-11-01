@@ -26,6 +26,8 @@ This is a high-level Python package that contains only launch files. Lower level
 - *open_loop_steering_w_sensors.launch.py:* all the above, plus interfacing an IMU and a temperature sensor.
 - *imu_and_whiskers.launch.py:* launches interface nodes for whisker sensors and a bno080 imu.
 - *bag_record.launch.py:* recording a bag file with all topics in the ros2 network. File is saved in the launch location with the start time encoded in the filename.
+- *sim_open_loop_steering.launch.py:* launches open_loop_steering node and teleop_twist_keyboard for vortex studio simulations.
+- *sim_open_loop_steering_joy.launch.py:* launches open_loop_steering node and teleop_twist_joy for gazebo simulations.
 ---
 
 ## robominer_drivers
@@ -36,7 +38,8 @@ Currently included interfaces to:
 - BNO080 IMU,
 - MCP9808 temperature sensor,
 - Whisker sensor array,
-- Pacific Inertial Wheel Motion Sensor.
+- Pacific Inertial Wheel Motion Sensor (not used),
+- Pacific Inertial PI-48 IMU.
 
 ### whisker sensors interface
 - *whiskers_launch.py* launches the node under the name 'whiskers_publisher' to interface a total of 64 sensors. Set parameters:
@@ -45,13 +48,16 @@ Currently included interfaces to:
 
 - When running the node using `ros2 run robominer_drivers tlv493d_tca9548a_whiskers`, both parameters are initialized as `true`.
 
-### PI WMS
+### PI WMS (not used)
 The C++ node that interfaces the PI WMS device uses the [serial port library](https://github.com/wjwwood/serial). To use it, clone this ROS2 version:
 
 ```
 # navigate to dev_ws/src/
 git clone https://github.com/RoverRobotics-forks/serial-ros2
 ```
+
+### PI-48 IMU
+Python node that interfaces the device using pyserial. Two identical devices appear in the list of serial ports, the second one is used.
 
 ### motors interface
 The nodes that interface the arduinos in the motor modules identify them by their FTDI's serial number. The launch file creates parameters containing this information for each node. The current configuration is:
