@@ -15,9 +15,15 @@ import tf_transformations
 
 from rclpy.node import Node
 
-from geometry_msgs.msg import Twist, WrenchStamped
+from geometry_msgs.msg import Twist, WrenchStamped, Quaternion
+from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 from robominer_msgs.msg import MotorModuleCommand
+
+import yaml
+import os
+from ament_index_python.packages import get_package_share_directory
+
 
 import numpy as np
 
@@ -25,9 +31,24 @@ class DynamicsRM3(Node):
     def __init__(self):
         super().__init__('dynamic_state_estimation')
 
+        parameters_from_yaml = os.path.join(
+                get_package_share_directory('robominer_state_estimation'),
+                'config',
+                'state_estimation_parameters.yaml'
+                )
+
+        # Load parameters from YAML file
+        with open(parameters_from_yaml, 'r') as file:
+            state_estimation_parameters = yaml.load(file, Loader=yaml.FullLoader)
+
+        self.useImu = state_estimation_parameters['robot']['enableIMU']
+        self.imu_orientation = Quaternion()
+        if self.useImu:
+            self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
+
         # Dynamic model variables
         # ------------------------------------------------
-        self.dt = 0.05 # Dynamic model integration period.
+        self.dt = state_estimation_parameters['dynamics']['dt'] # Dynamic model integration period.
 
         self.eta = np.zeros(6) # variable to store the pose of the robot in the world frame
         self.eta_dot = np.zeros(6) # variable to store the velocity of the robot in the world frame
@@ -44,26 +65,19 @@ class DynamicsRM3(Node):
 
         # RM3 Dynamic parameters :
         # ---------------------------------------------------------
-        #TODO: Read parameters from a config file (YAML for instance)
-        self.lx = 0.15  # m longitudinal distance
-        self.ly = 0.30  # m lateral distance
-        self.alpha = np.deg2rad(26.5)
-        sigma_long = 1.358 ; # longitudinal screw coeff: Computed using linear regression based on experimental data
-        sigma_lat = 4.106 ; # lateral screw coeff: Computed using linear regression based on experimental data
+        self.lx = state_estimation_parameters['dynamics']['dimensions']['lx']  # m longitudinal distance
+        self.ly = state_estimation_parameters['dynamics']['dimensions']['ly']  # m lateral distance
+        self.alpha = np.deg2rad(state_estimation_parameters['dynamics']['alpha'])
+        sigma_long = state_estimation_parameters['dynamics']['sigma_long'] # longitudinal screw coeff: Computed using linear regression based on experimental data
+        sigma_lat = state_estimation_parameters['dynamics']['sigma_lat'] # lateral screw coeff: Computed using linear regression based on experimental data
         self.sigma = np.diag([sigma_long, sigma_lat, 0.0 ,0.0 ,0.0, sigma_lat]) # linear transform of screw_velocity to force parameter
-        drag_x = 164.0 # tuned manually based on experimental results
-        drag_y = 180.0 # tuned manually based on experimental results, additional sideways driving experiments are needed to confirm this.
-        drag_z = 200.0 # Just a guess at the moment
-        drag_roll = 200.0 # Just a guess at the moment
-        drag_pitch = 200.0 # Just a guess at the moment
-        drag_yaw = 11.8 # tuned manually based on experimental results
-        self.drag = np.diag([drag_x, drag_y, drag_z, drag_roll, drag_pitch, drag_yaw])
+        self.drag = np.diag(state_estimation_parameters['dynamics']['drag'])
 
         # The inertia of the robot is approximated using a 3D box model.
-        robot_mass = 29.0 #Kg
-        robot_height = 0.3 #m
-        robot_width = 0.95 #m
-        robot_lenght = 0.8 #m
+        robot_mass = state_estimation_parameters['dynamics']['mass'] #Kg
+        robot_height = state_estimation_parameters['dynamics']['dimensions']['z'] #m
+        robot_width = state_estimation_parameters['dynamics']['dimensions']['y'] #m
+        robot_lenght = state_estimation_parameters['dynamics']['dimensions']['x'] #m
         Ix = (robot_mass / 12.0) * (robot_height**2 + robot_width**2)
         Iy = (robot_mass / 12.0) * (robot_height**2 + robot_lenght**2)
         Iz = (robot_mass / 12.0) * (robot_lenght**2 + robot_width**2)
@@ -142,6 +156,11 @@ class DynamicsRM3(Node):
         self.eta_dot = np.dot(self.J, self.nu)
         self.eta += self.dt * self.eta_dot
 
+        if self.useImu:
+            imu_angles = tf_transformations.euler_from_quaternion([self.imu_orientation.x, self.imu_orientation.y,
+                                            self.imu_orientation.z, self.imu_orientation.w])
+            self.eta[3:6] = imu_angles
+
         self.publishDynamicResults()
 
 
@@ -151,20 +170,23 @@ class DynamicsRM3(Node):
         odom_msg.header.stamp = self.get_clock().now().to_msg()
         odom_msg.header.frame_id = 'world'
         odom_msg.child_frame_id = 'base_link'
-        odom_msg.pose.pose.position.x = self.eta[0]
+        odom_msg.pose.pose.position.x = self.eta[0] - 0.245
         odom_msg.pose.pose.position.y = self.eta[1]
-        odom_msg.pose.pose.position.z = self.eta[2]
-        q = tf_transformations.quaternion_from_euler(self.eta[3], self.eta[4], self.eta[5])
-        odom_msg.pose.pose.orientation.x = q[0]
-        odom_msg.pose.pose.orientation.y = q[1]
-        odom_msg.pose.pose.orientation.z = q[2]
-        odom_msg.pose.pose.orientation.w = q[3]
+        odom_msg.pose.pose.position.z = self.eta[2] + 0.23
+        if self.useImu:
+            odom_msg.pose.pose.orientation = self.imu_orientation
+        else:
+            q = tf_transformations.quaternion_from_euler(self.eta[3], self.eta[4], self.eta[5])
+            odom_msg.pose.pose.orientation.x = q[0]
+            odom_msg.pose.pose.orientation.y = q[1]
+            odom_msg.pose.pose.orientation.z = q[2]
+            odom_msg.pose.pose.orientation.w = q[3]
         odom_msg.twist.twist.linear.x = self.nu[0]
-        odom_msg.twist.twist.linear.x = self.nu[1]
-        odom_msg.twist.twist.linear.x = self.nu[2]
+        odom_msg.twist.twist.linear.y = self.nu[1]
+        odom_msg.twist.twist.linear.z = self.nu[2]
         odom_msg.twist.twist.angular.x = self.nu[3]
-        odom_msg.twist.twist.angular.x = self.nu[4]
-        odom_msg.twist.twist.angular.x = self.nu[5]
+        odom_msg.twist.twist.angular.y = self.nu[4]
+        odom_msg.twist.twist.angular.z = self.nu[5]
         self.estimated_odom_pub.publish(odom_msg)
 
         wrench_msg = WrenchStamped()
@@ -193,6 +215,8 @@ class DynamicsRM3(Node):
     def front_left(self, msg):
         self.screw_velocities[3] = msg.motor_rpm_goal
 
+    def imu_callback(self, msg):
+        self.imu_orientation = msg.orientation
 
 def main(args=None):
     rclpy.init(args=args)
