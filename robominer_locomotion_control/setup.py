@@ -23,7 +23,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'open_loop_steering = robominer_locomotion_control.open_loop_steering:main'
+            'open_loop_steering = robominer_locomotion_control.open_loop_steering:main',
+            'kinematics_input_handler = robominer_locomotion_control.kinematics_input_handler_node:main'
         ],
     },
 )
