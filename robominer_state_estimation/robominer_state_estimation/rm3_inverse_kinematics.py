@@ -40,9 +40,9 @@ motors_dict = {
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}
 
-class OpenLoopSteering(Node):
+class RM3InverseKinematics(Node):
     def __init__(self):
-        super().__init__('open_loop_steering')
+        super().__init__('rm3_inverse_kinematics')
         self.lx = 0.15                          # m longitudinal distance
         self.ly = 0.3                           # m lateral distance
         self.screw_helix_angle = pi/6.0         # pi/6 for fl and rr screws, -pi/6 for fr and rl
@@ -161,11 +161,11 @@ class OpenLoopSteering(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    open_loop_steering = OpenLoopSteering()
+    rm3_inverse_kinematics = RM3InverseKinematics()
 
-    rclpy.spin(open_loop_steering)
+    rclpy.spin(rm3_inverse_kinematics)
 
-    open_loop_steering.destroy_node()
+    rm3_inverse_kinematics.destroy_node()
     rclpy.shutdown()
 
 

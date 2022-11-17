@@ -24,7 +24,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'forward_dynamics = robominer_state_estimation.forward_dynamics:main'
+            'forward_dynamics = robominer_state_estimation.forward_dynamics:main',
+            'rm3_inverse_kinematics = robominer_state_estimation.rm3_inverse_kinematics:main',
         ],
     },
 )
