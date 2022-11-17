@@ -25,7 +25,8 @@ setup(
     entry_points={
         'console_scripts': [
             'forward_dynamics = robominer_state_estimation.forward_dynamics:main',
-            'rm3_inverse_kinematics = robominer_state_estimation.rm3_inverse_kinematics:main',
+            'rm3_forward_kinematics = robominer_state_estimation.rm3_forward_kinematics:main',
+            'rm3_inverse_kinematics = robominer_state_estimation.rm3_inverse_kinematics:main'
         ],
     },
 )
