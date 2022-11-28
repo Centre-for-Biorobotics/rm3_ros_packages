@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-This node subscribes to a set of sources for the inverse kinematics and 
+This node subscribes to a set of sources for the inverse kinematics and
 publishes a twist type message with the desired robot speed vector
 [x_dot, y_dot, theta_dot]
 
@@ -32,6 +32,7 @@ class KinematicsInputHandler(Node):
             Joy, 'joy', self.joystickCallback, 10)
         self.sub_keyboard = self.create_subscription(
             Twist, 'cmd_vel_keyboard', self.keyboardCallback, 10)
+
         self.sub_other = self.create_subscription(
             TwistStamped,'move_cmd_vel', self.otherInputCallback, 10)
 
@@ -44,7 +45,7 @@ class KinematicsInputHandler(Node):
 
     def keyboardCallback(self, msg):
         """
-        Callback function for the keyboard topic. Parses a keyboard message to 
+        Callback function for the keyboard topic. Parses a keyboard message to
         body velocities in x, y, and yaw
         @param: self
         @param: msg - Twist message format
@@ -52,11 +53,11 @@ class KinematicsInputHandler(Node):
         self.cmd_vel_x = msg.linear.x
         self.cmd_vel_y = msg.linear.y
         self.cmd_vel_yaw = msg.angular.z
-    
+
 
     def joystickCallback(self, msg):
         """
-        Callback function for the joystick topic. Parses a joystick message to 
+        Callback function for the joystick topic. Parses a joystick message to
         body velocities in x, y, and yaw
         @param: self
         @param: msg - Joy message format
@@ -68,8 +69,8 @@ class KinematicsInputHandler(Node):
 
     def otherInputCallback(self, msg):
         """
-        Callback function for a topic that is published by the action server 
-        that interfaces the BT (or other sources that publish a twist msg to 
+        Callback function for a topic that is published by the action server
+        that interfaces the BT (or other sources that publish a twist msg to
         this topic)
         @param: self
         @param: msg - TwistStamped message format
