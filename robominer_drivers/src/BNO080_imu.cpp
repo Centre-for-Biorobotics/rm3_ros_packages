@@ -157,16 +157,16 @@ void Bno080ImuPublisher::timer_callback(void)
         gyroX = imu->getFastGyroX();
         gyroY = imu->getFastGyroY();
         gyroZ = imu->getFastGyroZ();
-        message.angular_velocity.x = gyroX;
-        message.angular_velocity.y = gyroY;
+        message.angular_velocity.x = -gyroY;
+        message.angular_velocity.y = gyroX;
         message.angular_velocity.z = gyroZ;
 
         //    myIMU.getLinAccel(linAccelX, linAccelY, linAccelZ, linAccuracy);
         linAccelX = imu->getLinAccelX();
         linAccelY = imu->getLinAccelY();
         linAccelZ = imu->getLinAccelZ();
-        message.linear_acceleration.x = linAccelX;
-        message.linear_acceleration.y = linAccelY;
+        message.linear_acceleration.x = -linAccelY;
+        message.linear_acceleration.y = linAccelX;
         message.linear_acceleration.z = linAccelZ;
 
         imu->getQuat(qx, qy, qz, qw, quatRadianAccuracy, quatAccuracy);
