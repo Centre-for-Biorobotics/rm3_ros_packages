@@ -113,9 +113,6 @@ class Pilot(Node):
 
     def pilot_stepper(self):
         """
-        Helper function to publish the desired trajectory
-        @param: self
-        @result: publishes trajectory as robominer_msgs/TrajectoryPoint message.
         """
         p = np.array([self.pos[0], self.pos[1], 0.0, 0.0, 0.0, self.pos[2]])
         pI = np.array([self.pos_d[0], self.pos_d[1], 0.0, 0.0, 0.0, self.pos_d[2]])

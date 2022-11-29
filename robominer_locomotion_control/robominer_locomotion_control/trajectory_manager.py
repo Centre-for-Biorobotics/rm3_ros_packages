@@ -57,6 +57,10 @@ class TrajectoryManager(Node):
             self.waypoint_y = config_params["Waypoints"]["waypoint_y"]
             self.waypoint_yaw = config_params["Waypoints"]["waypoint_yaw"]
             self.enable_LoS = config_params["Waypoints"]["line_of_sight"]
+            self.enable_repeat = config_params["Waypoints"]["repeat"]
+            self.waypoints_size = len(self.waypoint_x)
+            self.cumulative_timer = self.waypoint_time[0]
+            self.waypoint_number = 0
 
         # ODE storing variables:
         self.xTraj = 0.0; self.xdTraj = 0.0; self.xddTraj = 0.0
@@ -117,11 +121,20 @@ class TrajectoryManager(Node):
 
         # ---------------------------------------------------------------------
         elif self.traj_type == "Waypoints":
-            traj_x_pos = 0.0
-            traj_y_pos = 0.0
-            traj_yaw_pos = 0.0
-            # Will finish later
+            traj_x_pos = self.waypoint_x[self.waypoint_number]
+            traj_y_pos = self.waypoint_y[self.waypoint_number]
+            traj_yaw_pos = np.deg2rad(self.waypoint_yaw[self.waypoint_number])
+
+            if self.trajectory_time >= self.cumulative_timer:
+                if self.waypoint_number < (self.waypoints_size-1):
+                    self.cumulative_timer += self.waypoint_time[self.waypoint_number]
+                    self.waypoint_number += 1
+                elif self.enable_repeat:
+                    self.cumulative_timer = self.waypoint_time[0]
+                    self.trajectory_time = 0.0
+                    self.waypoint_number = 0
         # ---------------------------------------------------------------------
+
         self.filterTrajectoryFromODE([traj_x_pos, traj_y_pos, traj_yaw_pos])
         self.publishTrajectory()
 
