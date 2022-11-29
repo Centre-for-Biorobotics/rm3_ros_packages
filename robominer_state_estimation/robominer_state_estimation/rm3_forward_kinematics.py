@@ -13,7 +13,7 @@ import rclpy
 
 from rclpy.node import Node
 from robominer_msgs.msg import MotorModuleCommand
-from geometry_msgs.msg import Twist, TransformStamped
+from geometry_msgs.msg import Twist, TwistStamped, TransformStamped
 from std_msgs.msg import Float64, Float64MultiArray
 from nav_msgs.msg import Odometry
 
@@ -54,6 +54,7 @@ class RM3ForwardKinematics(Node):
         ])
 
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.cmd_vel_stamped_pub = self.create_publisher(TwistStamped, '/cmd_vel_stamped', 10)
         self.publisher_screw_rotation = self.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
 
         self.kinematics_timer_period = 0.1  # seconds
@@ -95,16 +96,24 @@ class RM3ForwardKinematics(Node):
         self.publisher_screw_rotation.publish(screw_velocities)
 
     def motor_to_body_vel(self):
-        body_vel = Twist()
+        body_vel = Twist()                  # for object_controller
+        body_vel_stamped = TwistStamped()   # for kalman filter
 
         self.screw_speeds = np.array([self.fr_vel, self.rr_vel, self.rl_vel, self.fl_vel]) * self.rpm_to_radpersec
 
         self.robot_twist = self.screw_radius * np.dot(self.fwd_kinematics, self.screw_speeds)
 
+        body_vel_stamped.header.stamp = self.get_clock().now().to_msg()
+
         body_vel.linear.x = self.robot_twist[0] * self.lin_speed_multiplier
+        body_vel_stamped.twist.linear.x = self.robot_twist[0] * self.lin_speed_multiplier
         body_vel.linear.y = self.robot_twist[1] * self.lin_speed_multiplier
+        body_vel_stamped.twist.linear.y = self.robot_twist[1] * self.lin_speed_multiplier
         body_vel.angular.z = self.robot_twist[2] * self.ang_speed_multiplier
+        body_vel_stamped.twist.angular.z = self.robot_twist[2] * self.ang_speed_multiplier
+
         self.cmd_vel_pub.publish(body_vel)
+        self.cmd_vel_stamped_pub.publish(body_vel_stamped)
 
         self.visualizeScrewsInGazebo()
 
