@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = 'robominer_locomotion_control'
+package_name = 'robominer_state_estimation'
 
 setup(
     name=package_name,
@@ -13,20 +13,22 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
+        (os.path.join('share', package_name, 'config'), glob('config/*.rviz')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py'))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer = 'Roza Gkliva, Walid Remmas',
-    maintainer_email = 'roza.gkliva@ttu.ee, walid.remmas@taltech.ee',
-    description='TODO: Package description',
+    maintainer='Walid Remmas',
+    maintainer_email='walid.remmas@taltech.ee',
+    description='Package for robot state estimation',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'kinematics_input_handler = robominer_locomotion_control.kinematics_input_handler_node:main',
-            'trajectory_manager = robominer_locomotion_control.trajectory_manager:main',
-            'pilot = robominer_locomotion_control.pilot:main'
+            'forward_dynamics = robominer_state_estimation.forward_dynamics:main',
+            'rm3_inverse_kinematics = robominer_state_estimation.rm3_inverse_kinematics:main',
+            'messages_preparer_for_filtering = robominer_state_estimation.messages_preparer_for_filtering:main',
+            'rm3_forward_kinematics = robominer_state_estimation.rm3_forward_kinematics:main',
         ],
     },
 )

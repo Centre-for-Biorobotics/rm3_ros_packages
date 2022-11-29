@@ -46,6 +46,6 @@ def generate_launch_description():
         [pi48_imu,
         complementary_filter,
         # madgwick_filter,
-        static_transform
+        # static_transform
         ]
     )

@@ -1,0 +1,16 @@
+robot:
+  enableIMU: True # pose filtering to reduce noise
+
+dynamics: # see ICRA paper draft for documentation of these parameters
+    dt: 0.05
+    sigma_lat: 4.106
+    sigma_long: 1.358
+    alpha: 26.5
+    drag: [164.0, 180.0, 200.0, 200.0, 200.0, 11.8]
+    mass: 29.0
+    dimensions:
+        x: 0.95
+        y: 0.8
+        z: 0.3
+        lx: 0.15
+        ly: 0.30
