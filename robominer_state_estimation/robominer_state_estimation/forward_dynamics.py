@@ -103,8 +103,8 @@ class DynamicsRM3(Node):
         self.create_subscription(MotorModuleCommand, '/motor2/motor_rpm_setpoint', self.rear_left, 10)
         self.create_subscription(MotorModuleCommand, '/motor3/motor_rpm_setpoint', self.front_left, 10)
 
-        self.estimated_odom_pub = self.create_publisher(Odometry, '/estimated_odom', 10)
-        self.estimated_wrench_pub = self.create_publisher(WrenchStamped, '/estimated_wrench', 10)
+        self.estimated_odom_pub = self.create_publisher(Odometry, '/estimated_odom_FDynamics', 10)
+        self.estimated_wrench_pub = self.create_publisher(WrenchStamped, '/estimated_wrench_FDynamics', 10)
 
         self.dynamics_estimation_timer = self.create_timer(self.dt, self.computeDynamics)
 

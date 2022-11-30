@@ -36,10 +36,11 @@ class PublishingSubscriber(Node):
         # Initiate the Node class's constructor and give it a name
         super().__init__('message_formatter_node')
         self.tf_broadcaster = TransformBroadcaster(self)
+        
         # Create subscriber(s)
         self.subscription_1 = self.create_subscription(
             Imu,
-            '/front_imu',
+            '/bno_imu/data',
             self.imu_received,
             10)
         self.subscription_1  # prevent unused variable warning
@@ -47,13 +48,13 @@ class PublishingSubscriber(Node):
         self.subscription_2 = self.create_subscription(
             TwistStamped,
             '/cmd_vel_stamped',
-            self.twist_received,
+            self.twist_received_kinematics,
             10)
         self.subscription_2  # prevent unused variable warning
 
         self.subscription_3 = self.create_subscription(
             Imu,
-            '/imu',
+            '/pi48_imu/data',
             self.front_imu_received,
             10)
         self.subscription_3  # prevent unused variable warning
@@ -65,6 +66,13 @@ class PublishingSubscriber(Node):
             10)
         self.subscription_4  # prevent unused variable warning
 
+        self.subscription_5 = self.create_subscription(
+            Odometry,
+            '/estimated_odom_FDynamics',
+            self.odom_received_dynamics,
+            10)
+        self.subscription_5  # prevent unused variable warning
+
         # Create publisher(s)
 
         self.publisher_imu = self.create_publisher(
@@ -73,13 +81,16 @@ class PublishingSubscriber(Node):
             10)
         self.publisher_front_imu = self.create_publisher(
             Imu,
-            'front_imu_with_cov',
+            'bno_imu_with_cov',
             10)
-        self.publisher_twist = self.create_publisher(
+        self.publisher_twist_kinematics = self.create_publisher(
             TwistWithCovarianceStamped,
-            '/twist_with_cov',
+            '/twist_with_cov_kinematics',
             10)
-
+        self.publisher_twist_dynamics = self.create_publisher(
+            TwistWithCovarianceStamped,
+            '/twist_with_cov_dynamics',
+            10)
         self.publisher_pose = self.create_publisher(
             Odometry,
             '/robot_pose_world_frame',
@@ -111,7 +122,7 @@ class PublishingSubscriber(Node):
                                               0.0, 0.0, 0.09]
         self.publisher_front_imu.publish(msg)
 
-    def twist_received(self, msg):
+    def twist_received_kinematics(self, msg):
         new_msg = TwistWithCovarianceStamped()
         new_msg.header = msg.header
         new_msg.twist.twist = msg.twist
@@ -123,7 +134,20 @@ class PublishingSubscriber(Node):
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.05]
-        self.publisher_twist.publish(new_msg)
+        self.publisher_twist_kinematics.publish(new_msg)
+
+
+    def odom_received_dynamics(self, msg):
+        new_msg = TwistWithCovarianceStamped()
+        new_msg.header = msg.header
+        new_msg.twist.twist = msg.twist.twist
+        new_msg.twist.covariance = [0.025, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.005, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
+                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.05]
+        self.publisher_twist_dynamics.publish(new_msg)
 
     def pose_received(self, msg):
         new_msg = Odometry()
