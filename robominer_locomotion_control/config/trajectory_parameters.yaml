@@ -1,6 +1,6 @@
 Trajectory:
     dt: 0.05
-    type: "Waypoints" #select between "Elliptic", "Lissajous", "Waypoints"
+    type: "Lissajous" #select between "Elliptic", "Lissajous", "Waypoints"
     gamma: [1.0, 1.0, 1.0] # Gamma parameters for x,y and yaw
 
 Elliptic:
@@ -16,7 +16,7 @@ Lissajous:
     b: 2.0
     cosFreq: 0.05
     sinFreq: 0.05
-    cosAmp: 2.75
+    cosAmp: 2.0
     sinAmp: 2.0
     line_of_sight: True # Will make the desired yaw to be tangent to (x,y) if enabled
 

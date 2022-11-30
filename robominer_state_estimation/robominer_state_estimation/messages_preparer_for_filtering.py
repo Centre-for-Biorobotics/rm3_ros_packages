@@ -16,8 +16,11 @@ Variances for speed estimation using kinematics model (Vvx, Vvy .....Vwz),
 0.0225    0.0039         0         0         0    0.0443
 => we take (0.025  0.005  0  0  0  0.05)
 
+Variances for speed estimation using the dynamics model (Vvx, Vvy .....Vwz),
+0.01    0.0016         0         0         0    0.0324
+=> we take (0.01  0.002  0  0  0  0.033)
 
-For IMU:
+For bno_IMU:
 Accelerometer Accuracy: 0.3m/s2 => variance = 0.09m2/s4
 Gyroscope Accuracy: 3.1°/sec = 0.052 rad/sec => variance = 0.0027 rad/sec2
 
@@ -41,7 +44,7 @@ class PublishingSubscriber(Node):
         self.subscription_1 = self.create_subscription(
             Imu,
             '/bno_imu/data',
-            self.imu_received,
+            self.bn0_imu_received,
             10)
         self.subscription_1  # prevent unused variable warning
 
@@ -55,7 +58,7 @@ class PublishingSubscriber(Node):
         self.subscription_3 = self.create_subscription(
             Imu,
             '/pi48_imu/data',
-            self.front_imu_received,
+            self.pi48_imu_received,
             10)
         self.subscription_3  # prevent unused variable warning
 
@@ -75,13 +78,13 @@ class PublishingSubscriber(Node):
 
         # Create publisher(s)
 
-        self.publisher_imu = self.create_publisher(
+        self.publisher_bno_imu = self.create_publisher(
             Imu,
-            '/imu_with_cov',
+            '/bno_imu_with_cov',
             10)
-        self.publisher_front_imu = self.create_publisher(
+        self.publisher_pi48 = self.create_publisher(
             Imu,
-            'bno_imu_with_cov',
+            '/pi48_imu_with_cov',
             10)
         self.publisher_twist_kinematics = self.create_publisher(
             TwistWithCovarianceStamped,
@@ -96,8 +99,8 @@ class PublishingSubscriber(Node):
             '/robot_pose_world_frame',
             10)
 
-    def imu_received(self, msg):
-        msg.header.frame_id = "imu_frame"
+    def bn0_imu_received(self, msg):
+        msg.header.frame_id = "bno_imu_frame"
         msg.orientation_covariance = [1.0, 0.0, 0.0,
                                       0.0, 1.0, 0.0,
                                       0.0, 0.0, 1.0]
@@ -107,27 +110,28 @@ class PublishingSubscriber(Node):
         msg.linear_acceleration_covariance = [0.09, 0.0, 0.0,
                                               0.0, 0.09, 0.0,
                                               0.0, 0.0, 0.09]
-        self.publisher_imu.publish(msg)
+        self.publisher_bno_imu.publish(msg)
 
-    def front_imu_received(self, msg):
-        msg.header.frame_id = "front_imu_frame"
+    def pi48_imu_received(self, msg):
+        msg.header.frame_id = "pi48_imu_frame"
         msg.orientation_covariance = [1.0, 0.0, 0.0,
                                       0.0, 1.0, 0.0,
                                       0.0, 0.0, 1.0]
-        msg.angular_velocity_covariance = [0.0027, 0.0, 0.0,
-                                           0.0, 0.0027, 0.0,
-                                           0.0, 0.0, 0.0027]
-        msg.linear_acceleration_covariance = [0.09, 0.0, 0.0,
-                                              0.0, 0.09, 0.0,
-                                              0.0, 0.0, 0.09]
-        self.publisher_front_imu.publish(msg)
+        msg.angular_velocity_covariance = [0.001, 0.0, 0.0,
+                                           0.0, 0.001, 0.0,
+                                           0.0, 0.0, 0.001]
+        msg.linear_acceleration_covariance = [0.01, 0.0, 0.0,
+                                              0.0, 0.01, 0.0,
+                                              0.0, 0.0, 0.01]
+        self.publisher_pi48.publish(msg)
 
     def twist_received_kinematics(self, msg):
         new_msg = TwistWithCovarianceStamped()
         new_msg.header = msg.header
+        new_msg.header.frame_id = "base_link_est_ukf"
         new_msg.twist.twist = msg.twist
-        new_msg.twist.twist.linear.x *= 0.35
-        new_msg.twist.twist.linear.y *= 0.35
+        new_msg.twist.twist.linear.x *= 0.7    # 0.35 for reality, 0.7 for simulation
+        new_msg.twist.twist.linear.y *= 0.7    # 0.35 for reality, 0.7 for simulation
         new_msg.twist.covariance = [0.025, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.005, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
@@ -136,17 +140,17 @@ class PublishingSubscriber(Node):
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.05]
         self.publisher_twist_kinematics.publish(new_msg)
 
-
     def odom_received_dynamics(self, msg):
         new_msg = TwistWithCovarianceStamped()
         new_msg.header = msg.header
+        new_msg.header.frame_id = "base_link_est_ukf"
         new_msg.twist.twist = msg.twist.twist
-        new_msg.twist.covariance = [0.025, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                    0.0, 0.005, 0.0, 0.0, 0.0, 0.0,
+        new_msg.twist.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
-                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.05]
+                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.033]
         self.publisher_twist_dynamics.publish(new_msg)
 
     def pose_received(self, msg):
