@@ -44,7 +44,7 @@ class DynamicsRM3(Node):
         self.useImu = state_estimation_parameters['robot']['enableIMU']
         self.imu_orientation = Quaternion()
         if self.useImu:
-            self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
+            self.create_subscription(Imu, '/pi48_imu/data', self.imu_callback, 10)
             # self.create_subscription(Imu, '/bno080_imu', self.imu_callback, 10)
 
         # Dynamic model variables
