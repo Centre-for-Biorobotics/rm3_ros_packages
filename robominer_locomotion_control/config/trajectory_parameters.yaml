@@ -1,6 +1,6 @@
 Trajectory:
     dt: 0.05
-    type: "Waypoints" #select between "Elliptic", "Lissajous", "Waypoints"
+    type: "FromTopic" #select between "Elliptic", "Lissajous", "Waypoints", "Topic"
     gamma: [1.0, 1.0, 1.0] # Gamma parameters for x,y and yaw
 
 Elliptic:

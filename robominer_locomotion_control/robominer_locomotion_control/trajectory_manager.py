@@ -13,6 +13,7 @@ import rclpy
 from rclpy.node import Node
 
 from sensor_msgs.msg import Joy
+from geometry_msgs.msg import PoseStamped
 from robominer_msgs.msg import TrajectoryPoint
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
@@ -71,12 +72,21 @@ class TrajectoryManager(Node):
         self.traj_acc = np.zeros(3)
         self.yaw_prev = 0.0
 
+        self.traj_x_pos = 0
+        self.traj_y_pos = 0
+        self.traj_yaw_pos = 0
+        self.traj_x_pos_next = 0
+        self.traj_y_pos_next = 0
+
         # ROS2 related
         self.reference_trajectory_pub_ = self.create_publisher(
             TrajectoryPoint, '/reference_trajectory', 10)
 
         self.ref_yaw_pub_ = self.create_publisher(
             Float64, '/reference_yaw', 10)
+
+        self.sub_pose_from_topic = self.create_subscription(
+            PoseStamped, '/goal_pose', self.updatePose, 10)
 
         self.trajectory_publish_period = self.dt # seconds
         self.trajectory_time = 0.0
@@ -85,20 +95,17 @@ class TrajectoryManager(Node):
 
     def trajectory_stepper(self):
         # Get desired trajectory pose and velocity based on traj type and ODE filters
-
         # ---------------------------------------------------------------------
-        traj_x_pos = 0; traj_y_pos = 0; traj_yaw_pos = 0
-        traj_x_pos_next = 0; traj_y_pos_next = 0
 
         if self.traj_type == "Elliptic":
-            traj_x_pos = self.cosAmp * (-np.cos(self.trajectory_time * self.cosFreq) + 1)
-            traj_y_pos = self.sinAmp * np.sin(self.trajectory_time * self.sinFreq)
+            self.traj_x_pos = self.cosAmp * (-np.cos(self.trajectory_time * self.cosFreq) + 1)
+            self.traj_y_pos = self.sinAmp * np.sin(self.trajectory_time * self.sinFreq)
 
             if self.enable_LoS:
-                traj_x_pos_next = self.cosAmp * (-np.cos((self.trajectory_time + 0.1) * self.cosFreq) + 1)
-                traj_y_pos_next = self.sinAmp * np.sin((self.trajectory_time + 0.1) * self.sinFreq)
-                x = traj_x_pos_next - traj_x_pos
-                y = traj_y_pos_next - traj_y_pos
+                self.traj_x_pos_next = self.cosAmp * (-np.cos((self.trajectory_time + 0.1) * self.cosFreq) + 1)
+                self.traj_y_pos_next = self.sinAmp * np.sin((self.trajectory_time + 0.1) * self.sinFreq)
+                x = self.traj_x_pos_next - self.traj_x_pos
+                y = self.traj_y_pos_next - self.traj_y_pos
                 traj_yaw_pos = np.arctan2(y, x)
             else:
                 traj_yaw_pos = 0.0 # or something...
@@ -106,14 +113,14 @@ class TrajectoryManager(Node):
 
         # ---------------------------------------------------------------------
         elif self.traj_type == "Lissajous":
-            traj_x_pos = self.cosAmp * (-np.cos(self.liss_a * self.trajectory_time * self.cosFreq) + 1)
-            traj_y_pos = self.sinAmp * np.sin(self.liss_b * self.trajectory_time * self.sinFreq)
+            self.traj_x_pos = self.cosAmp * (-np.cos(self.liss_a * self.trajectory_time * self.cosFreq) + 1)
+            self.traj_y_pos = self.sinAmp * np.sin(self.liss_b * self.trajectory_time * self.sinFreq)
 
             if self.enable_LoS:
-                traj_x_pos_next = self.cosAmp * (-np.cos(self.liss_a * (self.trajectory_time + 0.1) * self.cosFreq) + 1)
-                traj_y_pos_next = self.sinAmp * np.sin(self.liss_b * (self.trajectory_time + 0.1) * self.sinFreq)
-                x = traj_x_pos_next - traj_x_pos
-                y = traj_y_pos_next - traj_y_pos
+                self.traj_x_pos_next = self.cosAmp * (-np.cos(self.liss_a * (self.trajectory_time + 0.1) * self.cosFreq) + 1)
+                self.traj_y_pos_next = self.sinAmp * np.sin(self.liss_b * (self.trajectory_time + 0.1) * self.sinFreq)
+                x = self.traj_x_pos_next - self.traj_x_pos
+                y = self.traj_y_pos_next - self.traj_y_pos
                 traj_yaw_pos = np.arctan2(y, x)
             else:
                 traj_yaw_pos = 0.0 # or something...
@@ -121,9 +128,9 @@ class TrajectoryManager(Node):
 
         # ---------------------------------------------------------------------
         elif self.traj_type == "Waypoints":
-            traj_x_pos = self.waypoint_x[self.waypoint_number]
-            traj_y_pos = self.waypoint_y[self.waypoint_number]
-            traj_yaw_pos = np.deg2rad(self.waypoint_yaw[self.waypoint_number])
+            self.traj_x_pos = self.waypoint_x[self.waypoint_number]
+            self.traj_y_pos = self.waypoint_y[self.waypoint_number]
+            self.traj_yaw_pos = np.deg2rad(self.waypoint_yaw[self.waypoint_number])
 
             if self.trajectory_time >= self.cumulative_timer:
                 if self.waypoint_number < (self.waypoints_size-1):
@@ -135,7 +142,7 @@ class TrajectoryManager(Node):
                     self.waypoint_number = 0
         # ---------------------------------------------------------------------
 
-        self.filterTrajectoryFromODE([traj_x_pos, traj_y_pos, traj_yaw_pos])
+        self.filterTrajectoryFromODE([self.traj_x_pos, self.traj_y_pos, self.traj_yaw_pos])
         self.publishTrajectory()
 
         self.trajectory_time += self.dt
@@ -201,6 +208,14 @@ class TrajectoryManager(Node):
 
         ref_yaw_msg.data = np.rad2deg(self.traj_pos[2])
         self.ref_yaw_pub_.publish(ref_yaw_msg)
+
+    def updatePose(self, msg):
+        orientation_q = msg.pose.orientation
+        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+        (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list)
+        self.traj_x_pos = msg.pose.position.x
+        self.traj_y_pos = msg.pose.position.y
+        self.traj_yaw_pos = yaw
 
 def main(args=None):
     parameters_from_yaml = os.path.join(
