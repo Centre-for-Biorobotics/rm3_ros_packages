@@ -130,8 +130,10 @@ class PublishingSubscriber(Node):
         new_msg.header = msg.header
         new_msg.header.frame_id = "base_link_est_ukf"
         new_msg.twist.twist = msg.twist
-        new_msg.twist.twist.linear.x *= 0.7    # 0.35 for reality, 0.7 for simulation
-        new_msg.twist.twist.linear.y *= 0.7    # 0.35 for reality, 0.7 for simulation
+        slip_ratio = 0.30
+        new_msg.twist.twist.linear.x *= (1 - slip_ratio)
+        new_msg.twist.twist.linear.y *= (1 - slip_ratio)
+        new_msg.twist.twist.angular.z *= (1 - slip_ratio)
         new_msg.twist.covariance = [0.025, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.005, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
@@ -145,6 +147,10 @@ class PublishingSubscriber(Node):
         new_msg.header = msg.header
         new_msg.header.frame_id = "base_link_est_ukf"
         new_msg.twist.twist = msg.twist.twist
+        slip_ratio = 0.30
+        new_msg.twist.twist.linear.x *= (1 - slip_ratio)
+        new_msg.twist.twist.linear.y *= (1 - slip_ratio)
+        new_msg.twist.twist.angular.z *= (1 - slip_ratio)
         new_msg.twist.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,

@@ -34,11 +34,11 @@ class RM3ForwardKinematics(Node):
         super().__init__('rm3_forward_kinematics')
 
         self.screw_radius = 0.078  # m
-        self.screw_helix_angle = pi/6 # pi/6 for fl and rr screws, -pi/6 for fr and rl
+        self.screw_helix_angle = pi/6.0 # pi/6 for fl and rr screws, -pi/6 for fr and rl
         self.lx = 0.15
         self.ly = 0.3
-        self.lin_speed_multiplier = 2
-        self.ang_speed_multiplier = 2
+        self.lin_speed_multiplier = 1
+        self.ang_speed_multiplier = 1
 
         self.screw_speeds = [0.0, 0.0, 0.0, 0.0]
         self.fr_vel = 0.0

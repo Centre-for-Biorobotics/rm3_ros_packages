@@ -75,7 +75,7 @@ class RM3InverseKinematics(Node):
             [1/tan(self.screw_helix_angle),  -1, -(self.lx + self.ly / tan(self.screw_helix_angle))]])
 
         # if self.on_robot or self.which_sim=='gazebo':
-        self.speed_multiplier = .09
+        self.speed_multiplier = 1.0
             # if self.on_robot:
             #     self.get_logger().info(f'on robot')
             # else:
