@@ -37,8 +37,6 @@ class RM3ForwardKinematics(Node):
         self.screw_helix_angle = pi/6 # pi/6 for fl and rr screws, -pi/6 for fr and rl
         self.lx = 0.15
         self.ly = 0.3
-        self.lin_speed_multiplier = 2
-        self.ang_speed_multiplier = 2
 
         self.screw_speeds = [0.0, 0.0, 0.0, 0.0]
         self.fr_vel = 0.0
@@ -105,12 +103,12 @@ class RM3ForwardKinematics(Node):
 
         body_vel_stamped.header.stamp = self.get_clock().now().to_msg()
 
-        body_vel.linear.x = self.robot_twist[0] * self.lin_speed_multiplier
-        body_vel_stamped.twist.linear.x = self.robot_twist[0] * self.lin_speed_multiplier
-        body_vel.linear.y = self.robot_twist[1] * self.lin_speed_multiplier
-        body_vel_stamped.twist.linear.y = self.robot_twist[1] * self.lin_speed_multiplier
-        body_vel.angular.z = self.robot_twist[2] * self.ang_speed_multiplier
-        body_vel_stamped.twist.angular.z = self.robot_twist[2] * self.ang_speed_multiplier
+        body_vel.linear.x = self.robot_twist[0]
+        body_vel_stamped.twist.linear.x = self.robot_twist[0]
+        body_vel.linear.y = self.robot_twist[1]
+        body_vel_stamped.twist.linear.y = self.robot_twist[1]
+        body_vel.angular.z = self.robot_twist[2]
+        body_vel_stamped.twist.angular.z = self.robot_twist[2]
 
         self.cmd_vel_pub.publish(body_vel)
         self.cmd_vel_stamped_pub.publish(body_vel_stamped)
