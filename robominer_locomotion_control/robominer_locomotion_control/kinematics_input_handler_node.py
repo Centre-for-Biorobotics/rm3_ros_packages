@@ -28,6 +28,8 @@ class KinematicsInputHandler(Node):
         self.cmd_vel_y = 0.0
         self.cmd_vel_yaw = 0.0
 
+        self.joystick_speed_multiplier = 0.09  # to limit max input speed
+
         self.sub_joystick = self.create_subscription(
             Joy, 'joy', self.joystickCallback, 10)
         self.sub_keyboard = self.create_subscription(
@@ -62,9 +64,9 @@ class KinematicsInputHandler(Node):
         @param: self
         @param: msg - Joy message format
         """
-        self.cmd_vel_x = msg.axes[1]
-        self.cmd_vel_y = msg.axes[0]
-        self.cmd_vel_yaw = msg.axes[2]
+        self.cmd_vel_x = msg.axes[1] * self.joystick_speed_multiplier
+        self.cmd_vel_y = msg.axes[0] * self.joystick_speed_multiplier
+        self.cmd_vel_yaw = msg.axes[2] * self.joystick_speed_multiplier
         self.turbo_multiplier = (msg.buttons[5] * .01)
 
     def otherInputCallback(self, msg):
