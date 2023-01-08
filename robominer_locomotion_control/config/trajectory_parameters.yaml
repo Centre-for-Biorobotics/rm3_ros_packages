@@ -1,6 +1,6 @@
 Trajectory:
     dt: 0.05
-    type: "Elliptic" #select between "Elliptic", "Lissajous", "Waypoints"
+    type: "Waypoints" #select between "Elliptic", "Lissajous", "Waypoints"
     gamma: [1.0, 1.0, 1.0] # Gamma parameters for x,y and yaw
 
 Elliptic:
@@ -22,8 +22,8 @@ Lissajous:
 
 Waypoints:
     waypoint_time: [5, 5, 5, 5, 5] # time to stay at each setpoint
-    waypoint_x:   [1, 1,  1,  2,  2]
-    waypoint_y:   [0, 1,  1,  1,  0]
+    waypoint_x:   [10, 10,  10,  20,  20]
+    waypoint_y:   [0, 10,  10,  10,  00]
     waypoint_yaw: [0, 0, 45, 90, 45] # in degrees
     line_of_sight: False # Not implemented yet here
     repeat: True # play waypoints on repeat if enabled
