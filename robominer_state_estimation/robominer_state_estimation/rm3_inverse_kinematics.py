@@ -18,7 +18,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Joy
 
 from geometry_msgs.msg import Twist, TwistStamped
-from robominer_msgs.msg import MotorModuleCommand
+from robominer_msgs.msg import MotorModuleCommand, WhiskerArray, Whisker
 from std_msgs.msg import Float64
 
 import numpy as np
@@ -55,6 +55,8 @@ class RM3InverseKinematics(Node):
         self.cmd_vel_yaw = 0.0
         self.speed_multiplier = 0.0             # speed multiplier that is applied to the body velocity input
         self.turbo_multiplier = 0.0
+        self.contactLeft = False
+        self.contactRight = False
 
         self.sub_body_vel = self.create_subscription(
             TwistStamped, '/robot_body_vel', self.inputCallback, 10
@@ -99,6 +101,28 @@ class RM3InverseKinematics(Node):
 
         self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
 
+        self.sub_whisker = self.create_subscription(
+            WhiskerArray, '/WhiskerStates', self.onWhisker, 100)
+
+    def onWhisker(self, msg : WhiskerArray):
+        whisker : Whisker
+        self.contactLeft = False
+        self.contactRight = False
+        for whisker in msg.whiskers:
+            if whisker.pos.col_num == 7:  # left
+                self.front_left_whisker = whisker
+                if round(whisker.y, 4) != 0:
+                    self.contactLeft = True
+                    self.get_logger().debug(str(whisker.y))
+            elif whisker.pos.col_num == 6:   # right
+                self.back_left_whisker = whisker
+                if round(whisker.y, 4) != 0:
+                    self.get_logger().debug(str(whisker.y))
+                    self.contactRight = True
+
+        # print(msg)
+        # self.get_logger().error(str(msg))
+
     def inputCallback(self, msg):
         """
         Callback function for the keyboard topic. Parses a keyboard message to body velocities in x, y, and yaw
@@ -130,7 +154,14 @@ class RM3InverseKinematics(Node):
         speed_multiplier = 0
         speed_multiplier += self.speed_multiplier + self.turbo_multiplier
 
-        self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]) * speed_multiplier
+        if self.contactLeft and self.contactRight:
+            self.robot_twist = np.array([0, 0, 0])
+        if self.contactLeft:
+            self.robot_twist = np.array([0, -0.5, 0]) * speed_multiplier
+        elif self.contactRight:
+            self.robot_twist = np.array([0, 0.5, 0]) * speed_multiplier
+        else:
+            self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]) * speed_multiplier
 
         self.screw_speeds = (1.0/self.screw_radius) * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm
         self.speedsBroadcast()
