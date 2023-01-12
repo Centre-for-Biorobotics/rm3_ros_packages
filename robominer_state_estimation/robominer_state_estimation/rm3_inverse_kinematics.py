@@ -23,6 +23,8 @@ from std_msgs.msg import Float64
 
 import numpy as np
 from math import tan, pi
+from statistics import mean
+from typing import List, Tuple
 
 motors = np.array([
         'front_right',
@@ -36,6 +38,14 @@ motors_dict = {
     "rear_left": "2",
     "front_left": "3"
 }
+
+WHISKER_ROW_AMOUNT = 10
+WHISKERS_PER_ROW_AMOUNT = 8
+
+WHISKER_ROW_NUM_LEFT = 6
+WHISKER_ROW_NUM_RIGHT = 7
+WHISKER_ROW_NUM_FRONT = 8
+WHISKER_ROW_NUM_BACK = 9
 
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}
@@ -55,8 +65,11 @@ class RM3InverseKinematics(Node):
         self.cmd_vel_yaw = 0.0
         self.speed_multiplier = 0.0             # speed multiplier that is applied to the body velocity input
         self.turbo_multiplier = 0.0
-        self.contactLeft = False
-        self.contactRight = False
+        self.has_had_contact = False
+        self.direction = 0
+        self.whisker_pressure_left = 0.0
+        self.whisker_pressure_right = 0.0
+        self.whisker_pressure_front = 0.0
 
         self.sub_body_vel = self.create_subscription(
             TwistStamped, '/robot_body_vel', self.inputCallback, 10
@@ -104,26 +117,26 @@ class RM3InverseKinematics(Node):
         self.sub_whisker = self.create_subscription(
             WhiskerArray, '/WhiskerStates', self.onWhisker, 100)
 
-    def onWhisker(self, msg : WhiskerArray):
-        whisker : Whisker
-        self.contactLeft = False
-        self.contactRight = False
-        for whisker in msg.whiskers:
-            if whisker.pos.col_num == 7:  # left
-                self.front_left_whisker = whisker
-                if round(whisker.y, 4) != 0:
-                    self.contactLeft = True
-                    self.get_logger().debug(str(whisker.y))
-            elif whisker.pos.col_num == 6:   # right
-                self.back_left_whisker = whisker
-                if round(whisker.y, 4) != 0:
-                    self.get_logger().debug(str(whisker.y))
-                    self.contactRight = True
+    def onWhisker(self, msg: WhiskerArray):
+        """
+        Process whisker output for movement input.
+        """
+        whisker_matrix = create_whisker_matrix(msg.whiskers)
 
-        # print(msg)
-        # self.get_logger().error(str(msg))
+        self.whisker_pressure_left = calc_whisker_pressure_max(whisker_matrix[WHISKER_ROW_NUM_LEFT])
+        self.whisker_pressure_right = calc_whisker_pressure_max(whisker_matrix[WHISKER_ROW_NUM_RIGHT])
+        self.whisker_pressure_front = calc_whisker_pressure_max(whisker_matrix[WHISKER_ROW_NUM_FRONT])
 
-    def inputCallback(self, msg):
+        if self.whisker_pressure_front > 0.2:
+            self.direction = -0.5
+        else:
+            tmp_direction = calc_whiskers_inclination(whisker_matrix[WHISKER_ROW_NUM_RIGHT]) - calc_whiskers_inclination(whisker_matrix[WHISKER_ROW_NUM_LEFT])
+            self.direction = np.clip(tmp_direction * 100, -0.5, 0.5)
+
+        if any(p > 0.1 for p in [self.whisker_pressure_left, self.whisker_pressure_right, self.whisker_pressure_front]):
+            self.has_had_contact = True
+
+    def inputCallback(self, msg: Twist):
         """
         Callback function for the keyboard topic. Parses a keyboard message to body velocities in x, y, and yaw
         @param: self
@@ -132,7 +145,6 @@ class RM3InverseKinematics(Node):
         self.cmd_vel_x = msg.twist.linear.x
         self.cmd_vel_y = msg.twist.linear.y
         self.cmd_vel_yaw = msg.twist.angular.z
-
 
     # def joystickCallback(self, msg):
     #     """
@@ -154,17 +166,47 @@ class RM3InverseKinematics(Node):
         speed_multiplier = 0
         speed_multiplier += self.speed_multiplier + self.turbo_multiplier
 
-        if self.contactLeft and self.contactRight:
-            self.robot_twist = np.array([0, 0, 0])
-        if self.contactLeft:
-            self.robot_twist = np.array([0, -0.5, 0]) * speed_multiplier
-        elif self.contactRight:
-            self.robot_twist = np.array([0, 0.5, 0]) * speed_multiplier
-        else:
-            self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]) * speed_multiplier
+        x, y, yaw = self.determine_movement()
+
+        self.robot_twist = np.array([x, y, yaw]) * speed_multiplier
 
         self.screw_speeds = (1.0/self.screw_radius) * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm
         self.speedsBroadcast()
+        
+    def determine_movement(self) -> Tuple[float, float, float]:
+        """
+        Output: x, y, yaw
+        """
+        if not self.has_had_contact:
+            # Until contact don't override movement
+            return self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw
+
+        WALL_PUSH_AWAY_THRESHOLD = 0.3
+        LEFT_WALL_PUSH_IN_THRESHOLD = 0.15
+
+        if (self.whisker_pressure_front > 0.02):
+            #  Move away from the wall first if necessary and rotate right
+            return 0, -0.2, -0.6
+
+        if self.whisker_pressure_left > WALL_PUSH_AWAY_THRESHOLD and self.whisker_pressure_left >= self.whisker_pressure_right:
+            y = -np.clip(self.whisker_pressure_left - WALL_PUSH_AWAY_THRESHOLD + 0.3, 0, 0.6)
+            self.get_logger().info(str(y))
+            return 0, y, 0
+
+        if self.whisker_pressure_right > WALL_PUSH_AWAY_THRESHOLD:
+            y = np.clip(self.whisker_pressure_right - WALL_PUSH_AWAY_THRESHOLD + 0.3, 0, 0.6)
+            return 0, y, 0
+
+        if self.whisker_pressure_left < LEFT_WALL_PUSH_IN_THRESHOLD and self.whisker_pressure_front < 0.0001:
+            #  Move towards left wall if no contact with the left wall
+            return 0, 0.3, 0        
+
+        if self.direction > 0.0001:
+            #  If any change in yaw is needed to align with the wall, then do that
+            return self.cmd_vel_x, self.cmd_vel_y, self.direction
+
+        #  Continue with keyboard command
+        return self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw
 
     def speedsBroadcast(self):
         '''
@@ -187,6 +229,56 @@ class RM3InverseKinematics(Node):
         self.publisher_motor1_commands.publish(self.motor_cmd[1])
         self.publisher_motor2_commands.publish(self.motor_cmd[2])
         self.publisher_motor3_commands.publish(self.motor_cmd[3])
+
+
+def create_whisker_matrix(whiskers: List[Whisker]):
+    whisker_matrix = [[0 for _ in range(WHISKERS_PER_ROW_AMOUNT)] for _ in range(WHISKER_ROW_AMOUNT)]
+
+    for whisker in whiskers:
+        whisker_matrix[whisker.pos.row_num][whisker.pos.col_num] = whisker
+
+    return whisker_matrix
+
+
+def whisker_multiplier(col_num: int):
+    """
+    Convert 4-7 to 1..4 and 0-3 to -4..-1 for finding appropriate turning radius
+    Returns: Value from -4..4 excluding 0
+    """
+    if col_num < 4:
+        return col_num - 4
+    
+    return col_num - 3
+
+
+def calc_whiskers_inclination(whiskers : List[Whisker]):
+    """
+    Calculate an inclination for a whisker array, taking into account the position of the whiskers.
+    Positive if higher columns have higher values, negative if lower columns have higher values.
+    Max possible value is 31.4, should be capped at ~5.
+    """
+    return sum([whisker_euclid_dist(w) * whisker_multiplier(w.pos.col_num) for w in whiskers])
+
+
+def calc_whisker_pressure_max(whiskers: List[Whisker]):
+    """
+    Get the maximum pressure of the whisker with most pressure in the list.
+    """
+    return max([whisker_euclid_dist(w) for w in whiskers])
+
+
+def calc_whisker_pressure_avg(whiskers: List[Whisker]):
+    """
+    Get the average pressure of all whiskers in the list.
+    """
+    return mean([whisker_euclid_dist(w) for w in whiskers])
+
+
+def whisker_euclid_dist(whisker: Whisker):
+    """
+    Calculate the euclidean distance of the whisker's x and y displacement.
+    """
+    return (whisker.x**2 + whisker.y**2)**0.5
 
 
 def main(args=None):
