@@ -31,10 +31,12 @@ from typing import List, Tuple
 from enum import Enum
 
 class DirectionTwist(Enum):
-    LEFT_TWIST     = [ 0,  1, 0]
-    RIGHT_TWIST    = [ 0, -1, 0]
-    FORWARD_TWIST  = [ 1,  0, 0]
-    BACKWARD_TWIST = [-1,  0, 0]
+    MOVE_LEFT       = [ 0,  1,  0]
+    MOVE_RIGHT      = [ 0, -1,  0]
+    MOVE_FORWARD    = [ 1,  0,  0]
+    MOVE_BACKWARD   = [-1,  0,  0]
+    TURN_LEFT  = [ 0,  0, -1]
+    TURN_RIGHT = [ 0,  0,  1]
 
 
 class Direction(Enum):
@@ -57,35 +59,13 @@ class Direction(Enum):
     @classmethod
     def twist(cls, dir: Direction) -> list:
         if dir == Direction.LEFT:
-            return DirectionTwist.LEFT_TWIST.value
+            return DirectionTwist.MOVE_LEFT.value
         elif dir == Direction.RIGHT:
-            return DirectionTwist.RIGHT_TWIST.value
+            return DirectionTwist.MOVE_RIGHT.value
         elif dir == Direction.FORWARD:
-            return DirectionTwist.FORWARD_TWIST.value
+            return DirectionTwist.MOVE_FORWARD.value
         elif dir == Direction.BACKWARD:
-            return DirectionTwist.BACKWARD_TWIST.value
-
-"""
-class Direction(NamedDirection, Enum):
-    LEFT     = NamedDirection(short='L', twist=[ 0,  1, 0])
-    RIGHT    = NamedDirection(short='R', twist=[ 0, -1, 0])
-    FORWARD  = NamedDirection(short='F', twist=[ 1,  0, 0])
-    BACKWARD = NamedDirection(short='B', twist=[-1,  0, 0])
-
-    @classmethod
-    def opposite(dir: Direction) -> Direction:
-        if dir == Direction.LEFT:
-            return Direction.RIGHT
-        elif dir == Direction.RIGHT:
-            return Direction.LEFT
-        elif dir == Direction.FORWARD:
-            return Direction.BACKWARD
-        elif dir == Direction.BACKWARD:
-            return Direction.FORWARD
-"""
-
-
-
+            return DirectionTwist.MOVE_BACKWARD.value
 
 LEFT = Direction.LEFT
 RIGHT = Direction.RIGHT
@@ -115,12 +95,6 @@ WHISKER_ROWS = {
     BACKWARD: 9
 }
 
-#WHISKER_ROW_NUM_LEFT = 6
-#WHISKER_ROW_NUM_RIGHT = 7
-#WHISKER_ROW_NUM_FRONT = 8
-#WHISKER_ROW_NUM_BACK = 9
-
-
 WALL_PUSH_AWAY_THRESHOLD = 0.4
 LEFT_WALL_PUSH_IN_THRESHOLD = 0.05
 WALL_THRESHOLD_MIDPOINT = (WALL_PUSH_AWAY_THRESHOLD + LEFT_WALL_PUSH_IN_THRESHOLD) / 2
@@ -143,6 +117,7 @@ class RM3InverseKinematics(Node):
         self.cmd_vel_yaw = 0.0
         self.speed_multiplier = 0.0             # speed multiplier that is applied to the body velocity input
         self.turbo_multiplier = 0.0
+        self.has_current_contact = False
         self.has_had_contact = False
         self.direction = 0
 
@@ -213,14 +188,16 @@ class RM3InverseKinematics(Node):
             self.whisker_pressures_avg[direction] = calc_whisker_pressure_avg(whisker_matrix[WHISKER_ROWS[direction]])
             self.whisker_pressures_max[direction] = calc_whisker_pressure_max(whisker_matrix[WHISKER_ROWS[direction]])
 
-        #if self.whisker_pressure_front > 0.2:
-        #    self.direction = -0.5
-        #else:
-        tmp_direction = calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[RIGHT]]) - calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[LEFT]])
-        self.direction = np.clip(tmp_direction / 2, -1, 1)
+        # towards left
+        self.direction = calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[RIGHT]]) - calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[LEFT]]) # \
+            # - calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[FORWARD]]) + calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[BACKWARD]])
+        # self.get_logger().info('DIR ' + str(self.direction))
 
         if any(p > 0.1 for p in self.whisker_pressures_max.values()):
             self.has_had_contact = True
+            self.has_current_contact = True
+        else:
+            self.has_current_contact = False
 
     def inputCallback(self, msg: Twist):
         """
@@ -268,6 +245,7 @@ class RM3InverseKinematics(Node):
         """
         Output: x, y, yaw
         """
+        #self.get_logger().info('----------------------')
         HARD_COLLISION_AVG_THRESHOLD = 0.7
         HARD_COLLISION_MAX_THRESHOLD = 0.9
 
@@ -278,61 +256,131 @@ class RM3InverseKinematics(Node):
             # Until contact don't override movement
             return [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
 
-        hard_collision_reverse_system_twist = self.hard_collision_reverse_system(HARD_COLLISION_AVG_THRESHOLD, HARD_COLLISION_MAX_THRESHOLD, DODGE_SPEED)
-        if hard_collision_reverse_system_twist != None:
-            self.log_movement('Hard collision avoidance')
-            return hard_collision_reverse_system_twist
+        collision_prevention_system_part = self.hard_collision_reverse_system(HARD_COLLISION_AVG_THRESHOLD, HARD_COLLISION_MAX_THRESHOLD, DODGE_SPEED)
+        # if hard_collision_reverse_system_twist != None:
+        #     self.log_movement('Hard collision avoidance')
+        #     return hard_collision_reverse_system_twist
 
-        if self.curr_push_direction == LEFT:
-            if self.whisker_pressures_max[LEFT] < WALL_THRESHOLD_MIDPOINT:
-                #  Move towards left wall if no contact with the left wall until midpoint
-                self.log_movement('To threshold L')
-                return multiply_list_with_scalar(DirectionTwist.LEFT_TWIST.value, DODGE_SPEED)
-            else:
-                self.curr_push_direction = None
-
-        if self.curr_push_direction == RIGHT:
-            if self.whisker_pressures_max[RIGHT] < WALL_THRESHOLD_MIDPOINT:
-                #  Move towards left wall if no contact with the left wall until midpoint
-                self.log_movement('To threshold R')
-                return multiply_list_with_scalar(DirectionTwist.RIGHT_TWIST.value, DODGE_SPEED)
-            else:
-                self.curr_push_direction = None
-
-        if self.direction > 0.75:
-            #  If any change in yaw is needed to align with the wall, then do that
-            self.log_movement('Direction high threshold')
-            return [0, 0, self.direction]
-        
-        if self.whisker_pressures_max[FORWARD] > 0.02:
-            self.log_movement('Front')
-            #  Move away from the wall first if necessary and rotate right
-            return [0, -0.2, -0.6]
-
-        if self.whisker_pressures_max[BACKWARD] > 0.02:
-            self.log_movement('Back')
-            #  Move away from the wall first if necessary and rotate right
-            return [0, -0.2, 0.6]
-
-        if self.whisker_pressures_max[LEFT] > WALL_PUSH_AWAY_THRESHOLD and self.whisker_pressures_max[LEFT] >= self.whisker_pressures_max[RIGHT]:
-            self.log_movement('Push away left')
-            y = -np.clip(self.whisker_pressures_max[LEFT] - WALL_PUSH_AWAY_THRESHOLD + 0.3, 0, 0.6)
-            return [0, y, 0]
-
-        if self.whisker_pressures_max[RIGHT] > WALL_PUSH_AWAY_THRESHOLD:
-            self.log_movement('push away right')
-            y = np.clip(self.whisker_pressures_max[RIGHT] - WALL_PUSH_AWAY_THRESHOLD + 0.3, 0, 0.6)
-            return [0, y, 0]
-
-        if self.whisker_pressures_max[LEFT] < LEFT_WALL_PUSH_IN_THRESHOLD and self.whisker_pressures_max[FORWARD] < 0.0001:
+        """
+        if self.whisker_pressures_max[LEFT] <= LEFT_WALL_PUSH_IN_THRESHOLD:
             self.log_movement('move toward left')
             #  Move towards left wall if no contact with the left wall until midpoint
             self.curr_push_direction = LEFT
 
-            return multiply_list_with_scalar(DirectionTwist.LEFT_TWIST.value, DODGE_SPEED)
+        if self.whisker_pressures_max[LEFT] >= WALL_PUSH_AWAY_THRESHOLD:
+            self.log_movement('move toward left')
+            #  Move towards left wall if no contact with the left wall until midpoint
+            self.curr_push_direction = RIGHT
+        """
+        """
+        move_towards_threshold_part = None
+        move_towards_threshold_weight = 2
+        if self.curr_push_direction == LEFT:
+            if not self.has_current_contact:
+                move_towards_threshold_weight = 10000
 
-        self.log_movement('Direction default')
-        return [self.cmd_vel_x, self.cmd_vel_y, self.direction]
+            if self.whisker_pressures_max[LEFT] < WALL_THRESHOLD_MIDPOINT:
+                #  Move towards left wall if no contact with the left wall until midpoint
+                self.log_movement('To threshold L')
+                #return multiply_list_with_scalar(DirectionTwist.LEFT_TWIST.value, DODGE_SPEED)
+                move_towards_threshold_part = multiply_list_with_scalar(DirectionTwist.LEFT_TWIST.value, DODGE_SPEED / 4)
+            else:
+                self.curr_push_direction = None
+
+        if self.curr_push_direction == RIGHT:
+            if self.whisker_pressures_max[LEFT] > WALL_THRESHOLD_MIDPOINT:
+                #  Move towards left wall if no contact with the left wall until midpoint
+                self.log_movement('To threshold R')
+                # return multiply_list_with_scalar(DirectionTwist.RIGHT_TWIST.value, DODGE_SPEED)
+                move_towards_threshold_part = multiply_list_with_scalar(DirectionTwist.RIGHT_TWIST.value, DODGE_SPEED / 4)
+            else:
+                self.curr_push_direction = None
+        """
+
+        """
+        if abs(self.direction) > 0.40:
+            #  If any change in yaw is needed to align with the wall, then do that
+            self.log_movement('Direction high threshold')
+            # return [0, 0, self.direction]
+            direction_handling_part = [0, 0, self.direction]
+        """
+
+
+        """
+        pull_away_from_right_wall_part = None
+        if self.whisker_pressures_max[RIGHT] > WALL_PUSH_AWAY_THRESHOLD:
+            self.log_movement('push away right')
+            y = np.clip(self.whisker_pressures_max[RIGHT] - WALL_PUSH_AWAY_THRESHOLD + 0.3, 0, 0.6)
+            # return [0, y, 0]
+            pull_away_from_right_wall_part = [0, y, 0]
+        """
+
+        """
+        if self.whisker_pressures_max[LEFT] >= WALL_PUSH_AWAY_THRESHOLD:
+            self.log_movement('move toward left')
+            #  Move towards left wall if no contact with the left wall until midpoint
+            self.curr_push_direction = RIGHT
+        """
+
+        """
+        if self.whisker_pressures_max[LEFT] <= LEFT_WALL_PUSH_IN_THRESHOLD:
+            #if (self.whisker_pressures_max[LEFT] < 0.0001):
+                # push_in_left_wall_part_weight = 400
+            #else:
+                #  Move towards left wall if no contact with the left wall until midpoint
+                # push_in_left_wall_part_weight = np.clip(100 * (LEFT_WALL_PUSH_IN_THRESHOLD * 2 - self.whisker_pressures_max[LEFT]), 0, 600)
+            push_in_left_wall_part_weight = 
+        """
+
+        # Avoid collision from the front and rotate right
+        forward_pressure_handling_part_weight = 0
+        forward_pressure_handling_part = [0, -0.4, -1]
+        if self.whisker_pressures_max[FORWARD] > 0.02:
+            forward_pressure_handling_part_weight = 400
+
+        # Avoid collision from the back and rotate right
+        backward_pressure_handling_part_weight = 0
+        backward_pressure_handling_part = [0, 0.4, 1]
+        if self.whisker_pressures_max[BACKWARD] > 0.02:
+            backward_pressure_handling_part_weight = 400
+
+        # Push towards the left wall if not touching or barely touching it
+        push_in_left_wall_part = DirectionTwist.MOVE_LEFT.value
+        push_in_left_wall_part_weight = map_linear_val_threshold(LEFT_WALL_PUSH_IN_THRESHOLD - self.whisker_pressures_max[LEFT], 0, 0.05, 0.2, 5, 0.001)
+
+
+        # Pull away from the wall if it's gone too far
+        pull_away_from_left_wall_part = DirectionTwist.MOVE_RIGHT.value
+        pull_away_from_left_wall_part_weight = map_linear_val_threshold(self.whisker_pressures_max[LEFT] - WALL_PUSH_AWAY_THRESHOLD, 0, 0.5, 0.2, 20, 0.001)
+
+
+        # Turn along with the left wall
+        direction_handling_part = DirectionTwist.TURN_RIGHT.value if self.direction >= 0 else DirectionTwist.TURN_LEFT.value
+        direction_handling_weight = map_linear_val_threshold(abs(self.direction), 0, 1, 0, 5, 0.01)
+
+        # Move forward by default
+        default_movement_part = [1, 0, 0]
+
+        movements = [pull_away_from_left_wall_part, push_in_left_wall_part, default_movement_part, direction_handling_part, forward_pressure_handling_part, backward_pressure_handling_part]
+
+        weights = [pull_away_from_left_wall_part_weight, push_in_left_wall_part_weight, 1, direction_handling_weight, forward_pressure_handling_part_weight, backward_pressure_handling_part_weight]
+
+        for w in weights:
+            self.get_logger().info(str(w))
+
+        normalize_weights(weights)
+
+        for i in range(len(movements)):
+            movements[i] = multiply_list_with_scalar(movements[i], weights[i])
+
+
+        summed_up_twist = sum_up_lists(movements)
+
+        normalize_weights(summed_up_twist)
+        
+        # self.get_logger().info(str(len(movement_weights)) + ' - ' + str(summed_up_twist))
+        ROBOT_SPEED = 1
+        return multiply_list_with_scalar(summed_up_twist, ROBOT_SPEED)
 
     def hard_collision_reverse_system(self, hard_collision_avg_threshold, hard_collision_max_threshold, dodge_speed):
         """
@@ -441,6 +489,34 @@ def whisker_euclid_dist(whisker: Whisker):
 
 def multiply_list_with_scalar(_list: List, num) -> List:
     return [i * num for i in _list]
+
+def sum_up_lists(lists: List[List]) -> List:
+    """Out of place summing up"""
+    max_len = len(max(lists, key=lambda _list: len(_list)))
+    out_list = [0] * max_len
+
+    for _list in lists:
+        for i in range(len(_list)):
+            out_list[i] += _list[i]
+
+    return out_list
+
+def normalize_weights(_list: List) -> None:
+    list_sum = sum(map(abs, _list))
+    for i in range(len(_list)):
+        _list[i] /= list_sum
+
+def map_linear_val(val, min_in, max_in, min_out, max_out):
+    val = np.clip(val, min_in, max_in)
+    linear_result = (max_out - min_out) * ( (val - min_in) / (max_in - min_in) ) + min_out
+    return np.clip(linear_result, max_in, max_out)
+
+def map_linear_val_threshold(val, min_in, max_in, min_out, max_out, threshold, threshold_return_val=0):
+    if (val < min_in + threshold):
+        return threshold_return_val
+    val = np.clip(val, min_in, max_in)
+    linear_result = (max_out - min_out) * ( (val - min_in) / (max_in - min_in) ) + min_out
+    return np.clip(linear_result, max_in, max_out)
 
 
 def main(args=None):
