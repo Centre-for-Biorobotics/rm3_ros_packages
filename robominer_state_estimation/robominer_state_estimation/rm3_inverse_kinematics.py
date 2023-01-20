@@ -28,6 +28,10 @@ from math import tan, pi
 from statistics import mean
 from typing import List, Tuple
 
+from simple_pid import PID
+
+import time
+
 from enum import Enum
 
 from dataclasses import dataclass
@@ -129,7 +133,12 @@ class RM3InverseKinematics(Node):
         self.speed_multiplier = 0.0             # speed multiplier that is applied to the body velocity input
         self.turbo_multiplier = 0.0
         self.has_had_contact = False
+
         self.direction = 0
+        self.horizontal_movement = 0
+
+        self.direction_pid = PID(1, 0, 0, 0, output_limits=(-20, 20), auto_mode=False)
+        self.horizontal_pid = PID(5, 0, 0, 0.2, output_limits=(-5, 5), auto_mode=False)
 
         self.prev_movement_log = ""
 
@@ -194,11 +203,26 @@ class RM3InverseKinematics(Node):
             self.whisker_pressures_avg[direction] = calc_whisker_pressure_avg(whisker_matrix[WHISKER_ROWS[direction]])
             self.whisker_pressures_max[direction] = calc_whisker_pressure_max(whisker_matrix[WHISKER_ROWS[direction]])
 
-        # towards left
-        self.direction = calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[RIGHT]]) - calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[LEFT]]) # \
-
-        if any(p > 0.1 for p in self.whisker_pressures_max.values()):
+        if not self.has_had_contact and any(p > 0.1 for p in self.whisker_pressures_max.values()):
             self.has_had_contact = True
+            self.direction_pid.set_auto_mode(True, self.direction)
+            self.horizontal_pid.set_auto_mode(True, self.horizontal_movement)
+
+        # towards left
+        direction = calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[RIGHT]]) - calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[LEFT]]) # \
+
+        if self.direction_pid.auto_mode:
+            self.direction = self.direction_pid(direction)
+        else:
+            self.direction = direction
+
+        horizontal_movement_avg_component = self.whisker_pressures_avg[TRACKED_WALL_DIRECTION] - self.whisker_pressures_avg[TRACKED_WALL_DIRECTION.opposite()]
+        horizontal_movement_max_component = self.whisker_pressures_max[TRACKED_WALL_DIRECTION] - self.whisker_pressures_max[TRACKED_WALL_DIRECTION.opposite()]
+        horizontal_movement = 0.7 * horizontal_movement_avg_component + 0.3 * horizontal_movement_max_component
+        if self.horizontal_pid(horizontal_movement):
+            self.horizontal_movement = self.horizontal_pid(horizontal_movement)
+        else:
+            self.horizontal_movement = horizontal_movement
 
     def inputCallback(self, msg: Twist):
         """
@@ -250,12 +274,9 @@ class RM3InverseKinematics(Node):
         HARD_COLLISION_AVG_THRESHOLD = 0.7
         HARD_COLLISION_MAX_THRESHOLD = 0.9
 
-        DODGE_SPEED = 0.3
-
         if not self.has_had_contact:
-            self.log_movement('Keyboard movement')
-            # Until contact don't override movement
-            return [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
+            #  return [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
+            return DirectionTwist.MOVE_RIGHT.value
 
         """
         if self.whisker_pressures_max[LEFT] <= LEFT_WALL_PUSH_IN_THRESHOLD:
@@ -268,39 +289,6 @@ class RM3InverseKinematics(Node):
             #  Move towards left wall if no contact with the left wall until midpoint
             self.curr_push_direction = RIGHT
         """
-        """
-        move_towards_threshold_part = None
-        move_towards_threshold_weight = 2
-        if self.curr_push_direction == LEFT:
-            if not self.has_current_contact:
-                move_towards_threshold_weight = 10000
-
-            if self.whisker_pressures_max[LEFT] < WALL_THRESHOLD_MIDPOINT:
-                #  Move towards left wall if no contact with the left wall until midpoint
-                self.log_movement('To threshold L')
-                #return multiply_list_with_scalar(DirectionTwist.LEFT_TWIST.value, DODGE_SPEED)
-                move_towards_threshold_part = multiply_list_with_scalar(DirectionTwist.LEFT_TWIST.value, DODGE_SPEED / 4)
-            else:
-                self.curr_push_direction = None
-
-        if self.curr_push_direction == RIGHT:
-            if self.whisker_pressures_max[LEFT] > WALL_THRESHOLD_MIDPOINT:
-                #  Move towards left wall if no contact with the left wall until midpoint
-                self.log_movement('To threshold R')
-                # return multiply_list_with_scalar(DirectionTwist.RIGHT_TWIST.value, DODGE_SPEED)
-                move_towards_threshold_part = multiply_list_with_scalar(DirectionTwist.RIGHT_TWIST.value, DODGE_SPEED / 4)
-            else:
-                self.curr_push_direction = None
-        """
-
-        """
-        if abs(self.direction) > 0.40:
-            #  If any change in yaw is needed to align with the wall, then do that
-            self.log_movement('Direction high threshold')
-            # return [0, 0, self.direction]
-            direction_handling_part = [0, 0, self.direction]
-        """
-
 
         """
         pull_away_from_right_wall_part = None
@@ -329,27 +317,38 @@ class RM3InverseKinematics(Node):
         """
 
         factors = list()
-
+        
         # collision_prevention_system_part = self.hard_collision_reverse_system(HARD_COLLISION_AVG_THRESHOLD, HARD_COLLISION_MAX_THRESHOLD)
         # collision_prevention_weight = 0
         # if hard_collision_reverse_system_part != None:
         #     self.log_movement('Hard collision avoidance')
         #     return hard_collision_reverse_system_twist
 
-
+        """
         factors.append(Factor(
             'Handle forward pressure',
             400 if self.whisker_pressures_max[FORWARD] > 0.02 else 0,
-            [0, -0.4, -1] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 1]
+            [0, -0.4, 0] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 0]
+            # [0, -0.4, -1] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 1]
         ))
 
+        
         factors.append(Factor(
             'Handle backward pressure',
             400 if self.whisker_pressures_max[BACKWARD] > 0.02 else 0,
-            [0, 0.4, 1] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, -1]
+            # [0, 0.4, 1] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, -1]
+            [0, 0.4, 0] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, 0]
+        ))
+        """
+        factors.append(Factor(
+            'Right tracking PID',
+            abs(self.horizontal_movement),
+            TRACKED_WALL_DIRECTION.move_twist() if self.horizontal_movement >= 0.0 else TRACKED_WALL_DIRECTION.opposite().move_twist()
         ))
 
+        self.get_logger().info(str(self.horizontal_movement))
 
+        """
         factors.append(Factor(
             'Push in towards tracked wall if too far',
             map_linear_val_min_threshold(TRACKED_WALL_PUSH_IN_THRESHOLD - self.whisker_pressures_max[TRACKED_WALL_DIRECTION], 0, 0.05, 0.2, 5, 0.001),
@@ -361,12 +360,14 @@ class RM3InverseKinematics(Node):
             map_linear_val_min_threshold(self.whisker_pressures_max[TRACKED_WALL_DIRECTION] - WALL_PUSH_AWAY_THRESHOLD, 0, 0.5, 0.2, 20, 0.001),
             TRACKED_WALL_DIRECTION.opposite().move_twist()
         ))
+        """
 
         factors.append(Factor(
             'Turn to keep level with the side walls',
-            map_linear_val(abs(self.direction), 0, 4, 0, 5),
-            DirectionTwist.TURN_RIGHT.value if self.direction >= 0 else DirectionTwist.TURN_LEFT.value
+            abs(self.direction),
+            DirectionTwist.TURN_LEFT.value if self.direction >= 0 else DirectionTwist.TURN_RIGHT.value
         ))
+        
 
         factors.append(Factor(
             'Straight movement factor',
