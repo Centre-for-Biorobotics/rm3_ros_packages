@@ -80,6 +80,14 @@ class Direction(Enum):
         elif self == Direction.BACKWARD:
             return DirectionTwist.MOVE_BACKWARD.value
 
+    def turn_twist(self) -> list:
+        if self == Direction.LEFT:
+            return DirectionTwist.TURN_LEFT.value
+        elif self == Direction.RIGHT:
+            return DirectionTwist.TURN_RIGHT.value
+        else:
+            return [0, 0, 0]
+
 LEFT = Direction.LEFT
 RIGHT = Direction.RIGHT
 FORWARD = Direction.FORWARD
@@ -136,9 +144,21 @@ class RM3InverseKinematics(Node):
 
         self.direction = 0
         self.horizontal_movement = 0
+        self.x_axis_movement = 0
+        self.x_axis_turning = 0
 
         self.direction_pid = PID(1, 0, 0, 0, output_limits=(-20, 20), auto_mode=False)
         self.horizontal_pid = PID(5, 0, 0, 0.2, output_limits=(-5, 5), auto_mode=False)
+        self.x_axis_pid = PID(2, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
+        self.x_axis_turning__pid = PID(40, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
+
+        self.publisher_error_direction = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
+        self.publisher_output_direction = self.create_publisher(Float64, '/whiskerErrors/direction_out', 10)
+        self.publisher_error_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis', 10)
+        self.publisher_output_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis_out', 10)
+        self.publisher_error_x_axis = self.create_publisher(Float64, '/whiskerErrors/x_axis', 10)
+        self.publisher_output_x_axis = self.create_publisher(Float64, '/whiskerErrors/x_axis_out', 10)
+        # self.publisher_weight = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
 
         self.prev_movement_log = ""
 
@@ -195,34 +215,55 @@ class RM3InverseKinematics(Node):
         """
         Process whisker output for movement input.
         """
-        whisker_matrix = create_whisker_matrix(msg.whiskers)
+        self.whisker_matrix = create_whisker_matrix(msg.whiskers)
 
         self.whisker_pressures_avg = {}
         self.whisker_pressures_max = {}
         for direction in Direction:
-            self.whisker_pressures_avg[direction] = calc_whisker_pressure_avg(whisker_matrix[WHISKER_ROWS[direction]])
-            self.whisker_pressures_max[direction] = calc_whisker_pressure_max(whisker_matrix[WHISKER_ROWS[direction]])
+            self.whisker_pressures_avg[direction] = calc_whisker_pressure_avg(self.whisker_matrix[WHISKER_ROWS[direction]])
+            self.whisker_pressures_max[direction] = calc_whisker_pressure_max(self.whisker_matrix[WHISKER_ROWS[direction]])
 
         if not self.has_had_contact and any(p > 0.1 for p in self.whisker_pressures_max.values()):
             self.has_had_contact = True
             self.direction_pid.set_auto_mode(True, self.direction)
             self.horizontal_pid.set_auto_mode(True, self.horizontal_movement)
+            self.x_axis_pid.set_auto_mode(True, self.x_axis_movement)
+            self.x_axis_turning__pid.set_auto_mode(True, self.x_axis_movement)
 
+        self.assignDirectionError()
+
+        self.horizontal_movement = self.calcAxisError(self.horizontal_pid, self.publisher_error_y_axis, TRACKED_WALL_DIRECTION, 0.7, 0.3)
+        self.publisher_output_y_axis.publish(Float64(data=float(self.horizontal_movement)))
+
+        self.x_axis_movement = self.calcAxisError(self.x_axis_pid, self.publisher_error_x_axis, FORWARD, 0.3, 0.7)
+        self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
+        
+    def assignDirectionError(self):
         # towards left
-        direction = calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[RIGHT]]) - calc_whiskers_inclination_euclid(whisker_matrix[WHISKER_ROWS[LEFT]]) # \
+        direction = calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[RIGHT]]) - calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[LEFT]])
+        direction += 4*(calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[BACKWARD]]) - calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[FORWARD]]))
 
-        if self.direction_pid.auto_mode:
-            self.direction = self.direction_pid(direction)
+        self.publisher_error_direction.publish(Float64(data=float(direction)))
+        pid_dir = self.direction_pid(direction)
+
+        if pid_dir is not None:
+            self.direction = pid_dir
         else:
             self.direction = direction
 
-        horizontal_movement_avg_component = self.whisker_pressures_avg[TRACKED_WALL_DIRECTION] - self.whisker_pressures_avg[TRACKED_WALL_DIRECTION.opposite()]
-        horizontal_movement_max_component = self.whisker_pressures_max[TRACKED_WALL_DIRECTION] - self.whisker_pressures_max[TRACKED_WALL_DIRECTION.opposite()]
-        horizontal_movement = 0.7 * horizontal_movement_avg_component + 0.3 * horizontal_movement_max_component
-        if self.horizontal_pid(horizontal_movement):
-            self.horizontal_movement = self.horizontal_pid(horizontal_movement)
-        else:
-            self.horizontal_movement = horizontal_movement
+        self.publisher_output_direction.publish(Float64(data=float(self.direction)))
+
+    
+    def calcAxisError(self, pid, input_publisher, addDirection, avgWeight, maxWeight):
+        avg_component = self.whisker_pressures_avg[addDirection] - self.whisker_pressures_avg[addDirection.opposite()]
+        max_component = self.whisker_pressures_max[addDirection] - self.whisker_pressures_max[addDirection.opposite()]
+        total_movement = avgWeight * avg_component + maxWeight * max_component
+
+        input_publisher.publish(Float64(data=float(total_movement)))
+
+        pid_movement = pid(total_movement)
+
+        return pid_movement if pid_movement is not None else total_movement
 
     def inputCallback(self, msg: Twist):
         """
@@ -271,96 +312,65 @@ class RM3InverseKinematics(Node):
         Output: x, y, yaw
         """
         #self.get_logger().info('----------------------')
-        HARD_COLLISION_AVG_THRESHOLD = 0.7
-        HARD_COLLISION_MAX_THRESHOLD = 0.9
 
         if not self.has_had_contact:
-            #  return [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
+            # return [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
             return DirectionTwist.MOVE_RIGHT.value
 
-        """
-        if self.whisker_pressures_max[LEFT] <= LEFT_WALL_PUSH_IN_THRESHOLD:
-            self.log_movement('move toward left')
-            #  Move towards left wall if no contact with the left wall until midpoint
-            self.curr_push_direction = LEFT
-
-        if self.whisker_pressures_max[LEFT] >= WALL_PUSH_AWAY_THRESHOLD:
-            self.log_movement('move toward left')
-            #  Move towards left wall if no contact with the left wall until midpoint
-            self.curr_push_direction = RIGHT
-        """
-
-        """
-        pull_away_from_right_wall_part = None
-        if self.whisker_pressures_max[RIGHT] > WALL_PUSH_AWAY_THRESHOLD:
-            self.log_movement('push away right')
-            y = np.clip(self.whisker_pressures_max[RIGHT] - WALL_PUSH_AWAY_THRESHOLD + 0.3, 0, 0.6)
-            # return [0, y, 0]
-            pull_away_from_right_wall_part = [0, y, 0]
-        """
-
-        """
-        if self.whisker_pressures_max[LEFT] >= WALL_PUSH_AWAY_THRESHOLD:
-            self.log_movement('move toward left')
-            #  Move towards left wall if no contact with the left wall until midpoint
-            self.curr_push_direction = RIGHT
-        """
-
-        """
-        if self.whisker_pressures_max[LEFT] <= LEFT_WALL_PUSH_IN_THRESHOLD:
-            #if (self.whisker_pressures_max[LEFT] < 0.0001):
-                # push_in_left_wall_part_weight = 400
-            #else:
-                #  Move towards left wall if no contact with the left wall until midpoint
-                # push_in_left_wall_part_weight = np.clip(100 * (LEFT_WALL_PUSH_IN_THRESHOLD * 2 - self.whisker_pressures_max[LEFT]), 0, 600)
-            push_in_left_wall_part_weight = 
-        """
 
         factors = list()
         
-        # collision_prevention_system_part = self.hard_collision_reverse_system(HARD_COLLISION_AVG_THRESHOLD, HARD_COLLISION_MAX_THRESHOLD)
+        
+        HARD_COLLISION_AVG_THRESHOLD = 0.4
+        HARD_COLLISION_MAX_THRESHOLD = 0.8
+        collision_prevention_system_part = self.hard_collision_reverse_system(HARD_COLLISION_AVG_THRESHOLD, HARD_COLLISION_MAX_THRESHOLD)
         # collision_prevention_weight = 0
-        # if hard_collision_reverse_system_part != None:
-        #     self.log_movement('Hard collision avoidance')
-        #     return hard_collision_reverse_system_twist
-
-        """
-        factors.append(Factor(
-            'Handle forward pressure',
-            400 if self.whisker_pressures_max[FORWARD] > 0.02 else 0,
-            [0, -0.4, 0] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 0]
-            # [0, -0.4, -1] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 1]
-        ))
-
+        if collision_prevention_system_part != None:
+            self.log_movement('Hard collision avoidance')
+            return collision_prevention_system_part
+        
         
         factors.append(Factor(
-            'Handle backward pressure',
-            400 if self.whisker_pressures_max[BACKWARD] > 0.02 else 0,
-            # [0, 0.4, 1] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, -1]
-            [0, 0.4, 0] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, 0]
+            'Handle forward pressure',
+            100 if self.whisker_pressures_max[FORWARD] > 0.1 else 0,
+            # [0, -0.4, 0] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 0]
+            [0, -0.4, -1] if TRACKED_WALL_DIRECTION == LEFT else [0, 0.4, 1]
         ))
+
+        factors.append(Factor(
+            'Handle backward pressure',
+            100 if self.whisker_pressures_max[BACKWARD] > 0.1 else 0,
+            [0, 0.4, 1] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, -1]
+            # [0, 0.4, 0] if TRACKED_WALL_DIRECTION == LEFT else [0, -0.4, 0]
+        ))
+
         """
         factors.append(Factor(
-            'Right tracking PID',
+            'Push front/back if colliding',
+            400 if max(self.whisker_pressures_max[BACKWARD], self.whisker_pressures_max[FORWARD]) > 0.02 else 0,
+            
+        ))
+        """
+        
+        """
+        factors.append(Factor(
+            'Push PID (push F/B)',
+            abs(self.x_axis_movement),
+            FORWARD.move_twist() if self.horizontal_movement >= 0.0 else FORWARD.opposite().move_twist()
+        ))
+
+        factors.append(Factor(
+            'Rotate towards tracked wall when pushing away from forward/backward wall',
+            abs(self.x_axis_turning),
+            TRACKED_WALL_DIRECTION.turn_twist() if self.horizontal_movement >= 0.0 else TRACKED_WALL_DIRECTION.opposite().turn_twist()
+        ))
+        """
+
+        factors.append(Factor(
+            'Wall tracking PID (push L/R)',
             abs(self.horizontal_movement),
             TRACKED_WALL_DIRECTION.move_twist() if self.horizontal_movement >= 0.0 else TRACKED_WALL_DIRECTION.opposite().move_twist()
         ))
-
-        self.get_logger().info(str(self.horizontal_movement))
-
-        """
-        factors.append(Factor(
-            'Push in towards tracked wall if too far',
-            map_linear_val_min_threshold(TRACKED_WALL_PUSH_IN_THRESHOLD - self.whisker_pressures_max[TRACKED_WALL_DIRECTION], 0, 0.05, 0.2, 5, 0.001),
-            TRACKED_WALL_DIRECTION.move_twist()
-        ))
-
-        factors.append(Factor(
-            'Pull away from the wall if too close',
-            map_linear_val_min_threshold(self.whisker_pressures_max[TRACKED_WALL_DIRECTION] - WALL_PUSH_AWAY_THRESHOLD, 0, 0.5, 0.2, 20, 0.001),
-            TRACKED_WALL_DIRECTION.opposite().move_twist()
-        ))
-        """
 
         factors.append(Factor(
             'Turn to keep level with the side walls',
