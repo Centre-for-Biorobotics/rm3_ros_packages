@@ -19,14 +19,18 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import Joy
 
-from geometry_msgs.msg import Twist, TwistStamped
+from geometry_msgs.msg import Twist, TwistStamped, Point
 from robominer_msgs.msg import MotorModuleCommand, WhiskerArray, Whisker
 from std_msgs.msg import Float64
+
+from nav_msgs.msg import Odometry
 
 import numpy as np
 from math import tan, pi
 from statistics import mean
-from typing import List, Tuple
+from typing import List, Any
+
+from dataclasses import dataclass, field
 
 from simple_pid import PID
 
@@ -36,12 +40,22 @@ from enum import Enum
 
 from dataclasses import dataclass
 
+from queue import PriorityQueue
+
+import math
+
 
 @dataclass
 class Factor:
     name: str
     weight: float
     twist: list
+
+
+@dataclass(order=True)
+class PrioritizedItem:
+    priority: int
+    item: Any=field(compare=False)
     
 
 class DirectionTwist(Enum):
@@ -122,8 +136,88 @@ WALL_THRESHOLD_MIDPOINT = (WALL_PUSH_AWAY_THRESHOLD + TRACKED_WALL_PUSH_IN_THRES
 
 TRACKED_WALL_DIRECTION: Direction = RIGHT
 
+GRAPH_NODE_SIZE = 0.2
+
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}
+
+class NodePosition:
+    x: int
+    y: int
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __str__(self):
+        return str(self.x) + ", " + str(self.y)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return isinstance(other, NodePosition) and self.x == other.x and self.y == other.y
+
+class GraphNode:
+    position: NodePosition
+    passable: bool = True
+
+    def __init__(self, position: NodePosition, passable: bool=True):
+        self.position = position
+
+    def __str__(self):
+        return str(self.position) + ": " + str(self.passable)
+
+    def __hash__(self):
+        return hash(str(self))
+
+    def __eq__(self, other):
+        return isinstance(other, GraphNode) and self.position == other.position and self.x == other.y
+
+class Graph:
+    nodes = {}
+
+    def nodes_exists(self, position: NodePosition):
+        return position in self.nodes.keys()
+
+    def node_passable(self, position: NodePosition):
+        return position not in self.nodes.keys() or self.nodes[position].passable
+
+    def nodes_add(self, position: NodePosition, passable: bool=True):
+        if position in self.nodes:
+            raise RuntimeError('Node already existed!')
+
+        self.nodes[position] = GraphNode(position, passable)
+
+    def nodes_mark_unpassable(self, position: NodePosition):
+        if position in self.nodes:
+            self.nodes[position].passable = False
+        else:
+            self.nodes_add(position, False)
+
+    def neighbors(self, position: NodePosition) -> List[NodePosition]:
+        neighbors = []
+        x, y = position.x, position.y
+
+        potential_neighbors = [
+            NodePosition(x + 1, y),
+            NodePosition(x - 1, y),
+            NodePosition(x, y + 1),
+            NodePosition(x, y - 1)
+        ]
+
+        for pos in potential_neighbors:
+            if self.node_passable(pos):
+                neighbors.append(pos)
+
+        return neighbors
+
+    def cost(self, pos1: NodePosition, pos2: NodePosition):
+        return 1
+
+
+GOAL = NodePosition(-40, 0)
+
 
 class RM3InverseKinematics(Node):
     def __init__(self):
@@ -142,14 +236,26 @@ class RM3InverseKinematics(Node):
         self.turbo_multiplier = 0.0
         self.has_had_contact = False
 
+        self.curr_node_position = None
+
+        self.position = None
+        self.orientation = None
+
+        self.original_angle = None
+        self.angle = None
+
+        self.graph = Graph()
+
+        self.path = []
+
         self.direction = 0
         self.horizontal_movement = 0
         self.x_axis_movement = 0
         self.x_axis_turning = 0
 
-        self.direction_pid = PID(1, 0, 0, 0, output_limits=(-20, 20), auto_mode=False)
+        self.direction_pid = PID(2, 0, 0, 0, output_limits=(-20, 20), auto_mode=False)
         self.horizontal_pid = PID(5, 0, 0, 0.2, output_limits=(-5, 5), auto_mode=False)
-        self.x_axis_pid = PID(2, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
+        self.x_axis_pid = PID(1, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
         self.x_axis_turning__pid = PID(40, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
 
         self.publisher_error_direction = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
@@ -211,10 +317,80 @@ class RM3InverseKinematics(Node):
         self.sub_whisker = self.create_subscription(
             WhiskerArray, '/WhiskerStates', self.onWhisker, 100)
 
+        self.sub_odom = self.create_subscription(
+            Odometry, '/odom/unfiltered', self.onOdometry, 100)
+
+    def onOdometry(self, msg: Odometry):
+        self.position = msg.pose.pose.position
+        self.orientation = msg.pose.pose.orientation
+
+        self.calc_angle()
+
+        self.curr_node_position = self.translate_position_to_graph(self.position)
+
+        if not self.graph.nodes_exists(self.curr_node_position):
+            self.graph.nodes_add(self.curr_node_position, passable=True)
+
+    def calc_angle(self):
+        angle = math.degrees(self.orientation.z)
+        self.angle = angle if angle <= 180 else angle - 360
+
+    def translate_position_to_graph(self, position: Point) -> NodePosition:
+        x_temp = int(round(position.x / GRAPH_NODE_SIZE, 0))
+        y_temp = int(round(position.y / GRAPH_NODE_SIZE, 0))
+        return NodePosition(x_temp, y_temp)
+
+    def add_angles(self, a1, a2):
+        angle = (a2 - a1) % 360
+        if angle > 180:
+            angle -=360
+        return angle
+
+    def mark_graph_point_after_collision(self, collision_direction: Direction):
+        # self.get_logger().info('Mark collision')
+        collision_angle_modification = 0
+        if collision_direction == Direction.RIGHT:
+            collision_angle_modification = 90
+        elif collision_direction == Direction.BACKWARD:
+            collision_angle_modification = 180
+        elif collision_direction == Direction.BACKWARD:
+            collision_angle_modification = 270
+
+        collision_angle = self.add_angles(self.angle, collision_angle_modification)
+
+        x, y = self.curr_node_position.x, self.curr_node_position.y
+
+        if collision_angle < -135:
+            y -= 1
+        elif collision_angle < -45:
+            x -= 1
+        elif collision_angle < 45:
+            y += 1
+        elif collision_angle < 135:
+            x += 1
+        else:
+            y -= 1
+
+        # self.get_logger().info('Marked unpassable')
+
+        collision_point = NodePosition(x, y)
+        if self.graph.node_passable(collision_point):
+            # New collision
+            self.graph.nodes_mark_unpassable(collision_point)
+            # Recalculate due to new position
+            self.path = self.a_star(self.curr_node_position, GOAL)
+
+
     def onWhisker(self, msg: WhiskerArray):
         """
         Process whisker output for movement input.
         """
+        # self.get_logger().info("-----")
+        self.log_surroundings()
+        # self.get_logger().info('Node amount: ' + str(len(self.graph.nodes)))
+        # self.get_logger().info('Angle: ' + str(self.angle))
+        self.get_logger().info('Pos: ' + str(self.curr_node_position))
+
         self.whisker_matrix = create_whisker_matrix(msg.whiskers)
 
         self.whisker_pressures_avg = {}
@@ -223,12 +399,16 @@ class RM3InverseKinematics(Node):
             self.whisker_pressures_avg[direction] = calc_whisker_pressure_avg(self.whisker_matrix[WHISKER_ROWS[direction]])
             self.whisker_pressures_max[direction] = calc_whisker_pressure_max(self.whisker_matrix[WHISKER_ROWS[direction]])
 
+            if self.whisker_pressures_max[direction] > 0.05:
+                self.mark_graph_point_after_collision(direction)
+
         if not self.has_had_contact and any(p > 0.1 for p in self.whisker_pressures_max.values()):
-            self.has_had_contact = True
-            self.direction_pid.set_auto_mode(True, self.direction)
-            self.horizontal_pid.set_auto_mode(True, self.horizontal_movement)
-            self.x_axis_pid.set_auto_mode(True, self.x_axis_movement)
-            self.x_axis_turning__pid.set_auto_mode(True, self.x_axis_movement)
+                self.has_had_contact = True
+                self.direction_pid.set_auto_mode(True, self.direction)
+                self.horizontal_pid.set_auto_mode(True, self.horizontal_movement)
+                self.x_axis_pid.set_auto_mode(True, self.x_axis_movement)
+                self.x_axis_turning__pid.set_auto_mode(True, self.x_axis_movement)
+            
 
         self.assignDirectionError()
 
@@ -252,7 +432,6 @@ class RM3InverseKinematics(Node):
             self.direction = direction
 
         self.publisher_output_direction.publish(Float64(data=float(self.direction)))
-
     
     def calcAxisError(self, pid, input_publisher, addDirection, avgWeight, maxWeight):
         avg_component = self.whisker_pressures_avg[addDirection] - self.whisker_pressures_avg[addDirection.opposite()]
@@ -306,6 +485,33 @@ class RM3InverseKinematics(Node):
         if new_movement != self.prev_movement_log:
             self.get_logger().info(new_movement)
             self.prev_movement_log = new_movement
+
+    def log_surroundings(self):
+        if self.curr_node_position is None:
+            return
+
+        pos = self.curr_node_position
+        x = pos.x
+        y = pos.y
+
+        txt = "\n"
+        for i in range(-10, 11):
+            for j in range(-10, 11):
+                this_pos = NodePosition(x + i, y + j)
+                if self.path is not None and this_pos in self.path:
+                    txt += 'G'
+                    continue
+
+                if not self.graph.nodes_exists(this_pos):
+                    txt += 'o'
+                    continue
+
+                node: GraphNode = self.graph.nodes[this_pos]
+                txt += 'O' if node.passable else 'X'
+
+            txt += "\n"
+
+        self.get_logger().info(txt)
         
     def determine_movement(self) -> List[float]:
         """
@@ -315,7 +521,8 @@ class RM3InverseKinematics(Node):
 
         if not self.has_had_contact:
             # return [self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]
-            return DirectionTwist.MOVE_RIGHT.value
+
+            return DirectionTwist.MOVE_RIGHT.value if self.position is not None else [0, 0, 0]
 
 
         factors = list()
@@ -405,7 +612,39 @@ class RM3InverseKinematics(Node):
         else:
             return None
 
-        return moveDirection.move_twist()
+        return multiply_list_with_scalar(moveDirection.move_twist(), 0.35)
+
+    def a_star(self, start, goal) -> List[NodePosition]:
+        frontier: PriorityQueue[PrioritizedItem] = PriorityQueue()
+        frontier.put(PrioritizedItem(0, start))
+        came_from = dict()
+        cost_so_far = dict()
+        came_from[start] = None
+        cost_so_far[start] = 0
+
+        while not frontier.empty():
+            current = frontier.get().item
+
+            if current == goal:
+                break
+            
+            for next in self.graph.neighbors(current):
+                new_cost = cost_so_far[current] + self.graph.cost(current, next)
+                if next not in cost_so_far or new_cost < cost_so_far[next]:
+                    cost_so_far[next] = new_cost
+                    priority = new_cost + heuristic(goal, next)
+                    frontier.put(PrioritizedItem(priority, next))
+                    came_from[next] = current
+
+        if goal not in came_from:
+            return []
+
+        path = [goal]
+        while path[-1] != start and path[-1] != None:
+            path.append(came_from[path[-1]])
+
+        return list(reversed(path))[1:]  # Exclude start from path
+
 
     def speedsBroadcast(self):
         '''
@@ -548,6 +787,10 @@ def calculate_movement_from_factors(factors: List[Factor]):
             out_list[i] += factor.twist[i]
 
     return out_list
+
+
+def heuristic(goal: NodePosition, next: NodePosition):
+    return ((goal.x - next.x)**2 + (goal.y - next.y)**2)**0.5
 
 
 def main(args=None):
