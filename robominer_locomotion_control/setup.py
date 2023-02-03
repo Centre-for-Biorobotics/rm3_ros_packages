@@ -26,7 +26,8 @@ setup(
         'console_scripts': [
             'kinematics_input_handler = robominer_locomotion_control.kinematics_input_handler_node:main',
             'trajectory_manager = robominer_locomotion_control.trajectory_manager:main',
-            'pilot = robominer_locomotion_control.pilot:main'
+            'pilot = robominer_locomotion_control.pilot:main',
+            'pathfinder = robominer_locomotion_control.pathfinder.pathfinder:main'
         ],
     },
 )

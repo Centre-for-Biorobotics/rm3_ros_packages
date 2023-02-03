@@ -1,0 +1,33 @@
+Pathfinder:
+    Dt: 0.01
+    ReferenceFrame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom"
+
+Control:
+    PID:
+        Direction:
+            Kp: 2
+            Ki: 0
+            Kd: 0
+            Setpoint: 0
+            Saturation: [-20, 20]
+
+        Horizontal:
+            Kp: 5
+            Ki: 0
+            Kd: 0
+            Setpoint: 0.2
+            Saturation: [-5, 5]
+
+        XAxis:
+            Kp: 1
+            Ki: 0
+            Kd: 0
+            Setpoint: 0
+            Saturation: [-40, 40]
+
+        XAxisTurning:
+            Kp: 40
+            Ki: 0
+            Kd: 0
+            Setpoint: 0
+            Saturation: [-40, 40]
