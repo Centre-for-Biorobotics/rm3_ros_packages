@@ -258,6 +258,8 @@ class RM3InverseKinematics(Node):
         self.x_axis_pid = PID(1, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
         self.x_axis_turning__pid = PID(40, 0, 0, 0, output_limits=(-40, 40), auto_mode=False)
 
+        self.robot_speed_pub = self.create_publisher(TwistStamped, '/move_cmd_vel', 10)
+
         self.publisher_error_direction = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
         self.publisher_output_direction = self.create_publisher(Float64, '/whiskerErrors/direction_out', 10)
         self.publisher_error_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis', 10)
@@ -312,7 +314,7 @@ class RM3InverseKinematics(Node):
         #     self.publisher_motor2_commands = self.create_publisher(Float64, '/motor2/motor_rpm_setpoint', 10)
         #     self.publisher_motor3_commands = self.create_publisher(Float64, '/motor3/motor_rpm_setpoint', 10)
 
-        self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
+        #self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
 
         self.sub_whisker = self.create_subscription(
             WhiskerArray, '/WhiskerStates', self.onWhisker, 100)
@@ -386,10 +388,10 @@ class RM3InverseKinematics(Node):
         Process whisker output for movement input.
         """
         # self.get_logger().info("-----")
-        self.log_surroundings()
+        # self.log_surroundings()
         # self.get_logger().info('Node amount: ' + str(len(self.graph.nodes)))
         # self.get_logger().info('Angle: ' + str(self.angle))
-        self.get_logger().info('Pos: ' + str(self.curr_node_position))
+        # self.get_logger().info('Pos: ' + str(self.curr_node_position))
 
         self.whisker_matrix = create_whisker_matrix(msg.whiskers)
 
@@ -417,6 +419,8 @@ class RM3InverseKinematics(Node):
 
         self.x_axis_movement = self.calcAxisError(self.x_axis_pid, self.publisher_error_x_axis, FORWARD, 0.3, 0.7)
         self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
+
+        self.determine_and_publish_movement()
         
     def assignDirectionError(self):
         # towards left
@@ -454,6 +458,9 @@ class RM3InverseKinematics(Node):
         self.cmd_vel_y = msg.twist.linear.y
         self.cmd_vel_yaw = msg.twist.angular.z
 
+
+        self.inverseKinematics()
+
     # def joystickCallback(self, msg):
     #     """
     #     Callback function for the joystick topic. Parses a joystick message to body velocities in x, y, and yaw
@@ -474,9 +481,7 @@ class RM3InverseKinematics(Node):
         speed_multiplier = 0
         speed_multiplier += self.speed_multiplier + self.turbo_multiplier
 
-        movement_list = self.determine_movement()
-
-        self.robot_twist = np.array(movement_list) * speed_multiplier
+        self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw]) * speed_multiplier
 
         self.screw_speeds = (1.0/self.screw_radius) * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm
         self.speedsBroadcast()
@@ -512,6 +517,20 @@ class RM3InverseKinematics(Node):
             txt += "\n"
 
         self.get_logger().info(txt)
+
+    def determine_and_publish_movement(self) -> None:
+        twist_msg = TwistStamped()
+
+        mov_lst = self.determine_movement()
+
+        twist_msg.header.stamp = self.get_clock().now().to_msg()
+        twist_msg.header.frame_id = "base_link"
+        twist_msg.twist.linear.x = float(mov_lst[0])
+        twist_msg.twist.linear.y = float(mov_lst[1])
+        twist_msg.twist.angular.z = float(mov_lst[2])
+
+        self.robot_speed_pub.publish(twist_msg)
+
         
     def determine_movement(self) -> List[float]:
         """
