@@ -4,6 +4,7 @@ from queue import PriorityQueue
 from typing import List, Any
 
 from robominer_locomotion_control.pathfinder.graph.node_position import NodePosition
+from robominer_locomotion_control.pathfinder.graph.graph import Graph
 
 
 @dataclass(order=True)
@@ -12,7 +13,7 @@ class PrioritizedItem:
     item: Any=field(compare=False)
 
 
-def a_star(graph, start, goal) -> List[NodePosition]:
+def a_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[NodePosition]:
     frontier: PriorityQueue[PrioritizedItem] = PriorityQueue()
     frontier.put(PrioritizedItem(0, start))
     came_from = dict()
@@ -41,7 +42,7 @@ def a_star(graph, start, goal) -> List[NodePosition]:
     while path[-1] != start and path[-1] != None:
         path.append(came_from[path[-1]])
 
-    return list(reversed(path))[1:]  # Exclude start from path
+    return list(reversed(path))  # Exclude start from path
 
 def heuristic(goal: NodePosition, next: NodePosition):
     return ((goal.x - next.x)**2 + (goal.y - next.y)**2)**0.5

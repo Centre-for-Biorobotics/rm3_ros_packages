@@ -19,7 +19,7 @@ Control:
             Saturation: [-5, 5]
 
         XAxis:
-            Kp: 1
+            Kp: 20
             Ki: 0
             Kd: 0
             Setpoint: 0
