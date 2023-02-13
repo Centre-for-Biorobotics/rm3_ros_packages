@@ -106,9 +106,9 @@ class TrajectoryManager(Node):
                 self.traj_y_pos_next = self.sinAmp * np.sin((self.trajectory_time + 0.1) * self.sinFreq)
                 x = self.traj_x_pos_next - self.traj_x_pos
                 y = self.traj_y_pos_next - self.traj_y_pos
-                traj_yaw_pos = np.arctan2(y, x)
+                self.traj_yaw_pos = np.arctan2(y, x)
             else:
-                traj_yaw_pos = 0.0 # or something...
+                self.traj_yaw_pos = 0.0 # or something...
         # ---------------------------------------------------------------------
 
         # ---------------------------------------------------------------------
@@ -121,9 +121,9 @@ class TrajectoryManager(Node):
                 self.traj_y_pos_next = self.sinAmp * np.sin(self.liss_b * (self.trajectory_time + 0.1) * self.sinFreq)
                 x = self.traj_x_pos_next - self.traj_x_pos
                 y = self.traj_y_pos_next - self.traj_y_pos
-                traj_yaw_pos = np.arctan2(y, x)
+                self.traj_yaw_pos = np.arctan2(y, x)
             else:
-                traj_yaw_pos = 0.0 # or something...
+                self.traj_yaw_pos = 0.0 # or something...
         # ---------------------------------------------------------------------
 
         # ---------------------------------------------------------------------
