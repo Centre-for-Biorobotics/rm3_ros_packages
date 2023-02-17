@@ -38,6 +38,7 @@ set(msg_files
   "msg/SpectrometerFrequencyCommand.msg"
   "msg/FiducialTransform.msg"
   "msg/FiducialTransformArray.msg"
+  "msg/TrajectoryPoint.msg"
   )
 
 

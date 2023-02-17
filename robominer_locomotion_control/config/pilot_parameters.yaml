@@ -1,0 +1,11 @@
+Pilot:
+    dt: 0.01
+    reference_frame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom"
+
+Control:
+    PID:
+        Kp: [7.0, 7.0, 4.5]
+        Kd: [1.0, 1.0, 0.1]
+        Ki: [0.2, 0.2, 0.01]
+        windup: [1.0, 1.0, 1.0]
+        saturation: [0.1, 0.13, 0.3]

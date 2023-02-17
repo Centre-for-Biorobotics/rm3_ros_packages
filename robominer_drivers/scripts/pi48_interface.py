@@ -7,8 +7,8 @@ The sensor is supposed to stream at 250Hz, but from USB we get data at approx.62
 TODO: figure out if this is OK, if not figure out what to do about it.
 
 In RM3 the pi48 is oriented as:
-x: right
-y: front
+x: front
+y: left
 z: up
 
 @author: Roza Gkliva
@@ -139,13 +139,13 @@ class pi48Interface(Node):
         GYRO_Z=float(GYRO[2])*2**(-17) * np.pi / 180.0
 
         ACC_ROS = Vector3()
-        ACC_ROS.x = ACC_X
-        ACC_ROS.y = ACC_Y
+        ACC_ROS.x = ACC_Y
+        ACC_ROS.y = -ACC_X
         ACC_ROS.z = ACC_Z
 
         GYRO_ROS = Vector3()
-        GYRO_ROS.x = GYRO_X
-        GYRO_ROS.y = GYRO_Y
+        GYRO_ROS.x = GYRO_Y
+        GYRO_ROS.y = -GYRO_X
         GYRO_ROS.z = GYRO_Z
 
         self.imu_msg.header.stamp = self.get_clock().now().to_msg()

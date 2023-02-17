@@ -12,18 +12,21 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py'))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Roza Gkliva',
-    maintainer_email='roza.gkliva@ttu.ee',
+    maintainer = 'Roza Gkliva, Walid Remmas',
+    maintainer_email = 'roza.gkliva@ttu.ee, walid.remmas@taltech.ee',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'open_loop_steering = robominer_locomotion_control.open_loop_steering:main'
+            'kinematics_input_handler = robominer_locomotion_control.kinematics_input_handler_node:main',
+            'trajectory_manager = robominer_locomotion_control.trajectory_manager:main',
+            'pilot = robominer_locomotion_control.pilot:main'
         ],
     },
 )

@@ -1,0 +1,29 @@
+Trajectory:
+    dt: 0.05
+    type: "Elliptic" #select between "Elliptic", "Lissajous", "Waypoints"
+    gamma: [1.0, 1.0, 1.0] # Gamma parameters for x,y and yaw
+
+Elliptic:
+    cosFreq: 0.015
+    sinFreq: 0.015
+    cosAmp: 2
+    sinAmp: 3
+    line_of_sight: True # Will make the desired yaw to be tangent to (x,y) if enabled
+
+Lissajous:
+    # See here how a and b affect the trajectory: https://fr.wikipedia.org/wiki/Courbe_de_Lissajous
+    a: 1.0
+    b: 2.0
+    cosFreq: 0.01
+    sinFreq: 0.01
+    cosAmp: 2.0
+    sinAmp: 2.0
+    line_of_sight: True # Will make the desired yaw to be tangent to (x,y) if enabled
+
+Waypoints:
+    waypoint_time: [5, 5, 5, 5, 5] # time to stay at each setpoint
+    waypoint_x:   [1, 1,  1,  2,  2]
+    waypoint_y:   [0, 1,  1,  1,  0]
+    waypoint_yaw: [0, 0, 45, 90, 45] # in degrees
+    line_of_sight: False # Not implemented yet here
+    repeat: True # play waypoints on repeat if enabled
