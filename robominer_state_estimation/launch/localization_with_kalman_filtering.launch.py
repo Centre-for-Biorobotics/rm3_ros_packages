@@ -24,14 +24,14 @@ def generate_launch_description():
 
     static_transform = Node(package="tf2_ros",
                             executable="static_transform_publisher",
-                            arguments=["0.44", "0", "0.01", "0", "0", "0",
-                                       "base_link", "front_imu_frame"]
+                            arguments=["0.0", "0", "0.047", "0", "0", "0",
+                                       "base_link_est_ukf", "bno_imu_frame"]
                             )
 
     static_transform2 = Node(package="tf2_ros",
                              executable="static_transform_publisher",
                              arguments=["0", "0", "0", "0", "0", "0",
-                                        "base_link", "imu_frame"]
+                                        "base_link_est_ukf", "pi48_imu_frame"]
                              )
 
     rviz_node = Node(package="rviz2",

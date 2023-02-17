@@ -44,7 +44,7 @@ class DynamicsRM3(Node):
         self.useImu = state_estimation_parameters['robot']['enableIMU']
         self.imu_orientation = Quaternion()
         if self.useImu:
-            self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
+            self.create_subscription(Imu, '/pi48_imu/data', self.imu_callback, 10)
             # self.create_subscription(Imu, '/bno080_imu', self.imu_callback, 10)
 
         # Dynamic model variables
@@ -103,8 +103,8 @@ class DynamicsRM3(Node):
         self.create_subscription(MotorModuleCommand, '/motor2/motor_rpm_setpoint', self.rear_left, 10)
         self.create_subscription(MotorModuleCommand, '/motor3/motor_rpm_setpoint', self.front_left, 10)
 
-        self.estimated_odom_pub = self.create_publisher(Odometry, '/estimated_odom', 10)
-        self.estimated_wrench_pub = self.create_publisher(WrenchStamped, '/estimated_wrench', 10)
+        self.estimated_odom_pub = self.create_publisher(Odometry, '/estimated_odom_FDynamics', 10)
+        self.estimated_wrench_pub = self.create_publisher(WrenchStamped, '/estimated_wrench_FDynamics', 10)
 
         self.dynamics_estimation_timer = self.create_timer(self.dt, self.computeDynamics)
 
