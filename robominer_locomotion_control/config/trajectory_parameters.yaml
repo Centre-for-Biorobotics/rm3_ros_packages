@@ -1,7 +1,7 @@
 Trajectory:
     dt: 0.05
     type: "Waypoints" #select between "Elliptic", "Lissajous", "Waypoints"
-    gamma: [1.0, 1.0, 1.0] # Gamma parameters for x,y and yaw
+    gamma: [0.25, 0.25, 0.25] # Gamma parameters for x,y and yaw
 
 Elliptic:
     cosFreq: 0.015
@@ -21,7 +21,7 @@ Lissajous:
     line_of_sight: True # Will make the desired yaw to be tangent to (x,y) if enabled
 
 Waypoints:
-    waypoint_time: [10, 10, 10, 10] # time to stay at each setpoint
+    waypoint_time: [25, 25, 25, 25] # time to stay at each setpoint
     waypoint_x:   [5, 5,  0,  0]
     waypoint_y:   [0, 5,  5,  0]
     waypoint_yaw: [0, 0, 30, -30] # in degrees

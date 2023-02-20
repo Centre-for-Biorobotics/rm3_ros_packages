@@ -204,6 +204,13 @@ class TrajectoryManager(Node):
         traj_msg.twist.angular.y = 0.0
         traj_msg.twist.angular.z = self.traj_vel[2]
 
+        traj_msg.acceleration.linear.x = self.traj_acc[0]
+        traj_msg.acceleration.linear.y = self.traj_acc[1]
+        traj_msg.acceleration.linear.z = 0.0
+        traj_msg.acceleration.angular.x = 0.0
+        traj_msg.acceleration.angular.y = 0.0
+        traj_msg.acceleration.angular.z = self.traj_acc[2]
+
         self.reference_trajectory_pub_.publish(traj_msg)
 
         ref_yaw_msg.data = np.rad2deg(self.traj_pos[2])
