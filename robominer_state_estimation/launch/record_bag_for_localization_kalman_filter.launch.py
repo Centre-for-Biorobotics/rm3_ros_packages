@@ -4,9 +4,9 @@ import launch
 def generate_launch_description():
     uros_agent = launch.actions.ExecuteProcess(
         cmd=[
-            'ros2', 'micro_ros_agent', 'micro_ros_agent',
+            'ros2', 'run', 'micro_ros_agent', 'micro_ros_agent',
             'udp4',
-            '--port 8888',
+            '--port', '8888',
             '-v6',
             ],
         output='screen'
