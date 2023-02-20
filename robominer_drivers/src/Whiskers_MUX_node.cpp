@@ -69,7 +69,6 @@
 
 #include "Whiskers_MUX_node.h"
 
-
    
 bool use_debug_mode = true;
 bool use_console_print = true;
@@ -193,11 +192,11 @@ void WhiskersPublisher::timer_callback(void)
 
     for(uint8_t m=0; m<NUM_MUX; m++)
     {
-        // Deselect all channels of the previous multiplexer    
+        // Deselect all channels of the previous multiplexer
         grid->muxDisablePrevious(m);
 
         for(uint8_t i=0; i<NUM_SENSORS; i++)
-        { 
+        {
             // Switch to next multiplexed port if there is an initialized sensor
             if(!grid->sensors[m][i].initOK)
             {
@@ -207,14 +206,14 @@ void WhiskersPublisher::timer_callback(void)
             // Read sensor with selected type of representation
             if(grid->sensors[m][i].read(grid->r) > 0) // If code is -1, it means the sensor has never been initialized (-> ignore now).
                                                       // If code is > 0, it means there was a reading error, but the sensor has been initialized before.
-            {                
+            {
                 RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),"Error reading sensor %d.%d; initializing again.",m,i);
                 if(grid->sensors[m][i].initialize(grid->fastMode) == 2)
                 {
                     RCLCPP_WARN(rclcpp::get_logger("whiskers_interface"),"Previously initialized sensor %d.%d now disabled.",m,i);
                 }
-            }                      
-        }    
+            }
+        }
     }
       
     // Assemble and publish message to ROS
@@ -436,8 +435,12 @@ void SensorGrid::muxForceDisableAll(uint8_t totalNum)
     {
         if(::use_debug_mode) { printf("  >> Disabling multiplexer at address 0x%02X\n",m); }
         Wire.beginTransmission(m);
-        Wire.write(0);
+        Wire.write((uint8_t)0x00);
         Wire.endTransmission();
+
+//        Wire.requestFrom(m,1);
+//        uint8_t sent_data=Wire.read();
+//        if (::use_debug_mode) { printf(" Got back: %02X\n",sent_data); }
     }
 }
 
@@ -634,8 +637,13 @@ void SensorGrid::Multiplexer::disable(void)
 {
     if(::use_debug_mode) { printf("  >> Disabling multiplexer at address 0x%02X\n",address); }
     Wire.beginTransmission(address);
-    Wire.write(0);
+    Wire.write((uint8_t)0x00);
     Wire.endTransmission();
+
+//    Wire.requestFrom(address,1);
+//    uint8_t sent_data=Wire.read();
+//    if (::use_debug_mode) { printf(" Got back: %02X\n",sent_data); }
+
 }
 
 /**
@@ -655,10 +663,21 @@ void SensorGrid::Multiplexer::selectChannel(uint8_t ch, bool init)
         if(::use_debug_mode) { printf("  >> Skipping channel selection: 0X%02X, ch. %d\n",address,ch); }
         return; 
     }
-    if(::use_debug_mode) { printf("  >> Selecting channel: 0X%02X, ch. %d\n",address,ch); }
+    if(::use_debug_mode) { printf("  >> Select mux 0X%02X, ch. %d\n",address,ch); }
+
+    uint8_t sent_data=0;
+
+    sent_data = 1 << ch;
+//    if (::use_debug_mode) { printf(" Sent to mux: %02X\n",sent_data); }
     Wire.beginTransmission(address);
-    Wire.write(1 << ch);
-    Wire.endTransmission();  
+    Wire.write(sent_data);
+    Wire.endTransmission();
+
+//    Wire.requestFrom(address,1);
+//    sent_data=Wire.read();
+//    if (::use_debug_mode) { printf(" Got back: %02X\n",sent_data); }
+//    Wire.endTransmission(); // ???
+
 }
 
 /**
@@ -703,18 +722,22 @@ void SensorGrid::HallSensor::setGridPosition(uint8_t mNum, uint8_t sNum)
  */
 int SensorGrid::HallSensor::initialize(bool fastMode, Representation r)
 {
+    const int maxAttempts = 3; // default was 5
     int attemptNum = 0;
     bool checkOK = false;
     initOK = false;    
     
-    while(!checkOK && attemptNum < 5)
+    while(!checkOK && attemptNum < maxAttempts)
     {
         attemptNum++;  
-        if(::use_debug_mode) { printf("   > Attempt: %d/5\n",(attemptNum)); }
-        sensor.begin();  
+        if(::use_debug_mode) { printf("   > Attempt: %d/%d\n",(attemptNum),maxAttempts); }
+        sensor.begin();
+//        if(::use_debug_mode) { printf("   > > Survived sensor.begin \n"); }
+
         if(fastMode)
         {
             bool ret = sensor.setAccessMode(sensor.FASTMODE);
+//            if(::use_debug_mode) { printf("   > > Survived sensor.setAccessMode? \n"); }
             if(ret == BUS_ERROR)
             {
                 if(::use_debug_mode) { printf("   > Bus error on access mode = FASTMODE\n"); }
@@ -803,6 +826,9 @@ int SensorGrid::HallSensor::read(Representation r)
     {
         if(::use_debug_mode) { printf("   < Error reading sensor %d.%d. Error (%d) was: %s\n",pos[0],pos[1],errno,strerror(errno)); }
         hasError = true;
+//        i2c_recover_bus((uint8_t)I2C_BUS_ID);
+//        Bus recovery is 9x SCL cycles
+//        It's done from one of the Adafruit Feather M0s
         return err;
     }
 
