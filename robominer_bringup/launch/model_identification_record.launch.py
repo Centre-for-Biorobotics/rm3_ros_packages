@@ -17,7 +17,7 @@ def generate_launch_description():
             '/temperature_sensor/temperature',
             '/bno080_imu',
             '/pi48_imu/data_raw',
-            # '/pi48_imu/complementary_data',
+            '/pi48_imu/complementary_data',
             '/robot_pose',
             '/robot_pose_filtered',
             ],
