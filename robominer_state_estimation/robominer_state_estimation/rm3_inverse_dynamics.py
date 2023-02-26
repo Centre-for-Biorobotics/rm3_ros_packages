@@ -49,14 +49,9 @@ class RM3InverseDynamics(Node):
     def __init__(self):
         super().__init__('rm3_inverse_kinematics')
         self.radpersec_to_rpm = 60.0 / (2*pi)
-        self.kinematics_timer_period = 0.1      # seconds
         self.cmd_vel_x = 0.0
         self.cmd_vel_y = 0.0
         self.cmd_vel_yaw = 0.0
-
-        self.sub_body_vel = self.create_subscription(
-            TwistStamped, '/robot_body_vel', self.inputCallback, 10
-        )
 
         self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
         self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
@@ -74,11 +69,20 @@ class RM3InverseDynamics(Node):
         with open(parameters_from_yaml, 'r') as file:
             state_estimation_parameters = yaml.load(file, Loader=yaml.FullLoader)
         self.robotDynamics = RobotDynamics(state_estimation_parameters)
-        self.dynamics_timer = self.create_timer(self.kinematics_timer_period, self.inverseDynamics)
+
+        # Based on inverse dynamics
+        allocation_matrix = np.dot(self.robotDynamics.sigma, self.robotDynamics.B)
+        self.allocation_matrix_inv = np.linalg.pinv(allocation_matrix)
+
+        self.sub_body_vel = self.create_subscription(
+            TwistStamped, '/robot_body_vel', self.inputCallback, 10
+        )
+
 
     def inputCallback(self, msg):
         """
-        Callback function for the keyboard topic. Parses a keyboard message to body velocities in x, y, and yaw
+        Solves the inverse dynamics problem to calculate actuator speeds from body velocity.
+        Calls to publish the individual motor speeds.
         @param: self
         @param: msg - Twist message format
         """
@@ -86,23 +90,19 @@ class RM3InverseDynamics(Node):
         self.cmd_vel_y = msg.twist.linear.y
         self.cmd_vel_yaw = msg.twist.angular.z
 
-    def inverseDynamics(self):
-        """
-        Solves the inverse dynamics problem to calculate actuator speeds from body velocity.
-        Calls to publish the individual motor speeds.
-        @param: self
-        """
+        robot_tau_6D0F = [self.cmd_vel_x, self.cmd_vel_y, 0.0, 0.0, 0.0, self.cmd_vel_yaw]
 
-        self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw])
+        self.screw_speeds = np.dot(self.allocation_matrix_inv, robot_tau_6D0F)
 
-        # Based on inverse dynamics
-        allocation_matrix = np.dot(self.robotDynamics.sigma, self.robotDynamics.B)
-        allocation_matrix_inv = np.linalg.pinv(allocation_matrix)
-        robot_tau_6D0F = [self.robot_twist[0], self.robot_twist[1], 0.0, 0.0, 0.0, self.robot_twist[2]]
-
-        self.screw_speeds = np.dot(allocation_matrix_inv, robot_tau_6D0F) * self.radpersec_to_rpm
+        max_speed = 100
+        for i in range(4):
+            if self.screw_speeds[i] < -max_speed:
+                self.screw_speeds[i] = -max_speed
+            if self.screw_speeds[i] > max_speed:
+                self.screw_speeds[i] = max_speed
 
         self.speedsBroadcast()
+
 
     def speedsBroadcast(self):
         '''
@@ -116,10 +116,6 @@ class RM3InverseDynamics(Node):
             self.motor_cmd[m].header.frame_id = motors[m]
             self.motor_cmd[m].motor_id = motors_dict[motors[m]]
             self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
-        # else:
-        #     self.motor_cmd = [Float64() for i in range(4)]
-        #     for m in range(4):
-        #         self.motor_cmd[m].data = self.screw_speeds[m]
 
         self.publisher_motor0_commands.publish(self.motor_cmd[0])
         self.publisher_motor1_commands.publish(self.motor_cmd[1])

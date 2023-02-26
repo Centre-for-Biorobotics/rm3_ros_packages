@@ -52,6 +52,8 @@ class PIDController():
         saturation = config_params["Control"]["PID"]["saturation"]
         windup = config_params["Control"]["PID"]["windup"]
 
+        self.modelBased = config_params["Control"]["PID"]["useModel"]
+
         self.Kp = np.diag([Kp[0], Kp[1], 0.0, 0.0, 0.0, Kp[2]])
         self.Kd = np.diag([Kd[0], Kd[1], 0.0, 0.0, 0.0, Kd[2]])
         self.Ki = np.diag([Ki[0], Ki[1], 0.0, 0.0, 0.0, Ki[2]])
@@ -83,6 +85,15 @@ class PIDController():
                 self.int_position_error[i] = self.windup[i]
 
         PID = np.dot(self.Kp , e1) + np.dot(self.Kd, e2) + np.dot(self.Ki, self.int_position_error)
+
+        if self.modelBased:
+            dyn_ff = np.zeros(6)
+            M = self.robotDynamics.M
+            D = self.robotDynamics.drag
+            # dyn_comp = -np.dot(D, np.dot(self.robotDynamics.J_inv, vI))
+            dyn_comp = -np.dot(D, v)
+
+            PID = np.dot(M, PID + dyn_comp)
 
         # saturation of control output
         for i in range(6):
@@ -160,11 +171,12 @@ class SMController:
             dyn_ff = np.zeros(6)
             M = self.robotDynamics.M
             D = self.robotDynamics.drag
+            # dyn_comp = -np.dot(D, np.dot(self.robotDynamics.J_inv, vI))
             dyn_comp = -np.dot(D, v)
 
             J_inv_dot = (self.robotDynamics.J_inv - self.J_prev) / self.dt
 
-            u = np.dot(M, u + np.dot(J_inv_dot, vI) - 0*self.alpha * (vI - np.dot(self.robotDynamics.J,v) ) + \
+            u = np.dot(M, u + np.dot(J_inv_dot, vI) + self.alpha * (vI - np.dot(self.robotDynamics.J,v) ) + \
                        np.dot(self.robotDynamics.J_inv, aI)) + dyn_comp
 
         for i in range(6):
