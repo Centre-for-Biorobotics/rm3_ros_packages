@@ -49,8 +49,8 @@ def generate_launch_description():
             '/reference_trajectory',
             '/reference_yaw',
             '/cmd_vel_keyboard',
-            '/move_cmd_vel'
-            ],
+            '/move_cmd_vel',
+            '/robot_odom'],
         output='screen'
         )
 
