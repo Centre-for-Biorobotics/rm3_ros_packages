@@ -72,6 +72,8 @@ class Pilot(Node):
             self.J_inv = np.zeros((6,6)) # Inverse of Jacobian matrix of the robot
             self.pos_prev = np.zeros(6)
             self.sub_imu = self.create_subscription(Imu, imu_topic, self.onImu, 10)
+            self.imu_offset = 0
+            self.fixed_offset = False
 
     def destroy_node(self):
         self.get_logger().info('Sending zero commands before Pilot node destruction')
@@ -103,7 +105,11 @@ class Pilot(Node):
         orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
         (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list)
 
-        self.pos[5] = yaw
+        if not self.fixed_offset:
+            self.imu_offset = yaw
+            self.fixed_offset = True
+
+        self.pos[5] = yaw - self.imu_offset
         # update angular_velocity
         self.vel[3] = 0.0
         self.vel[4] = 0.0
