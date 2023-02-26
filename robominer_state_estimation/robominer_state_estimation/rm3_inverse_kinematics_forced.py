@@ -113,15 +113,15 @@ class RM3InverseKinematicsForced(Node):
         self.robot_twist = np.array([self.cmd_vel_x, self.cmd_vel_y, self.cmd_vel_yaw])
         self.screw_speeds = (1.0/self.screw_radius) * np.dot(self.platform_kinematics, self.robot_twist) * self.radpersec_to_rpm
 
-        RPM1 = 5.0
-        RPM2 = 10.0
-        RPM3 = 15.0
+        RPM1 = 5
+        RPM2 = 10
+        RPM3 = 15
 
         single_dof_velocity = np.max(np.abs(self.robot_twist))
 
         for m in range(4):
             if single_dof_velocity <= 0.0:
-                self.screw_speeds[m] = 0.0
+                self.screw_speeds[m] = 0
             elif single_dof_velocity < 1.0:
                 if self.screw_speeds[m] > 0.0:
                     self.screw_speeds[m] = RPM1
