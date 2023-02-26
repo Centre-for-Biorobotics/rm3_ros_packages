@@ -5,8 +5,7 @@ def generate_launch_description():
     bag_recording = launch.actions.ExecuteProcess(
         cmd=[
             'ros2', 'bag', 'record',
-            '/cmd_vel_keyboard'
-
+            '/cmd_vel_keyboard',
             '/motor0/motor_rpm_setpoint',
             '/motor1/motor_rpm_setpoint',
             '/motor2/motor_rpm_setpoint',
@@ -18,8 +17,9 @@ def generate_launch_description():
             '/temperature_sensor/temperature',
             '/bno080_imu',
             '/pi48_imu/data_raw',
-            # '/pi48_imu/complementary_data',
+            '/pi48_imu/complementary_data',
             '/robot_pose',
+            '/robot_pose_filtered',
             ],
         output='screen'
         )
