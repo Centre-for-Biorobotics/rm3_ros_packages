@@ -162,7 +162,7 @@ class Pilot(Node):
 
         self.cmd_pub_.publish(twist_msg)
         self.publishRobotOdom()
-        
+
         self.p_prev = self.p
 
     def publishRobotOdom(self):
@@ -188,8 +188,6 @@ class Pilot(Node):
 
         self.robot_odom_pub.publish(odom_msg)
 
-
-self.reference_trajectory_pub_.publish(traj_msg)
     def updateJacobian(self, phi, theta, psi):
         """
         Function to update the Jacobian matrix.
