@@ -46,6 +46,7 @@ class Pilot(Node):
 
         self.p = np.zeros(6)
         self.p_prev = np.zeros(6)
+        self.v = np.zeros(6)
 
         if type == "PID":
             self.controller = PIDController(config_params)
@@ -60,6 +61,9 @@ class Pilot(Node):
 
         self.cmd_pub_ = self.create_publisher(
             TwistStamped, '/move_cmd_vel', 10)
+
+        self.robot_odom_pub = self.create_publisher(
+            TrajectoryPoint, '/robot_odom', 10)
 
         self.pilot_publish_period = self.dt # seconds
         self.pilot_timer = self.create_timer(self.pilot_publish_period, self.pilot_stepper)
@@ -137,15 +141,15 @@ class Pilot(Node):
         if not self.in_simulation:
             self.updateJacobian(0.0, 0.0, self.pos[5])
             self.vel[0:2] = (self.p[0:2] - self.p_prev[0:2]) / self.dt
-            v = np.dot(self.J_inv, np.array([self.vel[0], self.vel[1], 0.0, 0.0, 0.0, self.vel[5]]))
+            self.v = np.dot(self.J_inv, np.array([self.vel[0], self.vel[1], 0.0, 0.0, 0.0, self.vel[5]]))
 
         else:
-            v = np.array([self.vel[0], self.vel[1], 0.0, 0.0, 0.0, self.vel[5]])
+            self.v = np.array([self.vel[0], self.vel[1], 0.0, 0.0, 0.0, self.vel[5]])
 
         vI = np.array([self.vel_d[0], self.vel_d[1], 0.0, 0.0, 0.0, self.vel_d[2]])
         aI = np.array([self.acc_d[0], self.acc_d[1], 0.0, 0.0, 0.0, self.acc_d[2]])
 
-        control_output = self.controller.control(self.p, v, pI, vI, aI)
+        control_output = self.controller.control(self.p, self.v, pI, vI, aI)
 
         body_vel = np.array([control_output[0], control_output[1], control_output[5]])
 
@@ -157,9 +161,35 @@ class Pilot(Node):
         twist_msg.twist.angular.z = body_vel[2]
 
         self.cmd_pub_.publish(twist_msg)
-
+        self.publishRobotOdom()
+        
         self.p_prev = self.p
 
+    def publishRobotOdom(self):
+        odom_msg = TrajectoryPoint()
+        odom_msg.header.stamp = self.get_clock().now().to_msg()
+        odom_msg.header.frame_id = "base_link"
+        odom_msg.pose.position.x = self.p[0]
+        odom_msg.pose.position.y = self.p[1]
+        odom_msg.pose.position.z = 0.0
+
+        q = tf_transformations.quaternion_from_euler(0.0, 0.0, self.p[5])
+        odom_msg.pose.orientation.x = q[0]
+        odom_msg.pose.orientation.y = q[1]
+        odom_msg.pose.orientation.z = q[2]
+        odom_msg.pose.orientation.w = q[3]
+
+        odom_msg.twist.linear.x = self.v[0]
+        odom_msg.twist.linear.y = self.v[1]
+        odom_msg.twist.linear.z = 0.0
+        odom_msg.twist.angular.x = 0.0
+        odom_msg.twist.angular.y = 0.0
+        odom_msg.twist.angular.z = self.v[5]
+
+        self.robot_odom_pub.publish(odom_msg)
+
+
+self.reference_trajectory_pub_.publish(traj_msg)
     def updateJacobian(self, phi, theta, psi):
         """
         Function to update the Jacobian matrix.
