@@ -3,9 +3,11 @@
 Takes robot body velocities as input from joystick.
 Calculates inverse kinematics to determine screw velocities.
 Publishes screw velocities
+
 @author: Roza Gkliva
 @contact: roza.gkliva@ttu.ee
 @date: 29-08-2020
+
 """
 
 import rclpy
