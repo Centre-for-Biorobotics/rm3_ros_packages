@@ -40,11 +40,11 @@ class Graph:
             NodePosition(x + 1, y),
             NodePosition(x - 1, y),
             NodePosition(x, y + 1),
-            NodePosition(x, y - 1) #,
-            #NodePosition(x + 1, y + 1),
-            #NodePosition(x + 1, y - 1),
-            #NodePosition(x - 1, y + 1),
-            #NodePosition(x - 1, y - 1)
+            NodePosition(x, y - 1),
+            NodePosition(x + 1, y + 1),
+            NodePosition(x + 1, y - 1),
+            NodePosition(x - 1, y + 1),
+            NodePosition(x - 1, y - 1)
         ]
 
         for pos in potential_neighbors:
@@ -67,20 +67,21 @@ class Graph:
         for i in range(distance, -distance - 1, -1):
             for j in range(distance, -distance - 1, -1):
                 this_pos = NodePosition(x + i, y + j)
-                if self.node_exists(this_pos) and not self.nodes[this_pos].passable:
-                    txt += 'P'
                 if i == 0 and j == 0:
-                    txt += ' '
+                    txt += 'P'
+                    continue
+                if self.node_exists(this_pos) and not self.nodes[this_pos].passable:
+                    txt += '|'
                     continue
                 if path is not None and this_pos in path:
-                    txt += 'G'
+                    txt += 'o'
                     continue
                 if not self.node_exists(this_pos):
                     txt += '-'
                     continue
 
                 node: GraphNode = self.nodes[this_pos]
-                txt += '~'
+                txt += ' '
 
             txt += "\n"
 
