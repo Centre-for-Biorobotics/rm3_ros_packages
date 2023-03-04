@@ -8,8 +8,6 @@ Publishes screw velocities
 @date: 29-08-2020
 """
 
-from __future__ import annotations
-
 import rclpy
 from rclpy.parameter import Parameter
 
@@ -17,12 +15,12 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import Joy
 
-from geometry_msgs.msg import Twist, TwistStamped, Point
+from geometry_msgs.msg import Twist, TwistStamped
 from robominer_msgs.msg import MotorModuleCommand
+from std_msgs.msg import Float64
 
 import numpy as np
 from math import tan, pi
-
 
 motors = np.array([
         'front_right',
@@ -37,10 +35,8 @@ motors_dict = {
     "front_left": "3"
 }
 
-
 # rows: motor modules {fl, fr, rl, rr}
 # cols: strafing direction {F, B, L, R}
-
 
 class RM3InverseKinematics(Node):
     def __init__(self):
@@ -99,9 +95,9 @@ class RM3InverseKinematics(Node):
         #     self.publisher_motor2_commands = self.create_publisher(Float64, '/motor2/motor_rpm_setpoint', 10)
         #     self.publisher_motor3_commands = self.create_publisher(Float64, '/motor3/motor_rpm_setpoint', 10)
 
-        #self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
+        self.kinematics_timer = self.create_timer(self.kinematics_timer_period, self.inverseKinematics)
 
-    def inputCallback(self, msg: Twist):
+    def inputCallback(self, msg):
         """
         Callback function for the keyboard topic. Parses a keyboard message to body velocities in x, y, and yaw
         @param: self
@@ -111,7 +107,6 @@ class RM3InverseKinematics(Node):
         self.cmd_vel_y = msg.twist.linear.y
         self.cmd_vel_yaw = msg.twist.angular.z
 
-        self.inverseKinematics()
 
     # def joystickCallback(self, msg):
     #     """
