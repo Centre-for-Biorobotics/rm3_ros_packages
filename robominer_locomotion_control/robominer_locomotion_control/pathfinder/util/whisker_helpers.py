@@ -10,12 +10,13 @@ WHISKERS_PER_ROW_AMOUNT = 8
 
 
 def create_whisker_matrix(whiskers: List[Whisker]):
-    whisker_matrix = [[0 for _ in range(WHISKERS_PER_ROW_AMOUNT)] for _ in range(WHISKER_ROW_AMOUNT)]
+    whisker_matrix = [[None for _ in range(WHISKERS_PER_ROW_AMOUNT)] for _ in range(WHISKER_ROW_AMOUNT)]
 
     for whisker in whiskers:
         whisker_matrix[whisker.pos.row_num][whisker.pos.col_num] = whisker
 
-    return whisker_matrix
+    # Set row to None that don't have a whisker.
+    return [_list if any(_list) else None for _list in whisker_matrix]
 
 
 def whisker_multiplier(col_num: int):
