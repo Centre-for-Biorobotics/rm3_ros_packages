@@ -191,6 +191,9 @@ class RM3Pathfinder(Node):
         whisker_pressures_avg_tmp = {}
         whisker_pressures_max_tmp = {}
         for direction in Direction:
+            if self.whisker_matrix[WHISKER_ROWS[direction]] is None:
+                continue
+
             whisker_pressures_avg_tmp[direction] = calc_whisker_pressure_avg(self.whisker_matrix[WHISKER_ROWS[direction]])
             whisker_pressures_max_tmp[direction] = calc_whisker_pressure_max(self.whisker_matrix[WHISKER_ROWS[direction]])
 
@@ -262,11 +265,18 @@ class RM3Pathfinder(Node):
 
     def assign_direction_error(self):
         # towards left
-        direction = calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[Direction.RIGHT]]) - calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[Direction.LEFT]])
-        
-        perpendicular_direction = calc_whisker_pressure_max(self.whisker_matrix[WHISKER_ROWS[Direction.FORWARD]])
-        direction += -3 * perpendicular_direction if self.tracked_wall_direction == Direction.LEFT else 3 * perpendicular_direction
+        direction = 0
+        if self.whisker_matrix[WHISKER_ROWS[Direction.RIGHT]] is not None:
+            direction += calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[Direction.RIGHT]])
 
+        if self.whisker_matrix[WHISKER_ROWS[Direction.LEFT]] is not None:
+            direction -= calc_whiskers_inclination_euclid(self.whisker_matrix[WHISKER_ROWS[Direction.LEFT]])
+        
+        if self.whisker_matrix[WHISKER_ROWS[Direction.FORWARD]] is not None:
+            # TODO Add backwards direction?
+            perpendicular_direction = calc_whisker_pressure_max(self.whisker_matrix[WHISKER_ROWS[Direction.FORWARD]])
+            direction += -3 * perpendicular_direction if self.tracked_wall_direction == Direction.LEFT else 3 * perpendicular_direction
+        
         self.publisher_error_direction.publish(Float64(data=float(direction)))
 
         pid_dir = self.direction_pid(direction)
@@ -278,8 +288,15 @@ class RM3Pathfinder(Node):
 
     def calcAxisError(self, pid, input_publisher, addDirection, avgWeight, maxWeight):
         # TODO implement axis errors in a way that addDirection isn't needed (instead change PID targets)
-        avg_component = self.whisker_pressures_avg[addDirection] - self.whisker_pressures_avg[addDirection.opposite()]
-        max_component = self.whisker_pressures_max[addDirection] - self.whisker_pressures_max[addDirection.opposite()]
+        avg_component, max_component = 0., 0.
+        if addDirection in self.whisker_pressures_avg and addDirection in self.whisker_pressures_max:
+            avg_component += self.whisker_pressures_avg[addDirection]
+            max_component += self.whisker_pressures_max[addDirection]
+        
+        if addDirection.opposite() in self.whisker_pressures_avg and addDirection.opposite() in self.whisker_pressures_max:
+            avg_component -= self.whisker_pressures_avg[addDirection.opposite()]
+            max_component -= self.whisker_pressures_max[addDirection.opposite()]
+
         total_movement = avgWeight * avg_component + maxWeight * max_component
 
         input_publisher.publish(Float64(data=float(total_movement)))
@@ -410,13 +427,13 @@ class RM3Pathfinder(Node):
         
         factors.append(Factor(
             'Handle forward pressure',
-            100 if self.whisker_pressures_max[Direction.FORWARD] > 0.1 else 0,
+            100 if Direction.FORWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.FORWARD] > 0.1 else 0,
             [0, -0.4, -1] if tracked_wall_direction == Direction.LEFT else [0, 0.4, 1]
         ))
 
         factors.append(Factor(
             'Handle backward pressure',
-            100 if self.whisker_pressures_max[Direction.BACKWARD] > 0.1 else 0,
+            100 if Direction.BACKWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.BACKWARD] > 0.1 else 0,
             [0, 0.4, 1] if tracked_wall_direction == Direction.LEFT else [0, -0.4, -1]
         ))
 
@@ -469,8 +486,6 @@ class RM3Pathfinder(Node):
             DirectionTwist.TURN_LEFT.value if self.direction >= 0 else DirectionTwist.TURN_RIGHT.value
         ))
 
-        
-        
         factors.append(Factor(
             'Forward movement factor',
             1,
