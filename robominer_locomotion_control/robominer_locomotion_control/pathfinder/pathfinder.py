@@ -59,10 +59,7 @@ class RM3Pathfinder(Node):
         self.pathfinder_params = pathfinder_config_params  # parameters related to the navigation algorithm
         self.sim_params = sim_params  # parameters related to the robot
 
-        self.get_logger().info(str(self.sim_params))
-
         self.direction_to_whisker_row_map = get_direction_to_whisker_row_dict(self.sim_params)
-        self.get_logger().error(str(self.direction_to_whisker_row_map))
 
         self.active = False
         self.curr_node_position = None
