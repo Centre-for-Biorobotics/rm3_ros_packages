@@ -1,3 +1,4 @@
+# :warning: **WARNING**: This is the mining feature branch, that differs from the main one, do not merge it to main!
 <p align="center"><img width=60% src=../assets/media/logo_rm_horiz.png?raw=true></p>
 
 

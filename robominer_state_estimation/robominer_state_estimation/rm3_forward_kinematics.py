@@ -64,6 +64,8 @@ class RM3ForwardKinematics(Node):
         self.create_subscription(MotorModuleCommand, '/motor1/motor_rpm_setpoint', self.rear_right, 10)
         self.create_subscription(MotorModuleCommand, '/motor2/motor_rpm_setpoint', self.rear_left, 10)
         self.create_subscription(MotorModuleCommand, '/motor3/motor_rpm_setpoint', self.front_left, 10)
+        #self.create_subscription(MotorModuleCommand, '/drill/drill_rpm_setpoint', self.drill, 10)
+        #self.create_subscription(MotorModuleCommand, '/drill/shaft_rpm_setpoint', self.shaft, 10)
         self.create_subscription(Odometry, '/odom/unfiltered', self.OdomCallback, 10)
 
 
@@ -83,6 +85,19 @@ class RM3ForwardKinematics(Node):
         self.fl_vel = msg.motor_rpm_goal
         # self.get_logger().info(f'front_left: {self.fl_vel}')
 
+    #def drill(self, msg):
+    #    motor_rpm = 0
+    #    if msg.motor_rpm_goal < -20:
+    #        motor_rpm = -20
+    #    elif msg.motor_rpm_goal > 20 :
+    #        motor_rpm = 20
+    #    else :
+    #        motor_rpm = msg.motor_rpm_goal 
+    #    self.drill_speed = motor_rpm
+
+    #def shaft(self, msg):
+    #    self.shaft_speed = msg.motor_rpm_goal
+
     def visualizeScrewsInGazebo(self):
         screw_velocities = Float64MultiArray()
         # A division by a factor was necessary to convert rad/s to whatever is used in velocity controller in gazebo.
@@ -91,6 +106,8 @@ class RM3ForwardKinematics(Node):
         screw_velocities.data.append(int(self.rr_vel) * self.rpm_to_radpersec / velCorrection)
         screw_velocities.data.append(-int(self.rl_vel) * self.rpm_to_radpersec / velCorrection)
         screw_velocities.data.append(int(self.fl_vel) * self.rpm_to_radpersec / velCorrection)
+        # screw_velocities.data.append(-int(self.drill_speed))
+       # screw_velocities.data.append(int(self.shaft_speed))
         self.publisher_screw_rotation.publish(screw_velocities)
 
     def motor_to_body_vel(self):
