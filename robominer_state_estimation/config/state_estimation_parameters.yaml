@@ -1,12 +1,12 @@
 robot:
   enableIMU: True # pose filtering to reduce noise
-  imuTopic: /pi48_imu/data # can be: /pi48_imu/data  -- /bno080_imu --
+  imuTopic: /bno080_imu/data # can be: /pi48_imu/data  -- /bno080_imu --
 dynamics: # see ICRA paper draft for documentation of these parameters
-    dt: 0.05
-    sigma_lat: 4.106
-    sigma_long: 1.358
+    dt: 0.01
+    sigma_lat: 0.2457
+    sigma_long: 0.41
     alpha: 26.5
-    drag: [164.0, 180.0, 200.0, 200.0, 200.0, 11.8]
+    drag: [520.0, 125.0, 200.0, 200.0, 200.0, 7.7]
     mass: 29.0
     dimensions:
         x: 0.95
