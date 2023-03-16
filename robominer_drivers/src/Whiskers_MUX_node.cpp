@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     RCLCPP_INFO(rclcpp::get_logger("whiskers_interface"), "Initializing...");
     
     // GRID OBJECT CONSTRUCTION
-    SensorGrid grid(Cartesian, Grid, true); // Representation, Message format, Hall sensors in fast mode?
+    SensorGrid grid(Spherical, Grid, true); // Representation (Cartesian, Spherical), Message format, Hall sensors in fast mode?
     
     // NODE CONSTRUCTION
     WhiskersPublisher *whiskersPub = new WhiskersPublisher(&grid);// Will immediately poll parameters from the parameter server
