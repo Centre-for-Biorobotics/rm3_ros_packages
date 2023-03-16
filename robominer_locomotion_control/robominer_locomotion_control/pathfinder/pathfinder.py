@@ -37,11 +37,19 @@ from .graph.graph import Graph
 
 from .control.algorithm import PathfinderAlgorithm
 
+from filterpy import kalman
+
 from .util.whisker_helpers import (
     calc_whisker_pressure_avg,
     calc_whisker_pressure_max,
     calc_whiskers_inclination_euclid,
-    create_whisker_matrix
+    create_whisker_matrix,
+    create_bias_matrix,
+    create_averaged_bias_matrix,
+    create_adjusted_whisker_matrix,
+    whiskers_add_noise,
+    whiskers_create_simulated_bias_matrix,
+    whiskers_apply_simulated_bias
 )
 
 @dataclass
@@ -65,6 +73,12 @@ class RM3Pathfinder(Node):
         self.curr_node_position = None
         self.curr_pose = None
 
+        self.whisker_matrix = None
+
+        self.simulated_bias_matrix = None
+        self.final_bias_matrix = None
+        self.bias_matrices = []
+
         self.control_vel : float = 1.
         self.pub_vel = self.create_subscription(Float32, '/cmd_pathfinder_vel', self.on_velocity, 10)
 
@@ -81,8 +95,24 @@ class RM3Pathfinder(Node):
         self.min_z = 0
 
         self.direction = 0
+        self.kalman_filter = kalman.KalmanFilter(dim_x=3, dim_z=3)  # direction, y_axis, x_axis
+
+        self.kalman_filter.x = np.array([[0.], [0.], [0.]])  # current value
+        self.kalman_filter.F = np.array([[1., 0., 0.],
+                                         [0., 1., 0.],
+                                         [0., 0., 1.]])
+        self.kalman_filter.H = np.array([[1., 0., 0.],
+                                         [0., 1., 0.],
+                                         [0., 0., 1.]])
+        self.kalman_filter.R = np.array([[100, 0., 0.],
+                                         [0., 100, 0.],
+                                         [0., 0., 100]])
+        self.kalman_filter.alpha = 1.02
+
         self.y_axis_movement = 0
         self.x_axis_movement = 0
+
+
         self.x_axis_turning = 0
 
         self.abs_angle = 0.0
@@ -100,8 +130,6 @@ class RM3Pathfinder(Node):
         self.x_axis_pid = self.create_pid("XAxis")
         self.x_axis_turning_pid = self.create_pid("XAxisTurning")
 
-        self.sub_whisker = self.create_subscription(WhiskerArray, '/WhiskerStates', self.on_whisker, 10)
-
         ref_frame = self.pathfinder_params["Pathfinder"]["ReferenceFrame"]
         self.sub_odom = self.create_subscription(Odometry, ref_frame, self.on_odometry, 10)
 
@@ -109,7 +137,7 @@ class RM3Pathfinder(Node):
 
         self.robot_speed_pub = self.create_publisher(TwistStamped, '/move_cmd_vel', 10)
 
-        self.create_timer(5, self.log_surroundings)  # every 5 seconds
+        # self.create_timer(5, self.log_surroundings)  # every 5 seconds
 
         # For monitoring only
         self.publisher_error_direction = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
@@ -188,7 +216,29 @@ class RM3Pathfinder(Node):
         """
         Process whisker output for movement input.
         """
-        self.whisker_matrix = create_whisker_matrix(msg.whiskers)
+        if self.pathfinder_params["Whiskers"]["AddNoise"] == "enabled":
+            whiskers_add_noise(msg.whiskers, -np.pi / 2, np.pi /2)
+
+        if self.pathfinder_params["Whiskers"]["AddSimulatedBias"] == "enabled":
+            if self.simulated_bias_matrix is None:
+                self.simulated_bias_matrix = whiskers_create_simulated_bias_matrix()
+                self.get_logger().info("SIMULATED BIAS MATRIX")
+                self.get_logger().info(str(self.simulated_bias_matrix))
+            whiskers_apply_simulated_bias(msg.whiskers, self.simulated_bias_matrix)
+
+        if self.final_bias_matrix is None:
+            self.bias_matrices.append(create_bias_matrix(msg.whiskers))
+            if len(self.bias_matrices) >= self.pathfinder_params["Whiskers"]["BiasNoiseSamples"]:
+                self.final_bias_matrix = create_averaged_bias_matrix(self.bias_matrices)
+                self.get_logger().info("FINAL BIAS MATRIX")
+                self.get_logger().info(str(self.final_bias_matrix))
+            return
+
+        # self.get_logger().error(str(self.offset_matrix[1][1][1]))
+
+        self.whisker_matrix = create_adjusted_whisker_matrix(msg.whiskers, self.final_bias_matrix)
+
+        # self.get_logger().error("x AXIS MOVEMENT {:.2f}; y AXIS MOVEMENT {:.2f}".format(self.whisker_row(Direction.RIGHT)[4].x, self.whisker_row(Direction.RIGHT)[4].y))
 
         whisker_pressures_avg_tmp = {}
         whisker_pressures_max_tmp = {}
@@ -199,23 +249,52 @@ class RM3Pathfinder(Node):
             whisker_pressures_avg_tmp[direction] = calc_whisker_pressure_avg(self.whisker_row(direction))
             whisker_pressures_max_tmp[direction] = calc_whisker_pressure_max(self.whisker_row(direction))
 
-            if whisker_pressures_max_tmp[direction] > 0.1:
+            if abs(whisker_pressures_max_tmp[direction]) > 0.1:
                 self.mark_graph_point_after_collision(direction)
+
+                # self.get_logger().error("Detected max : " + str(whisker_pressures_max_tmp[direction]) + " " + str(direction))
 
         self.whisker_pressures_avg = whisker_pressures_avg_tmp
         self.whisker_pressures_max = whisker_pressures_max_tmp
 
-        self.assign_direction_error()
+        direction = self.get_direction_error()
+        y_axis_movement = self.calcAxisError(self.horizontal_pid, self.publisher_error_y_axis, self.tracked_wall_direction, 0.7, 0.3)
+        x_axis_movement = self.calcAxisError(self.x_axis_pid, self.publisher_error_x_axis, Direction.FORWARD, 0.3, 0.7)
 
-        self.y_axis_movement = self.calcAxisError(self.horizontal_pid, self.publisher_error_y_axis, self.tracked_wall_direction, 0.7, 0.3)
-        self.x_axis_movement = self.calcAxisError(self.x_axis_pid, self.publisher_error_x_axis, Direction.FORWARD, 0.3, 0.7)
+        self.publisher_error_direction.publish(Float64(data=float(direction)))
+        self.publisher_error_y_axis.publish(Float64(data=float(y_axis_movement)))
+        self.publisher_error_x_axis.publish(Float64(data=float(x_axis_movement)))
+
+        self.kalman_filter.predict()
+        self.kalman_filter.update(np.array([[direction, y_axis_movement, x_axis_movement]]))
+
+        direction, y_axis_movement, x_axis_movement = self.kalman_filter.x
+
+        self.publisher_output_direction.publish(Float64(data=float(direction)))
+        self.publisher_output_y_axis.publish(Float64(data=float(y_axis_movement)))
+        self.publisher_output_x_axis.publish(Float64(data=float(x_axis_movement)))
+
+        self.assign_pid_values(direction, y_axis_movement, x_axis_movement)
+
+        # self.get_logger().error("Y AXIS MOVEMENT {:.2f}; X AXIS MOVEMENT {:.2f}".format(self.y_axis_movement, self.x_axis_movement))
 
         if not self.active and any(p > 0.1 for p in self.whisker_pressures_max.values()):
             self.activate_movement()
 
-        self.publish_errors()
+        # self.publish_errors()
 
         self.determine_and_publish_movement()
+
+    def assign_pid_values(self, direction, y_axis_movement, x_axis_movement):
+        pid_dir = self.direction_pid(direction)
+        self.direction = pid_dir if pid_dir is not None else direction
+
+        pid_y = self.horizontal_pid(y_axis_movement)
+        self.y_axis_movement = pid_y if pid_y is not None else y_axis_movement
+
+        pid_x = self.x_axis_pid(x_axis_movement)
+        self.x_axis_movement = pid_x if pid_x is not None else x_axis_movement
+        
 
     def mark_graph_point_after_collision(self, collision_direction: Direction):
         if self.curr_node_position is None:
@@ -265,7 +344,7 @@ class RM3Pathfinder(Node):
             if self.destination and (self.path is None or self.path is not None and collision_point in self.path):
                 self.path = a_star(self.graph, self.curr_node_position, self.destination)
 
-    def assign_direction_error(self):
+    def get_direction_error(self):
         # towards left
         direction = 0
         if self.whisker_row(Direction.RIGHT) is not None:
@@ -275,18 +354,17 @@ class RM3Pathfinder(Node):
             direction -= calc_whiskers_inclination_euclid(self.whisker_row(Direction.LEFT))
         
         if self.whisker_row(Direction.FORWARD) is not None:
-            # TODO Add backwards direction?
-            perpendicular_direction = calc_whisker_pressure_max(self.whisker_row(Direction.FORWARD))
+            perpendicular_direction = calc_whisker_pressure_avg(self.whisker_row(Direction.FORWARD))
             direction += -3 * perpendicular_direction if self.tracked_wall_direction == Direction.LEFT else 3 * perpendicular_direction
         
-        self.publisher_error_direction.publish(Float64(data=float(direction)))
+        #if self.whisker_row(Direction.BACKWARD) is not None:
+        #    perpendicular_direction = calc_whisker_pressure_avg(self.whisker_row(Direction.BACKWARD))
+        #    direction += 3 * perpendicular_direction if self.tracked_wall_direction == Direction.LEFT else -3 * perpendicular_direction
+        
 
-        pid_dir = self.direction_pid(direction)
+        return direction
 
-        if pid_dir is not None:
-            self.direction = pid_dir
-        else:
-            self.direction = direction
+        # self.get_logger().info("Direction error: {:.2f}, KALMAN {:.2f}".format(self.direction, kalman_direction))
 
     def calcAxisError(self, pid, input_publisher, addDirection, avgWeight, maxWeight):
         # TODO implement axis errors in a way that addDirection isn't needed (instead change PID targets)
@@ -301,11 +379,8 @@ class RM3Pathfinder(Node):
 
         total_movement = avgWeight * avg_component + maxWeight * max_component
 
-        input_publisher.publish(Float64(data=float(total_movement)))
+        return total_movement
 
-        pid_movement = pid(total_movement)
-
-        return pid_movement if pid_movement is not None else total_movement
 
     def activate_movement(self):
         self.get_logger().info("Movement activated")
@@ -355,6 +430,8 @@ class RM3Pathfinder(Node):
         twist_msg.twist.linear.x = float(mov_lst[0])
         twist_msg.twist.linear.y = float(mov_lst[1])
         twist_msg.twist.angular.z = float(mov_lst[2])
+
+        # self.get_logger().info("published: " + str(twist_msg))
 
         self.robot_speed_pub.publish(twist_msg)
 
@@ -424,7 +501,7 @@ class RM3Pathfinder(Node):
 
         factors = list()
 
-        collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.3, hard_collision_max_threshold=0.7)
+        collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.4, hard_collision_max_threshold=0.9)
         if collision_prevention_system_part != None:
             self.log_movement('Hard collision avoidance')
             return collision_prevention_system_part
@@ -433,13 +510,13 @@ class RM3Pathfinder(Node):
         
         factors.append(Factor(
             'Handle forward pressure',
-            100 if Direction.FORWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.FORWARD] > 0.1 else 0,
+            100 if Direction.FORWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.FORWARD] > 0.3 else 0,
             [0, -0.4, -1] if tracked_wall_direction == Direction.LEFT else [0, 0.4, 1]
         ))
 
         factors.append(Factor(
             'Handle backward pressure',
-            100 if Direction.BACKWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.BACKWARD] > 0.1 else 0,
+            100 if Direction.BACKWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.BACKWARD] > 0.3 else 0,
             [0, 0.4, 1] if tracked_wall_direction == Direction.LEFT else [0, -0.4, -1]
         ))
 
@@ -494,7 +571,7 @@ class RM3Pathfinder(Node):
 
         factors.append(Factor(
             'Forward movement factor',
-            1,
+            np.clip(1 - abs(self.y_axis_movement), 0, 1),
             Direction.FORWARD.move_twist()
         ))
         """
@@ -504,6 +581,8 @@ class RM3Pathfinder(Node):
             Direction.FORWARD.move_twist()
         ))
         """
+
+        self.get_logger().info(str(factors))
 
         return calculate_movement_from_factors(factors)
 
