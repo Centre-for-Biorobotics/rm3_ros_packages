@@ -74,6 +74,7 @@ class RM3Pathfinder(Node):
         self.curr_pose = None
 
         self.whisker_matrix = None
+        self.std_err44 = list()
 
         self.simulated_bias_matrix = None
         self.final_bias_matrix = None
@@ -97,6 +98,9 @@ class RM3Pathfinder(Node):
         self.direction = 0
         self.kalman_filter = kalman.KalmanFilter(dim_x=3, dim_z=3)  # direction, y_axis, x_axis
 
+        self.kalman_filter_max = kalman.KalmanFilter(dim_x=4, dim_z=4)
+        self.kalman_filter_avg = kalman.KalmanFilter(dim_x=4, dim_z=4)
+
         self.kalman_filter.x = np.array([[0.], [0.], [0.]])  # current value
         self.kalman_filter.F = np.array([[1., 0., 0.],
                                          [0., 1., 0.],
@@ -104,10 +108,23 @@ class RM3Pathfinder(Node):
         self.kalman_filter.H = np.array([[1., 0., 0.],
                                          [0., 1., 0.],
                                          [0., 0., 1.]])
-        self.kalman_filter.R = np.array([[100, 0., 0.],
-                                         [0., 100, 0.],
-                                         [0., 0., 100]])
+        self.kalman_filter.R = np.array([[10, 0., 0.],
+                                         [0., 10, 0.],
+                                         [0., 0., 10]])
         self.kalman_filter.alpha = 1.02
+
+        self.kalman_filter_max.x = np.array([[0.], [0.], [0.], [0.]])  # current value
+        self.kalman_filter_max.F = np.eye(4)
+        self.kalman_filter_max.H = np.eye(4)
+        self.kalman_filter_max.R = np.eye(4) * 100
+        self.kalman_filter_max.alpha = 1.02
+
+        self.kalman_filter_avg.x = np.array([[0.], [0.], [0.], [0.]])  # current value
+        self.kalman_filter_avg.F = np.eye(4)
+        self.kalman_filter_avg.H = np.eye(4)
+        self.kalman_filter_avg.R = np.eye(4) * 100
+        self.kalman_filter_avg.alpha = 1.02
+
 
         self.y_axis_movement = 0
         self.x_axis_movement = 0
@@ -133,7 +150,8 @@ class RM3Pathfinder(Node):
         ref_frame = self.pathfinder_params["Pathfinder"]["ReferenceFrame"]
         self.sub_odom = self.create_subscription(Odometry, ref_frame, self.on_odometry, 10)
 
-        self.sub_whisker = self.create_subscription(WhiskerArray, '/WhiskerStates', self.on_whisker, 10)
+        self.sub_whisker = self.create_subscription(WhiskerArray, '/whiskers', self.on_whisker, 10)
+        self.get_logger().info('Initialized')
 
         self.robot_speed_pub = self.create_publisher(TwistStamped, '/move_cmd_vel', 10)
 
@@ -242,7 +260,7 @@ class RM3Pathfinder(Node):
 
         whisker_pressures_avg_tmp = {}
         whisker_pressures_max_tmp = {}
-        for direction in Direction:
+        for direction in [Direction.LEFT, Direction.RIGHT, Direction.FORWARD, Direction.BACKWARD]:
             if self.whisker_row(direction) is None:
                 continue
 
@@ -254,8 +272,31 @@ class RM3Pathfinder(Node):
 
                 # self.get_logger().error("Detected max : " + str(whisker_pressures_max_tmp[direction]) + " " + str(direction))
 
-        self.whisker_pressures_avg = whisker_pressures_avg_tmp
-        self.whisker_pressures_max = whisker_pressures_max_tmp
+        self.kalman_filter_avg.predict()
+        self.kalman_filter_avg.update(np.array([whisker_pressures_avg_tmp[Direction.LEFT],
+                                        whisker_pressures_avg_tmp[Direction.RIGHT],
+                                        whisker_pressures_avg_tmp[Direction.FORWARD],
+                                        whisker_pressures_avg_tmp[Direction.BACKWARD]]))
+        
+        self.kalman_filter_max.predict()
+        self.kalman_filter_max.update(np.array([whisker_pressures_max_tmp[Direction.LEFT],
+                                        whisker_pressures_max_tmp[Direction.RIGHT],
+                                        whisker_pressures_max_tmp[Direction.FORWARD],
+                                        whisker_pressures_max_tmp[Direction.BACKWARD]]))
+
+        self.whisker_pressures_avg = {
+            Direction.LEFT: self.kalman_filter_avg.x[0],
+            Direction.RIGHT: self.kalman_filter_avg.x[1],
+            Direction.FORWARD: self.kalman_filter_avg.x[2],
+            Direction.BACKWARD: self.kalman_filter_avg.x[3]
+        }
+
+        self.whisker_pressures_max = {
+            Direction.LEFT: self.kalman_filter_max.x[0],
+            Direction.RIGHT: self.kalman_filter_max.x[1],
+            Direction.FORWARD: self.kalman_filter_max.x[2],
+            Direction.BACKWARD: self.kalman_filter_max.x[3]
+        }
 
         direction = self.get_direction_error()
         y_axis_movement = self.calcAxisError(self.horizontal_pid, self.publisher_error_y_axis, self.tracked_wall_direction, 0.7, 0.3)
@@ -501,24 +542,26 @@ class RM3Pathfinder(Node):
 
         factors = list()
 
-        collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.4, hard_collision_max_threshold=0.9)
+        collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.3, hard_collision_max_threshold=0.95)
         if collision_prevention_system_part != None:
             self.log_movement('Hard collision avoidance')
             return collision_prevention_system_part
         
         self.log_movement('Factor-based movement')
         
+        
         factors.append(Factor(
             'Handle forward pressure',
-            100 if Direction.FORWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.FORWARD] > 0.3 else 0,
+            100 if Direction.FORWARD in self.whisker_pressures_max and self.whisker_pressures_avg[Direction.FORWARD] > 0.3 else 0,
             [0, -0.4, -1] if tracked_wall_direction == Direction.LEFT else [0, 0.4, 1]
         ))
 
         factors.append(Factor(
             'Handle backward pressure',
-            100 if Direction.BACKWARD in self.whisker_pressures_max and self.whisker_pressures_max[Direction.BACKWARD] > 0.3 else 0,
+            100 if Direction.BACKWARD in self.whisker_pressures_max and self.whisker_pressures_avg[Direction.BACKWARD] > 0.3 else 0,
             [0, 0.4, 1] if tracked_wall_direction == Direction.LEFT else [0, -0.4, -1]
         ))
+        
 
         # if self.whisker_pressures_max[Direction.FORWARD] > self.whisker_pressures_max[Direction.BACKWARD] \
         #     and abs(self.whisker_pressures_max[Direction.FORWARD] - self.whisker_pressures_max[Direction.BACKWARD]) > 0.1 :
@@ -582,7 +625,7 @@ class RM3Pathfinder(Node):
         ))
         """
 
-        self.get_logger().info(str(factors))
+        # self.get_logger().info(str(factors))
 
         return calculate_movement_from_factors(factors)
 
@@ -600,6 +643,8 @@ class RM3Pathfinder(Node):
                 moveDirection = max_max_pressure_direction.opposite()
             else:
                 return None
+
+            self.get_logger().info(str(max(self.whisker_pressures_avg.values())) + ' Max: ' + str(max(self.whisker_pressures_max.values())))
 
             return multiply_list_with_scalar(moveDirection.move_twist(), 0.35)
         except ValueError:

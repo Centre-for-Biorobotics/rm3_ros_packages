@@ -3,7 +3,7 @@ Pathfinder:
     ReferenceFrame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom"
 
 Whiskers:
-    BiasNoiseSamples: 100  # Whiskers have some bias and noise, so the robot takes the given number of samples of the whisker messages at the start to set an offset for the whiskers
+    BiasNoiseSamples: 300  # Whiskers have some bias and noise, so the robot takes the given number of samples of the whisker messages at the start to set an offset for the whiskers
     AddNoise: "disabled"
     AddSimulatedBias: "disabled"
 

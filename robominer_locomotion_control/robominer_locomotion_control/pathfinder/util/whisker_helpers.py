@@ -122,4 +122,4 @@ def whisker_euclid_dist(whisker: Whisker):
     """
     Calculate the euclidean distance of the whisker's x and y displacement.
     """
-    return (whisker.x**2 + whisker.y**2)**0.5
+    return np.clip(abs(whisker.y) / 45., 0., 1.)  # (whisker.x**2 + whisker.y**2)**0.5
