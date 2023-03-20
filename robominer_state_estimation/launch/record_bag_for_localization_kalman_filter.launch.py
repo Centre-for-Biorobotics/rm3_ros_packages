@@ -2,15 +2,15 @@ import launch
 
 
 def generate_launch_description():
-    uros_agent = launch.actions.ExecuteProcess(
-        cmd=[
-            'ros2', 'run', 'micro_ros_agent', 'micro_ros_agent',
-            'udp4',
-            '--port', '8888',
-            '-v6',
-            ],
-        output='screen'
-        )
+    # uros_agent = launch.actions.ExecuteProcess(
+    #     cmd=[
+    #         'ros2', 'run', 'micro_ros_agent', 'micro_ros_agent',
+    #         'udp4',
+    #         '--port', '8888',
+    #         '-v6',
+    #         ],
+    #     output='screen'
+    #     )
 
     bag_recording = launch.actions.ExecuteProcess(
         cmd=[
@@ -36,6 +36,8 @@ def generate_launch_description():
 
             '/bno080_imu',
             '/pi48_imu/data_raw',
+            '/camera_jetson/imu'
+
 
             # '/whiskers',
             # '/WhiskerPointCloud',
@@ -51,11 +53,21 @@ def generate_launch_description():
             '/spectrometer_right/spectrometer_calibration',
             '/spectrometer_right/reflectance_reading',
             '/spectrometer_right/fluorescence_reading',
+
+            '/camera_jetson/color/image_raw',
+            '/camera_jetson/depth/image_rect_raw',
+            '/odom',
+            '/map_data',
+            '/localization_pose',
+
+            '/scan/filtered',
+            '/scan',
+            
             ],
         output='screen'
         )
 
     return launch.LaunchDescription([
         bag_recording,
-        uros_agent
+        # uros_agent
         ])
