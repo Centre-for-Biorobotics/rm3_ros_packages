@@ -4,25 +4,24 @@ Pathfinder:
 
 Whiskers:
     BiasNoiseSamples: 300  # Whiskers have some bias and noise, so the robot takes the given number of samples of the whisker messages at the start to set an offset for the whiskers
-    AddNoise: "disabled"
-    AddSimulatedBias: "disabled"
+    Simulation:
+        AddNoise: "disabled"  # "enabled"/"disabled"
+        AddSimulatedBias: "disabled"  # "enabled"/"disabled"
 
 Control:
     PID:
-        Direction:
-            Kp: 2
-            Ki: 0
-            Kd: 0
-            Setpoint: 0
-            Saturation: [-20, 20]
-
         Horizontal:
-            Kp: 5
+            Kp: 1.3
             Ki: 0
             Kd: 0
             Setpoint: 0.2
-            Saturation: [-5, 5]
-
+            Saturation: [-3, 3]
+        Direction:
+            Kp: 20
+            Ki: 0
+            Kd: 0
+            Setpoint: 0
+            Saturation: [-15, 15]
         XAxis:
             Kp: 20
             Ki: 0

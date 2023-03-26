@@ -5,10 +5,13 @@ from typing import List
 from robominer_msgs.msg import Whisker
 
 import numpy as np
+import math
 
 
 WHISKER_ROW_AMOUNT = 10
 WHISKERS_PER_ROW_AMOUNT = 8
+
+POLAR_INPUT = True # should currently be False for simulation and True for non-simulation
 
 
 def whiskers_add_noise(whiskers: List[Whisker], min_total_value, max_total_value) -> None:
@@ -68,40 +71,27 @@ def create_adjusted_whisker_matrix(whiskers: List[Whisker], offset_whisker_matri
     return [_list if any(_list) else None for _list in whisker_matrix]
 
 
-def whisker_multiplier(col_num: int):
+def whisker_multiplier(col_num: int, reverse: bool=False):
     """
     Convert 4-7 to 1..4 and 0-3 to -4..-1 for finding appropriate turning radius
     Returns: Value from -4..4 excluding 0
     """
+    if reverse:
+        col_num = 7 - col_num
+
     if col_num < 4:
-        return col_num - 4
+        return (col_num - 4)
     
-    return col_num - 3
+    return (col_num - 3) ** 1
 
 
-def calc_whiskers_inclination_x(whiskers : List[Whisker]):
+def calc_whiskers_inclination_euclid(whiskers : List[Whisker], reverse: bool=False):
     """
     Calculate an inclination for a whisker array, taking into account the position of the whiskers.
     Positive if higher columns have higher values, negative if lower columns have higher values.
+    Values are between [-10; 10]
     """
-    return sum([abs(w.x) * whisker_multiplier(w.pos.col_num) for w in whiskers])
-
-
-def calc_whiskers_inclination_y(whiskers : List[Whisker]):
-    """
-    Calculate an inclination for a whisker array, taking into account the position of the whiskers.
-    Positive if higher columns have higher values, negative if lower columns have higher values.
-    """
-    return sum([abs(w.y) * whisker_multiplier(w.pos.col_num) for w in whiskers])
-
-
-def calc_whiskers_inclination_euclid(whiskers : List[Whisker]):
-    """
-    Calculate an inclination for a whisker array, taking into account the position of the whiskers.
-    Positive if higher columns have higher values, negative if lower columns have higher values.
-    Max possible value is 31.4, should be capped at ~5.
-    """
-    return sum([whisker_euclid_dist(w) * whisker_multiplier(w.pos.col_num) for w in whiskers])
+    return sum([whisker_euclid_dist(w) * whisker_multiplier(w.pos.col_num, reverse) for w in whiskers])
 
 
 def calc_whisker_pressure_max(whiskers: List[Whisker]):
@@ -122,4 +112,18 @@ def whisker_euclid_dist(whisker: Whisker):
     """
     Calculate the euclidean distance of the whisker's x and y displacement.
     """
-    return np.clip(abs(whisker.y) / 45., 0., 1.)  # (whisker.x**2 + whisker.y**2)**0.5
+    if POLAR_INPUT:
+        return np.clip(abs(whisker.y) / 45., 0., 1.)
+    
+    magnitude, _ = polar(whisker.x, whisker.y)
+    return np.clip(abs(magnitude) * 1.3, 0., 1.)
+
+      # (whisker.x**2 + whisker.y**2)**0.5
+
+
+def polar(x, y):
+    """returns r, theta(degrees)
+    """
+    r = (x ** 2 + y ** 2) ** .5
+    theta = math.degrees(math.atan2(y,x))
+    return r, theta
