@@ -57,7 +57,11 @@ class Pilot(Node):
             TrajectoryPoint,'/reference_trajectory', self.onTrajectory, 10)
 
         self.reference_frame = config_params["Pilot"]["reference_frame"]
-        imu_topic = config_params["Pilot"]["imu_topic"]
+
+        if self.in_simulation:
+            imu_topic =  "bno080_imu/data"
+        else:
+            imu_topic = config_params["Pilot"]["imu_topic"]
 
         self.cmd_pub_ = self.create_publisher(
             TwistStamped, '/move_cmd_vel', 10)
