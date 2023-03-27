@@ -15,12 +15,13 @@ POLAR_INPUT = True # should currently be False for simulation and True for non-s
 
 
 def whiskers_add_noise(whiskers: List[Whisker], min_total_value, max_total_value) -> None:
-    random_matrix = np.random.normal(loc=0, scale=.05, size=(len(whiskers), 2))
+    random_matrix = np.random.normal(loc=0, scale=.05, size=(len(whiskers), 3))
 
     for i in range(len(whiskers)):
         whisker = whiskers[i]
         whisker.x = np.clip(whisker.x + random_matrix[i][0], min_total_value, max_total_value)
         whisker.y = np.clip(whisker.y + random_matrix[i][1], min_total_value, max_total_value)
+        whisker.z = np.clip(whisker.z + random_matrix[i][2], min_total_value, max_total_value)
 
 
 def create_whisker_matrix(whiskers: List[Whisker]) -> List[List[Whisker]]:
@@ -55,6 +56,7 @@ def whiskers_apply_simulated_bias(whiskers: List[Whisker], simulated_bias_matrix
     for w in whiskers:
         w.x += simulated_bias_matrix[w.pos.row_num][w.pos.col_num][0]
         w.y += simulated_bias_matrix[w.pos.row_num][w.pos.col_num][1]
+        w.z += simulated_bias_matrix[w.pos.row_num][w.pos.col_num][2]
 
 
 def create_adjusted_whisker_matrix(whiskers: List[Whisker], offset_whisker_matrix: np.array):
@@ -111,9 +113,10 @@ def calc_whisker_pressure_avg(whiskers: List[Whisker]):
 def whisker_euclid_dist(whisker: Whisker):
     """
     Calculate the euclidean distance of the whisker's x and y displacement.
+    Normalized to [0, 1]
     """
     if POLAR_INPUT:
-        return np.clip(abs(whisker.y) / 45., 0., 1.)
+        return np.clip(abs(whisker.y) * 0.6 / 40, 0, 0.6) + np.clip(abs(whisker.z) * 0.4 / 25., 0., 0.4)
     
     magnitude, _ = polar(whisker.x, whisker.y)
     return np.clip(abs(magnitude) * 1.3, 0., 1.)

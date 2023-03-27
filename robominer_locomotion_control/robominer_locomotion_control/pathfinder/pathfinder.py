@@ -109,11 +109,11 @@ class RM3Pathfinder(Node):
 
         self.whisker_amount = WHISKER_ROW_AMOUNT * WHISKERS_PER_ROW_AMOUNT
 
-        self.kalman_filter_whiskers = kalman.KalmanFilter(dim_x=self.whisker_amount * 2, dim_z=self.whisker_amount * 2)
-        self.kalman_filter_whiskers.x = np.eye(self.whisker_amount * 2)  # current value
-        self.kalman_filter_whiskers.F = np.eye(self.whisker_amount * 2)
-        self.kalman_filter_whiskers.H = np.eye(self.whisker_amount * 2)
-        self.kalman_filter_whiskers.R = 50 * np.eye(self.whisker_amount * 2)
+        self.kalman_filter_whiskers = kalman.KalmanFilter(dim_x=self.whisker_amount * 3, dim_z=self.whisker_amount * 3)
+        self.kalman_filter_whiskers.x = np.eye(self.whisker_amount * 3)  # current value
+        self.kalman_filter_whiskers.F = np.eye(self.whisker_amount * 3)
+        self.kalman_filter_whiskers.H = np.eye(self.whisker_amount * 3)
+        self.kalman_filter_whiskers.R = 50 * np.eye(self.whisker_amount * 3)
         self.kalman_filter_whiskers.alpha = 1.02
 
         self.y_axis_movement = 0
@@ -242,7 +242,7 @@ class RM3Pathfinder(Node):
         whisker_amount = len(whisker_matrix) * len(whisker_matrix[0])
 
         self.kalman_filter_whiskers.predict()
-        update_matrix = np.zeros((whisker_amount * 2))
+        update_matrix = np.zeros((whisker_amount * 3))
 
         for i in range(len(whisker_matrix)):
             if whisker_matrix[i] is None:
@@ -251,6 +251,7 @@ class RM3Pathfinder(Node):
                 curr_whisker_num = i * WHISKERS_PER_ROW_AMOUNT + j
                 update_matrix[curr_whisker_num] = whisker_matrix[i][j].x
                 update_matrix[curr_whisker_num + whisker_amount] = whisker_matrix[i][j].y
+                update_matrix[curr_whisker_num + whisker_amount * 2] = whisker_matrix[i][j].z
 
         self.kalman_filter_whiskers.update(update_matrix)
         
@@ -262,6 +263,7 @@ class RM3Pathfinder(Node):
                 curr_whisker_num = i * WHISKERS_PER_ROW_AMOUNT + j
                 whisker_matrix[i][j].x = self.kalman_filter_whiskers.x[curr_whisker_num][0]
                 whisker_matrix[i][j].y = self.kalman_filter_whiskers.x[curr_whisker_num + whisker_amount][0]
+                whisker_matrix[i][j].z = self.kalman_filter_whiskers.x[curr_whisker_num + whisker_amount * 2][0]
 
         return whisker_matrix
     
@@ -279,6 +281,7 @@ class RM3Pathfinder(Node):
                 w.pos.col_num = j
                 w.x = matrix[i][j].x
                 w.y = matrix[i][j].y
+                w.z = matrix[i][j].z
                 arr.whiskers.append(w)
 
         publisher.publish(arr)
@@ -805,10 +808,10 @@ def within_threshold(p1, p2, threshold):
 
 def get_direction_to_whisker_row_dict(sim_params):
     whisker_rows = {  # default, if every row is present
-        Direction.LEFT: 6,
-        Direction.RIGHT: 7,
-        Direction.FORWARD: 8,
-        Direction.BACKWARD: 9
+        Direction.LEFT: 4,
+        Direction.RIGHT: 5,
+        Direction.FORWARD: 3,
+        Direction.BACKWARD: 7
     }
 
     if sim_params['sensors']['whiskers']['enable_bottom_whiskers'] != 'enable':
