@@ -33,8 +33,8 @@ class DynamicsRM3(Node):
     def __init__(self):
         super().__init__('dynamic_state_estimation')
 
-        self.declare_parameter('in_simulation', False )
-        self.in_simulation = self.get_parameter('in_simulation').value
+        self.declare_parameter('in_simulation', True )
+        self.in_simulation = True # Hardcoded by KN to avoid issues with launch params.
         self.rpm_to_radpersec = (2*np.pi)/60.0
 
         parameters_from_yaml = os.path.join(
@@ -51,6 +51,8 @@ class DynamicsRM3(Node):
         self.robotDynamics = RobotDynamics(state_estimation_parameters)
         # ---------------------------------------------------------
         self.screw_velocities = np.zeros(4) #RM3 has 4 screws.
+        self.drill_speed = 0
+        self.shaft_speed = 0
 
         if self.robotDynamics.useImu:
             self.create_subscription(Imu, self.robotDynamics.imuTopic, self.imu_callback, 10)
@@ -68,6 +70,8 @@ class DynamicsRM3(Node):
             self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
             self.cmd_vel_stamped_pub = self.create_publisher(TwistStamped, '/cmd_vel_stamped', 10)
             self.publisher_screw_rotation = self.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
+            self.create_subscription(MotorModuleCommand, '/drill/drill_rpm_setpoint', self.drill, 10)
+            self.create_subscription(MotorModuleCommand, '/drill/shaft_rpm_setpoint', self.shaft, 10)
 
         self.dynamics_estimation_timer = self.create_timer(self.robotDynamics.dt, self.updateDynamics)
 
@@ -155,6 +159,8 @@ class DynamicsRM3(Node):
         screw_velocities.data.append(int(self.screw_velocities[1]) * self.rpm_to_radpersec / velCorrection)
         screw_velocities.data.append(-int(self.screw_velocities[2]) * self.rpm_to_radpersec / velCorrection)
         screw_velocities.data.append(int(self.screw_velocities[3]) * self.rpm_to_radpersec / velCorrection)
+        screw_velocities.data.append(-int(self.drill_speed))
+        screw_velocities.data.append(int(self.shaft_speed))
         self.publisher_screw_rotation.publish(screw_velocities)
 
     def front_right(self, msg):
@@ -174,6 +180,19 @@ class DynamicsRM3(Node):
 
     def imu_callback(self, msg):
         self.imu_orientation = msg.orientation
+
+    def drill(self, msg):
+        motor_rpm = 0
+        if msg.motor_rpm_goal < -20:
+            motor_rpm = -20
+        elif msg.motor_rpm_goal > 20 :
+            motor_rpm = 20
+        else :
+            motor_rpm = msg.motor_rpm_goal 
+        self.drill_speed = motor_rpm
+
+    def shaft(self, msg):
+        self.shaft_speed = msg.motor_rpm_goal
 
 def main(args=None):
     rclpy.init(args=args)
