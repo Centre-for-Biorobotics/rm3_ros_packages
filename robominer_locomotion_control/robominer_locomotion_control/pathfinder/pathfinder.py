@@ -814,6 +814,7 @@ def get_direction_to_whisker_row_dict(sim_params):
         Direction.BACKWARD: 7
     }
 
+    """
     if sim_params['sensors']['whiskers']['enable_bottom_whiskers'] != 'enable':
         for dir in whisker_rows:
             whisker_rows[dir] -= 6
@@ -821,6 +822,7 @@ def get_direction_to_whisker_row_dict(sim_params):
     if sim_params['sensors']['whiskers']['enable_side_whiskers'] != 'enable':
         for dir in whisker_rows:
             whisker_rows[dir] -= 2
+    """
 
     return whisker_rows
 
