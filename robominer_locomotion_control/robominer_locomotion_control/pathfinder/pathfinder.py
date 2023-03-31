@@ -440,21 +440,21 @@ class RM3Pathfinder(Node):
         # 
         direction = 0
         if self.whisker_row(Direction.RIGHT) is not None:
-            direction += calc_whiskers_inclination_euclid(self.whisker_row(Direction.RIGHT)) / 10
+            direction += calc_whiskers_inclination_euclid(self.whisker_row(Direction.RIGHT))
 
         if self.whisker_row(Direction.LEFT) is not None:
-            direction -= calc_whiskers_inclination_euclid(self.whisker_row(Direction.LEFT)) / 10
+            direction -= calc_whiskers_inclination_euclid(self.whisker_row(Direction.LEFT))
         
         if self.whisker_row(Direction.FORWARD) is not None:
             perpendicular_direction = .3 * calc_whisker_pressure_avg(self.whisker_row(Direction.FORWARD)) + .7 * calc_whisker_pressure_max(self.whisker_row(Direction.FORWARD))
-            direction += -perpendicular_direction / 2 if self.tracked_wall_direction == Direction.LEFT else perpendicular_direction / 2
+            direction += -perpendicular_direction if self.tracked_wall_direction == Direction.LEFT else perpendicular_direction
         
         if self.whisker_row(Direction.BACKWARD) is not None:
             perpendicular_direction = .3 * calc_whisker_pressure_avg(self.whisker_row(Direction.BACKWARD)) + .7 * calc_whisker_pressure_max(self.whisker_row(Direction.BACKWARD))
-            direction += perpendicular_direction / 2 if self.tracked_wall_direction == Direction.LEFT else -perpendicular_direction / 2
+            direction += perpendicular_direction if self.tracked_wall_direction == Direction.LEFT else -perpendicular_direction
 
         # Normalize to [-1; 1]
-        direction /= 2
+        direction /= 4
 
         if abs(direction) > self.dir_max_val:
             self.dir_max_val = abs(direction)
@@ -808,10 +808,10 @@ def within_threshold(p1, p2, threshold):
 
 def get_direction_to_whisker_row_dict(sim_params):
     whisker_rows = {  # default, if every row is present
-        Direction.LEFT: 4,
-        Direction.RIGHT: 5,
-        Direction.FORWARD: 3,
-        Direction.BACKWARD: 7
+        Direction.LEFT: 0,
+        Direction.RIGHT: 1,
+        Direction.FORWARD: 2,
+        Direction.BACKWARD: 3
     }
 
     """
