@@ -21,6 +21,12 @@ def generate_launch_description():
         package="robominer_state_estimation",
         executable="rm3_forward_kinematics",
                          )
+    
+    forwardDynamics_node = Node(
+        package="robominer_state_estimation",
+        executable="forward_dynamics",
+        output='screen',
+                         )
 
     static_transform = Node(package="tf2_ros",
                             executable="static_transform_publisher",
@@ -32,6 +38,24 @@ def generate_launch_description():
                              executable="static_transform_publisher",
                              arguments=["0", "0", "0", "0", "0", "0",
                                         "base_link_est_ukf", "pi48_imu_frame"]
+                             )
+    
+    static_transform3 = Node(package="tf2_ros",
+                             executable="static_transform_publisher",
+                             arguments=["0.39", "0", "-0.0915", "0", "0.175", "0",
+                                        "base_link_est_ukf", "camera_jetson_link"]
+                             )
+    
+    static_transform4 = Node(package="tf2_ros",
+                             executable="static_transform_publisher",
+                             arguments=["0", "0", "0", "0", "0", "0",
+                                        "gt_initial_pose", "odom"]
+                             )
+
+    static_transform5 = Node(package="tf2_ros",
+                             executable="static_transform_publisher",
+                             arguments=["0", "0", "0", "0", "0", "0",
+                                        "base_link_est_ukf", "robot"]  
                              )
 
     rviz_node = Node(package="rviz2",
@@ -53,7 +77,11 @@ def generate_launch_description():
     ld.add_action(rviz_node)
     ld.add_action(static_transform)
     ld.add_action(static_transform2)
+    ld.add_action(static_transform3)
+    ld.add_action(static_transform4)
+    ld.add_action(static_transform5)
     ld.add_action(message_formater_node)
     ld.add_action(motor2vel_node)
     ld.add_action(ukf_localization)
+    ld.add_action(forwardDynamics_node)
     return ld

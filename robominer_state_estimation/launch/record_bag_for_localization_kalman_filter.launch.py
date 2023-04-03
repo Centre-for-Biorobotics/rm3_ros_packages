@@ -32,36 +32,38 @@ def generate_launch_description():
             '/rear_left/motor_module',
             '/front_left/motor_module',
 
-            '/temperature_sensor/temperature',
+            # '/temperature_sensor/temperature',
 
             '/bno080_imu',
             '/pi48_imu/data_raw',
+            # '/pi48_imu/data',
+            '/pi48_imu/complementary_data',
             '/camera_jetson/imu'
 
 
             # '/whiskers',
             # '/WhiskerPointCloud',
 
-            '/robot_pose',
+            # '/robot_pose',
             '/robot_pose_filtered',
 
-            '/spectrometer_left/spectrometer_frequency_command',
+            # '/spectrometer_left/spectrometer_frequency_command',
             '/spectrometer_left/spectrometer_calibration',
             '/spectrometer_left/reflectance_reading',
             '/spectrometer_left/fluorescence_reading',
-            '/spectrometer_right/spectrometer_frequency_command',
+            # '/spectrometer_right/spectrometer_frequency_command',
             '/spectrometer_right/spectrometer_calibration',
             '/spectrometer_right/reflectance_reading',
             '/spectrometer_right/fluorescence_reading',
 
             '/camera_jetson/color/image_raw',
             '/camera_jetson/depth/image_rect_raw',
-            '/odom',
-            '/map_data',
-            '/localization_pose',
+            # '/odom',
+            # '/map_data',
+            # '/localization_pose',
 
             '/scan/filtered',
-            '/scan',
+            # '/scan',
             
             ],
         output='screen'
