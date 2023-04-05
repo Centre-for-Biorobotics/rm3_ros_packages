@@ -3,7 +3,6 @@
 Subscribes to robot screw velocities.
 Estimates robot's pose and velocity based on a given dynamical model.
 Publishes robot's estimated odometry and estimated wrenches.
-
 @author: Walid Remmas
 @contact: walid.remmas@taltech.ee
 @date: 12-10-2022
@@ -21,7 +20,6 @@ class RobotDynamics():
         # Dynamic model variables
         # ------------------------------------------------
         self.dt = state_estimation_parameters['dynamics']['dt'] # Dynamic model integration period.
-        self.rpm_to_radpersec = (2*np.pi)/60.0
 
         self.eta = np.zeros(6) # variable to store the pose of the robot in the world frame
         self.eta_dot = np.zeros(6) # variable to store the velocity of the robot in the world frame
@@ -105,9 +103,10 @@ class RobotDynamics():
         @param: self
         """
 
-        self.updateJacobian(orientation[0], orientation[1], orientation[2])
+        self.updateJacobian(self.eta[3], self.eta[4], self.eta[5])
+        # self.get_logger().info(f'YAW model: {self.eta[5]}')
         # ---------------------------------------
-        self.tau = np.dot(self.sigma, np.dot(self.B, self.rpm_to_radpersec * screw_velocities.transpose() ))
+        self.tau = np.dot(np.dot(self.sigma, self.B), screw_velocities.transpose())
         self.nu_dot = np.dot(self.M_inv, (self.tau - np.dot(self.drag, self.nu)))
 
         self.nu += self.dt * self.nu_dot
@@ -115,4 +114,4 @@ class RobotDynamics():
         self.eta += self.dt * self.eta_dot
 
         if self.useImu:
-            self.eta[3:6] = orientation
+            self.eta[5] = orientation[2]

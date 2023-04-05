@@ -43,7 +43,7 @@ class PublishingSubscriber(Node):
         # Create subscriber(s)
         self.subscription_1 = self.create_subscription(
             Imu,
-            '/bno_imu/data',
+            '/bno080_imu',
             self.bn0_imu_received,
             10)
         self.subscription_1  # prevent unused variable warning
@@ -57,14 +57,14 @@ class PublishingSubscriber(Node):
 
         self.subscription_3 = self.create_subscription(
             Imu,
-            '/pi48_imu/data',
+            '/pi48_imu/data_raw',
             self.pi48_imu_received,
             10)
         self.subscription_3  # prevent unused variable warning
 
         self.subscription_4 = self.create_subscription(
             PoseStamped,
-            '/robot_pose',
+            '/robot_pose_filtered',
             self.pose_received,
             10)
         self.subscription_4  # prevent unused variable warning
@@ -76,27 +76,43 @@ class PublishingSubscriber(Node):
             10)
         self.subscription_5  # prevent unused variable warning
 
+        self.subscription_6 = self.create_subscription(
+            Imu,
+            '/camera_jetson/imu',
+            self.camera_jetson_imu_received,
+            10)
+        self.subscription_6  # prevent unused variable warning
+
         # Create publisher(s)
 
         self.publisher_bno_imu = self.create_publisher(
             Imu,
-            '/bno_imu_with_cov',
+            '/bno080_imu_with_cov',
             10)
         self.publisher_pi48 = self.create_publisher(
             Imu,
             '/pi48_imu_with_cov',
             10)
+        self.publisher_camera_jetson_imu = self.create_publisher(
+            Imu,
+            '/camera_jetson_imu_with_cov',
+            10)
         self.publisher_twist_kinematics = self.create_publisher(
             TwistWithCovarianceStamped,
             '/twist_with_cov_kinematics',
             10)
-        self.publisher_twist_dynamics = self.create_publisher(
-            TwistWithCovarianceStamped,
-            '/twist_with_cov_dynamics',
+        # self.publisher_twist_dynamics = self.create_publisher(
+        #     TwistWithCovarianceStamped,
+        #     '/twist_with_cov_dynamics',
+        #     10)
+        self.publisher_odom_dynamics = self.create_publisher(
+            Odometry,
+            '/odom_with_cov_dynamics',
             10)
+
         self.publisher_pose = self.create_publisher(
             Odometry,
-            '/robot_pose_world_frame',
+            '/robot_pose_gt_initial_pose_frame',
             10)
 
     def bn0_imu_received(self, msg):
@@ -125,6 +141,19 @@ class PublishingSubscriber(Node):
                                               0.0, 0.0, 0.01]
         self.publisher_pi48.publish(msg)
 
+    def camera_jetson_imu_received(self, msg):
+        msg.header.frame_id = "camera_jetson_accel_frame"
+        msg.orientation_covariance = [1.0, 0.0, 0.0,
+                                      0.0, 1.0, 0.0,
+                                      0.0, 0.0, 1.0]
+        msg.angular_velocity_covariance = [0.0027, 0.0, 0.0,
+                                           0.0, 0.0027, 0.0,
+                                           0.0, 0.0, 0.0027]
+        msg.linear_acceleration_covariance = [0.09, 0.0, 0.0,
+                                              0.0, 0.09, 0.0,
+                                              0.0, 0.0, 0.09]
+        self.publisher_camera_jetson_imu.publish(msg)
+
     def twist_received_kinematics(self, msg):
         new_msg = TwistWithCovarianceStamped()
         new_msg.header = msg.header
@@ -142,27 +171,51 @@ class PublishingSubscriber(Node):
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.05]
         self.publisher_twist_kinematics.publish(new_msg)
 
+    # def odom_received_dynamics(self, msg):
+    #     new_msg = TwistWithCovarianceStamped()
+    #     new_msg.header = msg.header
+    #     new_msg.header.frame_id = "base_link_est_ukf"
+    #     new_msg.twist.twist = msg.twist.twist
+    #     slip_ratio = 0.30
+    #     new_msg.pose.pose.position.x *= (1 - slip_ratio)
+    #     new_msg.pose.pose.position.y *= (1 - slip_ratio)
+        
+    #     new_msg.twist.twist.linear.x *= (1 - slip_ratio)
+    #     new_msg.twist.twist.linear.y *= (1 - slip_ratio)
+    #     new_msg.twist.twist.angular.z *= (1 - slip_ratio)
+    #     new_msg.twist.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #                                 0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
+    #                                 0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+    #                                 0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+    #                                 0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
+    #                                 0.0, 0.0, 0.0, 0.0, 0.0, 0.033]
+    #     self.publisher_twist_dynamics.publish(new_msg)
+
     def odom_received_dynamics(self, msg):
-        new_msg = TwistWithCovarianceStamped()
-        new_msg.header = msg.header
-        new_msg.header.frame_id = "base_link_est_ukf"
-        new_msg.twist.twist = msg.twist.twist
+        new_msg = msg
+        new_msg.header.frame_id = "gt_initial_pose"
         slip_ratio = 0.30
         new_msg.twist.twist.linear.x *= (1 - slip_ratio)
         new_msg.twist.twist.linear.y *= (1 - slip_ratio)
         new_msg.twist.twist.angular.z *= (1 - slip_ratio)
+        new_msg.pose.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
+                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.033]
         new_msg.twist.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.033]
-        self.publisher_twist_dynamics.publish(new_msg)
+        self.publisher_odom_dynamics.publish(new_msg)
 
     def pose_received(self, msg):
         new_msg = Odometry()
         new_msg.header = msg.header
-        new_msg.header.frame_id = "world"
+        new_msg.header.frame_id = "gt_initial_pose"
         new_msg.child_frame_id = "robot_ground_truth"
         new_msg.pose.pose = msg.pose
         self.publisher_pose.publish(new_msg)

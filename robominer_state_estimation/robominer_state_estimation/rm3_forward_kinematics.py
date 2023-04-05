@@ -12,7 +12,7 @@ Publishes cmd_vel.
 import rclpy
 
 from rclpy.node import Node
-from robominer_msgs.msg import MotorModuleCommand
+from robominer_msgs.msg import MotorModuleCommand, MotorModuleFeedback 
 from geometry_msgs.msg import Twist, TwistStamped, TransformStamped
 from std_msgs.msg import Float64, Float64MultiArray
 from nav_msgs.msg import Odometry
@@ -60,27 +60,27 @@ class RM3ForwardKinematics(Node):
 
         self.br = TransformBroadcaster(self)
 
-        self.create_subscription(MotorModuleCommand, '/motor0/motor_rpm_setpoint', self.front_right, 10)
-        self.create_subscription(MotorModuleCommand, '/motor1/motor_rpm_setpoint', self.rear_right, 10)
-        self.create_subscription(MotorModuleCommand, '/motor2/motor_rpm_setpoint', self.rear_left, 10)
-        self.create_subscription(MotorModuleCommand, '/motor3/motor_rpm_setpoint', self.front_left, 10)
+        self.create_subscription(MotorModuleFeedback, '/front_right/motor_module', self.front_right, 10)
+        self.create_subscription(MotorModuleFeedback, '/rear_right/motor_module', self.rear_right, 10)
+        self.create_subscription(MotorModuleFeedback, '/rear_left/motor_module', self.rear_left, 10)
+        self.create_subscription(MotorModuleFeedback, '/front_left/motor_module', self.front_left, 10)
         self.create_subscription(Odometry, '/odom/unfiltered', self.OdomCallback, 10)
 
 
     def front_right(self, msg):
-        self.fr_vel = msg.motor_rpm_goal
+        self.fr_vel = msg.motor_rpm
         # self.get_logger().info(f'front_right: {self.fr_vel}')
 
     def rear_right(self, msg):
-        self.rr_vel = msg.motor_rpm_goal
+        self.rr_vel = msg.motor_rpm
         # self.get_logger().info(f'rear_right: {self.rr_vel}')
 
     def rear_left(self, msg):
-        self.rl_vel = msg.motor_rpm_goal
+        self.rl_vel = msg.motor_rpm
         # self.get_logger().info(f'rear_left: {self.rl_vel}')
 
     def front_left(self, msg):
-        self.fl_vel = msg.motor_rpm_goal
+        self.fl_vel = msg.motor_rpm
         # self.get_logger().info(f'front_left: {self.fl_vel}')
 
     def visualizeScrewsInGazebo(self):
@@ -123,7 +123,7 @@ class RM3ForwardKinematics(Node):
         t = TransformStamped()
 
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'world'
+        t.header.frame_id = 'gt_initial_pose'
         t.child_frame_id = 'base_link'
 
         t.transform.translation.x = position.x
