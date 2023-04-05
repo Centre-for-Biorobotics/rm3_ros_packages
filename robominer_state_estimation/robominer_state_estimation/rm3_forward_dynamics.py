@@ -17,7 +17,11 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist, TwistStamped, WrenchStamped, Quaternion
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
+<<<<<<< HEAD:robominer_state_estimation/robominer_state_estimation/forward_dynamics.py
 from robominer_msgs.msg import MotorModuleCommand, MotorModuleFeedback
+=======
+from robominer_msgs.msg import MotorModuleCommand
+>>>>>>> 19ba86f326e0559241ffb8e3665f8a3f608816a7:robominer_state_estimation/robominer_state_estimation/rm3_forward_dynamics.py
 from std_msgs.msg import Float64, Float64MultiArray
 
 
@@ -137,7 +141,10 @@ class DynamicsRM3(Node):
 
             body_vel.linear.x = self.robotDynamics.nu[0]
             body_vel_stamped.twist.linear.x = self.robotDynamics.nu[0]
+<<<<<<< HEAD:robominer_state_estimation/robominer_state_estimation/forward_dynamics.py
             print(body_vel_stamped.twist.linear.x)
+=======
+>>>>>>> 19ba86f326e0559241ffb8e3665f8a3f608816a7:robominer_state_estimation/robominer_state_estimation/rm3_forward_dynamics.py
             body_vel.linear.y = self.robotDynamics.nu[1]
             body_vel_stamped.twist.linear.y = self.robotDynamics.nu[1]
             body_vel.angular.z = self.robotDynamics.nu[5]

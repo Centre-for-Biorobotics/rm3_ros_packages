@@ -64,17 +64,18 @@ class TrajectoryManager(Node):
             self.waypoint_number = 0
 
         # ODE storing variables:
-        self.xTraj = 0.0; self.xdTraj = 0.0; self.xddTraj = 0.0
-        self.yTraj = 0.0; self.ydTraj = 0.0; self.yddTraj = 0.0
-        self.yawTraj = 0.0; self.yaw_dTraj = 0.0; self.yaw_ddTraj = 0.0
+        initial_pose = config_params["Trajectory"]["initial_pose"]
+        self.xTraj = initial_pose[0]; self.xdTraj = 0.0; self.xddTraj = 0.0
+        self.yTraj = initial_pose[1]; self.ydTraj = 0.0; self.yddTraj = 0.0
+        self.yawTraj = initial_pose[5]; self.yaw_dTraj = 0.0; self.yaw_ddTraj = 0.0
         self.traj_pos = np.zeros(3)
         self.traj_vel = np.zeros(3)
         self.traj_acc = np.zeros(3)
         self.yaw_prev = 0.0
 
-        self.traj_x_pos = 0
-        self.traj_y_pos = 0
-        self.traj_yaw_pos = 0
+        self.traj_x_pos = initial_pose[0]
+        self.traj_y_pos = initial_pose[1]
+        self.traj_yaw_pos = initial_pose[5]
         self.traj_x_pos_next = 0
         self.traj_y_pos_next = 0
 
@@ -203,6 +204,13 @@ class TrajectoryManager(Node):
         traj_msg.twist.angular.x = 0.0
         traj_msg.twist.angular.y = 0.0
         traj_msg.twist.angular.z = self.traj_vel[2]
+
+        traj_msg.acceleration.linear.x = self.traj_acc[0]
+        traj_msg.acceleration.linear.y = self.traj_acc[1]
+        traj_msg.acceleration.linear.z = 0.0
+        traj_msg.acceleration.angular.x = 0.0
+        traj_msg.acceleration.angular.y = 0.0
+        traj_msg.acceleration.angular.z = self.traj_acc[2]
 
         self.reference_trajectory_pub_.publish(traj_msg)
 

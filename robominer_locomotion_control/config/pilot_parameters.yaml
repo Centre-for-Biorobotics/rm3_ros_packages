@@ -1,11 +1,32 @@
 Pilot:
     dt: 0.01
-    reference_frame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom"
-
+    reference_frame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom", "robot_pose_filtered"
+    imu_topic: "bno080_imu/data" # bno080_imu, bno080_imu/data
+    controller_type: "SMC" # "PID" , "SMC"
 Control:
     PID:
-        Kp: [1.5, 1.5, 1.2]
-        Kd: [0.8, 0.8, 0.9]
-        Ki: [0.03, 0.03, 0.02]
+        Kp: [60, 20, 4]
+        Kd: [5, 10, 4]
+        Ki: [0.5, 0.5, 0.4]
         windup: [1.0, 1.0, 1.0]
-        saturation: [0.8, 0.8, 0.4]
+        saturation: [100, 100, 50]
+        useModel: False # Allows model-based control.
+    SMC:
+        # Model Based
+        # K: [4.5, 5, 1.2]
+        # alpha: [3.5, 2.2, 2.0]
+        # A: [0.4, 0.4, 0.15]
+        # saturation: [100, 100, 20]
+
+        # K: [3, 3, 3]
+        # alpha: [9.5, 7.2, 5.0]
+        # A: [0.5, 0.5, 0.5]
+        # saturation: [100, 100, 50]
+
+        # Model Free
+        K: [90.0, 40.0, 20.0]
+        alpha: [6.2, 6.2, 8.0]
+        A: [0.4, 0.4, 0.4]
+        saturation: [100, 100, 50]
+
+        useModel: False # Allows model-based control.
