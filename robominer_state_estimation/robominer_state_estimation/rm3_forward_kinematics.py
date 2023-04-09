@@ -12,7 +12,7 @@ Publishes cmd_vel.
 import rclpy
 
 from rclpy.node import Node
-from robominer_msgs.msg import MotorModuleCommand, MotorModuleFeedback 
+from robominer_msgs.msg import MotorModuleCommand, MotorModuleFeedback
 from geometry_msgs.msg import Twist, TwistStamped, TransformStamped
 from std_msgs.msg import Float64, Float64MultiArray
 from nav_msgs.msg import Odometry
@@ -43,6 +43,13 @@ class RM3ForwardKinematics(Node):
         self.rr_vel = 0.0
         self.rl_vel = 0.0
         self.fl_vel = 0.0
+
+        self.cmd_screw_speeds = [0.0, 0.0, 0.0, 0.0]
+        self.cmd_fr_vel = 0.0
+        self.cmd_rr_vel = 0.0
+        self.cmd_rl_vel = 0.0
+        self.cmd_fl_vel = 0.0
+
         self.rpm_to_radpersec = (2*pi)/60.0
 
         self.fwd_kinematics = 1.0/4.0 * np.array([
@@ -51,8 +58,10 @@ class RM3ForwardKinematics(Node):
             [-1/(self.lx + 1/tan(self.screw_helix_angle) * self.ly), -1/(self.lx + 1/tan(self.screw_helix_angle) * self.ly), -1/(self.lx + 1/tan(self.screw_helix_angle) * self.ly), -1/(self.lx + 1/tan(self.screw_helix_angle) * self.ly)]
         ])
 
+        self.fb_vel_stamped_pub = self.create_publisher(TwistStamped, '/twist_FKinematics_stamped', 10)
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.cmd_vel_stamped_pub = self.create_publisher(TwistStamped, '/cmd_vel_stamped', 10)
+
         self.publisher_screw_rotation = self.create_publisher(Float64MultiArray, '/velocity_controller/commands', 10)
 
         self.kinematics_timer_period = 0.1  # seconds
@@ -64,8 +73,13 @@ class RM3ForwardKinematics(Node):
         self.create_subscription(MotorModuleFeedback, '/rear_right/motor_module', self.rear_right, 10)
         self.create_subscription(MotorModuleFeedback, '/rear_left/motor_module', self.rear_left, 10)
         self.create_subscription(MotorModuleFeedback, '/front_left/motor_module', self.front_left, 10)
-        self.create_subscription(Odometry, '/odom/unfiltered', self.OdomCallback, 10)
 
+        self.create_subscription(MotorModuleCommand, '/motor0/motor_rpm_setpoint', self.motor0, 10)
+        self.create_subscription(MotorModuleCommand, '/motor1/motor_rpm_setpoint', self.motor1, 10)
+        self.create_subscription(MotorModuleCommand, '/motor2/motor_rpm_setpoint', self.motor2, 10)
+        self.create_subscription(MotorModuleCommand, '/motor3/motor_rpm_setpoint', self.motor3, 10)
+
+        self.create_subscription(Odometry, '/odom/unfiltered', self.OdomCallback, 10)
 
     def front_right(self, msg):
         self.fr_vel = msg.motor_rpm
@@ -83,6 +97,22 @@ class RM3ForwardKinematics(Node):
         self.fl_vel = msg.motor_rpm
         # self.get_logger().info(f'front_left: {self.fl_vel}')
 
+    def motor0(self, msg):
+        self.cmd_fr_vel = msg.motor_rpm_goal
+        # self.get_logger().info(f'front_right: {self.fr_vel}')
+
+    def motor1(self, msg):
+        self.cmd_rr_vel = msg.motor_rpm_goal
+        # self.get_logger().info(f'rear_right: {self.rr_vel}')
+
+    def motor2(self, msg):
+        self.cmd_rl_vel = msg.motor_rpm_goal
+        # self.get_logger().info(f'rear_left: {self.rl_vel}')
+
+    def motor3(self, msg):
+        self.cmd_fl_vel = msg.motor_rpm_goal
+        # self.get_logger().info(f'front_left: {self.fl_vel}')
+
     def visualizeScrewsInGazebo(self):
         screw_velocities = Float64MultiArray()
         # A division by a factor was necessary to convert rad/s to whatever is used in velocity controller in gazebo.
@@ -94,24 +124,29 @@ class RM3ForwardKinematics(Node):
         self.publisher_screw_rotation.publish(screw_velocities)
 
     def motor_to_body_vel(self):
-        body_vel = Twist()                  # for object_controller
+        # Feedback body twist
         body_vel_stamped = TwistStamped()   # for kalman filter
-
         self.screw_speeds = np.array([self.fr_vel, self.rr_vel, self.rl_vel, self.fl_vel]) * self.rpm_to_radpersec
-
         self.robot_twist = self.screw_radius * np.dot(self.fwd_kinematics, self.screw_speeds)
-
         body_vel_stamped.header.stamp = self.get_clock().now().to_msg()
-
-        body_vel.linear.x = self.robot_twist[0]
         body_vel_stamped.twist.linear.x = self.robot_twist[0]
-        body_vel.linear.y = self.robot_twist[1]
         body_vel_stamped.twist.linear.y = self.robot_twist[1]
-        body_vel.angular.z = self.robot_twist[2]
         body_vel_stamped.twist.angular.z = self.robot_twist[2]
-
-        self.cmd_vel_pub.publish(body_vel)
-        self.cmd_vel_stamped_pub.publish(body_vel_stamped)
+        self.fb_vel_stamped_pub.publish(body_vel_stamped)
+        # Command body twist
+        cmd_body_vel = Twist()                  # for object_controller
+        cmd_body_vel_stamped = TwistStamped()   # for kalman filter
+        self.cmd_screw_speeds = np.array([self.cmd_fr_vel, self.cmd_rr_vel, self.cmd_rl_vel, self.cmd_fl_vel]) * self.rpm_to_radpersec
+        self.cmd_robot_twist = self.screw_radius * np.dot(self.fwd_kinematics, self.cmd_screw_speeds)
+        cmd_body_vel_stamped.header.stamp = self.get_clock().now().to_msg()
+        cmd_body_vel.linear.x = self.cmd_robot_twist[0]
+        cmd_body_vel_stamped.twist.linear.x = self.cmd_robot_twist[0]
+        cmd_body_vel.linear.y = self.cmd_robot_twist[1]
+        cmd_body_vel_stamped.twist.linear.y = self.cmd_robot_twist[1]
+        cmd_body_vel.angular.z = self.cmd_robot_twist[2]
+        cmd_body_vel_stamped.twist.angular.z = self.cmd_robot_twist[2]
+        self.cmd_vel_pub.publish(cmd_body_vel)
+        self.cmd_vel_stamped_pub.publish(cmd_body_vel_stamped)
 
         self.visualizeScrewsInGazebo()
 

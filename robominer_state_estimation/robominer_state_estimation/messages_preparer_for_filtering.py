@@ -50,7 +50,7 @@ class PublishingSubscriber(Node):
 
         self.subscription_2 = self.create_subscription(
             TwistStamped,
-            '/cmd_vel_stamped',
+            '/twist_FKinematics_stamped',
             self.twist_received_kinematics,
             10)
         self.subscription_2  # prevent unused variable warning
