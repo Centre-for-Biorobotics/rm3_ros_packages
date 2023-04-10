@@ -11,17 +11,19 @@ import math
 WHISKER_ROW_AMOUNT = 10
 WHISKERS_PER_ROW_AMOUNT = 8
 
-POLAR_INPUT = True # should currently be False for simulation and True for non-simulation
+SIMULATION = True  # uses non-polar coordinates and different noise due to differences from real-world sensors
 
 
 def whiskers_add_noise(whiskers: List[Whisker], min_total_value, max_total_value) -> None:
-    random_matrix = np.random.normal(loc=0, scale=.05, size=(len(whiskers), 3))
+    scale = .002 if SIMULATION else .217
+
+    random_matrix = np.random.normal(loc=0, scale=scale, size=(len(whiskers), 3))
 
     for i in range(len(whiskers)):
         whisker = whiskers[i]
-        whisker.x = np.clip(whisker.x + random_matrix[i][0], min_total_value, max_total_value)
-        whisker.y = np.clip(whisker.y + random_matrix[i][1], min_total_value, max_total_value)
-        whisker.z = np.clip(whisker.z + random_matrix[i][2], min_total_value, max_total_value)
+        whisker.x += np.clip(random_matrix[i][0], min_total_value, max_total_value)
+        whisker.y += np.clip(random_matrix[i][1], min_total_value, max_total_value)
+        whisker.z += np.clip(random_matrix[i][2], min_total_value, max_total_value)
 
 
 def create_whisker_matrix(whiskers: List[Whisker]) -> List[List[Whisker]]:
@@ -49,7 +51,7 @@ def create_averaged_bias_matrix(offset_matrices: np.array) -> np.array:
 
 
 def whiskers_create_simulated_bias_matrix() -> np.array:
-    return np.random.normal(loc=0, scale=.24, size=(WHISKER_ROW_AMOUNT, WHISKERS_PER_ROW_AMOUNT, 2))
+    return np.random.normal(loc=0, scale=.005, size=(WHISKER_ROW_AMOUNT, WHISKERS_PER_ROW_AMOUNT, 3))
 
 
 def whiskers_apply_simulated_bias(whiskers: List[Whisker], simulated_bias_matrix: np.array) -> None:
@@ -94,30 +96,30 @@ def calc_whiskers_inclination_euclid(whiskers : List[Whisker]):
     Positive if higher columns have higher values, negative if lower columns have higher values.
     Values are between [-10; 10]
     """
-    return sum([whisker_euclid_dist(w) * directional_whisker_weight(w.pos.col_num, len(whiskers)) for w in whiskers]) / (2 * sum(range(1, len(whiskers) // 2)))
+    return sum([whisker_pressure(w) * directional_whisker_weight(w.pos.col_num, len(whiskers)) for w in whiskers]) / (2 * sum(range(1, len(whiskers) // 2)))
 
 
 def calc_whisker_pressure_max(whiskers: List[Whisker]):
     """
     Get the maximum pressure of the whisker with most pressure in the list.
     """
-    return max([whisker_euclid_dist(w) for w in whiskers])
+    return max([whisker_pressure(w) for w in whiskers])
 
 
 def calc_whisker_pressure_avg(whiskers: List[Whisker]):
     """
     Get the average pressure of all whiskers in the list.
     """
-    return mean([whisker_euclid_dist(w) for w in whiskers])
+    return mean([whisker_pressure(w) for w in whiskers])
 
 
-def whisker_euclid_dist(whisker: Whisker):
+def whisker_pressure(whisker: Whisker):
     """
     Calculate the euclidean distance of the whisker's x and y displacement.
     Normalized to [0, 1]
     """
 
-    if POLAR_INPUT:
+    if not SIMULATION:
         w_theta = 0.6
         w_z = 0.4
 
@@ -127,7 +129,7 @@ def whisker_euclid_dist(whisker: Whisker):
         return np.clip(abs(whisker.y) / max_theta, 0, 1) * w_theta + np.clip(abs(whisker.z) / max_z, 0., 1) * w_z
     
     magnitude, _ = polar(whisker.x, whisker.y)
-    return np.clip(abs(magnitude) * 1.3, 0., 1.)
+    return np.clip(abs(magnitude) * 1.5, 0., 1.)
 
       # (whisker.x**2 + whisker.y**2)**0.5
 
