@@ -59,10 +59,10 @@ from .util.whisker_helpers import (
 class Factor:
     description: str
     weight: float
-    movement: list
+    movement: np.ndarray
 
 
-NO_MOVEMENT = [0, 0, 0]
+NO_MOVEMENT = np.array([0, 0, 0])
 
 # Debugging toggles
 LOG_FACTORS = False
@@ -559,8 +559,8 @@ class RM3Pathfinder(Node):
         self.get_logger().info('Path: ' + str([str(n) for n in self.path]))
     
     def determine_and_publish_movement(self) -> None:
-        mov_lst = np.array(self.determine_movement()) * self.control_vel
-        self.publish_movement(mov_lst)
+        mov_twist = self.determine_movement() * self.control_vel
+        self.publish_movement(mov_twist)
 
     def publish_movement(self, mov_lst):
         """
@@ -571,13 +571,13 @@ class RM3Pathfinder(Node):
         twist_msg.header.frame_id = "base_link"
 
         if self.pathfinder_params["Pathfinder"]["Simulation"] == "enabled":
-            twist_msg.twist.linear.x = float(mov_lst[0] * 10)
-            twist_msg.twist.linear.y = float(mov_lst[1] * 10)
-            twist_msg.twist.angular.z = float(mov_lst[2] * 10)
+            twist_msg.twist.linear.x = mov_lst[0] * 10
+            twist_msg.twist.linear.y = mov_lst[1] * 10
+            twist_msg.twist.angular.z = mov_lst[2] * 10
         else:
-            twist_msg.twist.linear.x = float(mov_lst[0])
-            twist_msg.twist.linear.y = float(mov_lst[1])
-            twist_msg.twist.angular.z = float(mov_lst[2])
+            twist_msg.twist.linear.x = mov_lst[0]
+            twist_msg.twist.linear.y = mov_lst[1]
+            twist_msg.twist.angular.z = mov_lst[2]
         self.robot_speed_pub.publish(twist_msg)
 
     def get_path_following_angle_error(self):
@@ -597,7 +597,7 @@ class RM3Pathfinder(Node):
 
         return angle_between_positions(translated_curr_pos, step_p) - self.abs_angle
 
-    def determine_movement(self) -> List[float]:
+    def determine_movement(self) -> np.ndarray:
         """
         Output: [x, y, yaw]
         """
@@ -631,13 +631,13 @@ class RM3Pathfinder(Node):
 
             if abs(angle_error) > 2:
                 #self.log_movement('A-star rotate')
-                return DirectionTwist.TURN_RIGHT.value if angle_error >= 0 else DirectionTwist.TURN_LEFT.value
+                return DirectionTwist.TURN_RIGHT.twist if angle_error >= 0 else DirectionTwist.TURN_LEFT.twist
 
             #self.log_movement('A-star forward')
-            return [1, 0, 0]
+            return DirectionTwist.MOVE_FORWARD.twist
 
         #self.log_movement('A-star avoidance')
-        return [-1, 0, 0]
+        return DirectionTwist.MOVE_BACKWARD.twist
 
     def publish_factors(self, factors = [], hard_coll = 0., calibration = 0.):
         for factor in factors:
@@ -665,7 +665,7 @@ class RM3Pathfinder(Node):
 
         collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.4, hard_collision_max_threshold=0.8, 
                                                                               tracking_direction=tracked_wall_direction)
-        if collision_prevention_system_part != None:
+        if collision_prevention_system_part is not None:
             self.log_movement('Hard collision avoidance')
             self.publish_factors(hard_coll=1)
             return collision_prevention_system_part
@@ -685,7 +685,7 @@ class RM3Pathfinder(Node):
             if self.not_touched_wall_times + 1 >= self.not_touched_wall_threshold:
                 self.inactivate_pids()
                 self.not_touched_wall = True
-                return multiply_list_with_scalar(tracked_wall_direction.move_twist(), .05)
+                return tracked_wall_direction.move_twist() * .05
         
         if self.not_touched_wall:
             self.activate_movement()  # reset PID controllers
@@ -725,7 +725,7 @@ class RM3Pathfinder(Node):
         weight_factors.append(Factor(
             'Turn to keep level with the side walls',
             abs(self.direction),
-            DirectionTwist.TURN_LEFT.value if self.direction >= 0 else DirectionTwist.TURN_RIGHT.value
+            DirectionTwist.TURN_LEFT.twist if self.direction >= 0 else DirectionTwist.TURN_RIGHT.twist
         ))
 
         # movement_left = tracked_wall_direction == Direction.LEFT  # positive
@@ -783,8 +783,14 @@ class RM3Pathfinder(Node):
         
         self.publish_factors(weight_factors)
 
-        return calculate_movement_from_factors(weight_factors)
+        return self.calculate_movement_from_factors(weight_factors)
     
+    def calculate_movement_from_factors(self, factors: List[Factor]):
+        output = np.zeros(3)
+        for factor in factors:
+            output += factor.movement * factor.weight
+        return output
+        
     def calibration_movement_dir(self, direction):
         if direction in self.directions_calibrated:
             return
@@ -793,7 +799,7 @@ class RM3Pathfinder(Node):
         
         if len(self.calibration_p_max_deque) < self.calibration_p_max_deque.maxlen \
             or np.array(self.calibration_p_max_deque).std() > 0.01:
-            return multiply_list_with_scalar(direction.opposite().move_twist(), .03)
+            return direction.opposite().move_twist() * .03
 
         self.bias_matrices.append(create_bias_matrix(self.whiskers))
         if len(self.bias_matrices) == self.bias_matrices.maxlen:
@@ -843,11 +849,11 @@ class RM3Pathfinder(Node):
             if tracking_direction is not None and moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
                 and (self.whisker_pressures_max[Direction.FORWARD] >= (hard_collision_max_threshold - 0.2) or self.whisker_pressures_avg[Direction.FORWARD] >= (hard_collision_avg_threshold)  - 0.2) \
                 and (self.whisker_pressures_max[Direction.BACKWARD] >= (hard_collision_max_threshold - 0.2) or self.whisker_pressures_avg[Direction.BACKWARD] >= (hard_collision_avg_threshold - 0.2)):
-                mov_lst = multiply_list_with_scalar(tracking_direction.opposite().move_twist(), 0.05)
+                mov_lst = tracking_direction.opposite().move_twist() * 0.05
                 mov_lst[2] = -0.3 if tracking_direction == Direction.LEFT else 0.3
                 return mov_lst
 
-            return multiply_list_with_scalar(moveDirection.move_twist(), 0.05)
+            return moveDirection.move_twist() * 0.05
         except ValueError:
             return NO_MOVEMENT
 
@@ -857,10 +863,6 @@ class RM3Pathfinder(Node):
             self.prev_movement_log = new_movement
 
 
-def multiply_list_with_scalar(_list: List, num) -> List:
-    return [i * num for i in _list]
-
-
 def normalize_factor_weights(factors: List[Factor]) -> None:
     """
     Normalize factor weights to sum up to 1.
@@ -868,16 +870,6 @@ def normalize_factor_weights(factors: List[Factor]) -> None:
     total_sum = sum(abs(factor.weight) for factor in factors)
     for factor in factors:
         factor.weight /= total_sum
-
-
-def calculate_movement_from_factors(factors: List[Factor]):
-    out_list = [0] * 3
-    for factor in factors:
-        factor.movement = multiply_list_with_scalar(factor.movement, factor.weight)
-        for i in range(3):
-            out_list[i] += factor.movement[i]
-
-    return out_list
 
 
 def add_angles(a1, a2):
