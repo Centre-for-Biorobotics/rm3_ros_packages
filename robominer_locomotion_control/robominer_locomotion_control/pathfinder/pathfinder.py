@@ -699,7 +699,7 @@ class RM3Pathfinder(Node):
             NO_MOVEMENT
         ))
 
-        # if self.whisker_pressures_max[Direction.FORWARD] <= 0.4 and self.whisker_pressures_max[Direction.BACKWARD] <= 0.4:
+        #if self.whisker_pressures_max[Direction.FORWARD] <= 0.4 and self.whisker_pressures_max[Direction.BACKWARD] <= 0.4:
         # Don't try to get nearer to the wall if stuck between walls
         weight_factors.append(Factor(
             'Wall tracking PID (push L/R)',
@@ -799,10 +799,13 @@ class RM3Pathfinder(Node):
         if len(self.bias_matrices) == self.bias_matrices.maxlen:
             self.get_logger().info("Calibrated: " + str(direction))
             self.get_logger().info("Calibratable standard dev: " + str(np.array(self.calibration_p_max_deque).std()))
+            
             avg_bias_matrix = create_averaged_bias_matrix(self.bias_matrices)
             row = self.direction_to_whisker_row_map[direction]
             self.final_bias_matrix[row] = avg_bias_matrix[row]
+            
             self.directions_calibrated.add(direction)
+            
             self.calibration_p_max_deque.clear()
             self.bias_matrices.clear()
             
