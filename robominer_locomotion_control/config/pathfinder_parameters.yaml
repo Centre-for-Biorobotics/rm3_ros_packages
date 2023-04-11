@@ -5,7 +5,7 @@ Pathfinder:
     SkipBiasMatrixCalculation: "enabled"  # meant for simulation, where there's no bias introduced
 
 Whiskers:
-    BiasNoiseSamples: 300  # Whiskers have some bias and noinse, so the robot takes the given number of samples of the whisker messages at the start to set an offset for the whiskers
+    BiasNoiseSamples: 10  # Whiskers have some bias and noinse, so the robot takes the given number of samples of the whisker messages at the start to set an offset for the whiskers
     Simulation:
         AddNoise: "enabled"  # "enabled"/"disabled"
         AddSimulatedBias: "enabled"  # "enabled"/"disabled"
