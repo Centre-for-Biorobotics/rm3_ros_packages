@@ -22,7 +22,7 @@ from collections import deque
 
 from ament_index_python.packages import get_package_share_directory
 
-from geometry_msgs.msg import Point, Point32, TwistStamped
+from geometry_msgs.msg import Point, Point32, Pose, TwistStamped
 from robominer_msgs.msg import WhiskerArray, Whisker, WhiskerPosInGrid
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, Float32, String
@@ -156,6 +156,8 @@ class RM3Pathfinder(Node):
 
         ref_frame = self.pathfinder_params["Pathfinder"]["ReferenceFrame"]
         self.sub_odom = self.create_subscription(Odometry, ref_frame, self.on_odometry, 10)
+        # for real-world use
+        self.sub_odom = self.create_subscription(Pose, 'robot_pose_filtered', self.on_pose, 10)
 
         self.sub_whisker = self.create_subscription(WhiskerArray, '/whiskers', self.on_whisker, 10)
         # Duplicate for simulation
@@ -215,7 +217,10 @@ class RM3Pathfinder(Node):
         )
 
     def on_odometry(self, msg: Odometry):
-        self.curr_pose = msg.pose.pose
+        self.on_pose(msg.pose)
+
+    def on_pose(self, msg: Pose):
+        self.curr_pose = msg
 
         self.abs_angle = self.calc_abs_angle()
 
@@ -233,7 +238,7 @@ class RM3Pathfinder(Node):
 
         _, _, yaw = euler_from_quaternion(orient)
         
-        return yaw * 180 / np.pi 
+        return yaw * 180 / np.pi
     
     def on_algorithm_select(self, msg: String):
         try:
