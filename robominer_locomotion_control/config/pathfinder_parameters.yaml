@@ -18,12 +18,18 @@ Control:
             Kd: 0.2
             Setpoint: 0.2
             Saturation: [-5, 5]
-        Direction:
+        DirectionWall:
             Kp: 5 #20
             Ki: 1 #10, 5 now
             Kd: 0
             Setpoint: 0
             Saturation: [-5, 5]
+        DirectionPath:
+            Kp: 0.5
+            Ki: 0.1
+            Kd: 0.2
+            Setpoint: 0
+            Saturation: [-40, 40]
         XAxis:
             Kp: 20
             Ki: 0

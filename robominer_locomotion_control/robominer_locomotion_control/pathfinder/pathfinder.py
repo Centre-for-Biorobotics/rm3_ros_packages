@@ -7,6 +7,8 @@ Node that can do wall-following or A* pathfinding to a goal
 """
 
 from __future__ import annotations
+from typing import Callable
+from tf_transformations import euler_from_quaternion
 
 import math
 import numpy as np
@@ -28,7 +30,8 @@ from std_msgs.msg import Float64, Float32, String
 from dataclasses import dataclass
 from simple_pid import PID
 
-from .a_star.a_star import a_star
+from .pathplanning.a_star import a_star
+from .pathplanning.theta_star import theta_star
 
 from .direction.direction import Direction
 from .direction.direction_twist import DirectionTwist
@@ -62,12 +65,14 @@ class Factor:
     movement: np.ndarray
 
 
-NO_MOVEMENT = np.array([0, 0, 0])
+NO_MOVEMENT = np.array([0, 0, 0], dtype=float)
 
 # Debugging toggles
 LOG_FACTORS = False
 LOG_HIGHEST_P = False
 USE_KALMAN_FILTER = False
+LOG_SURROUNDINGS = True
+LOG_LINE_OF_SIGHT = True # shows L for line of sight to objective in surroundings log
 
 class RM3Pathfinder(Node):
     def __init__(self, pathfinder_config_params : dict, sim_params : dict):
@@ -109,10 +114,8 @@ class RM3Pathfinder(Node):
         self.destination : Point32 = None
         self.pub_dest = self.create_subscription(Point32, '/cmd_pathfinder_destination', self.on_destination, 10)
 
-        self.max_z = 0
-        self.min_z = 0
-
-        self.direction = 0
+        self.direction_wall = 0
+        self.direction_path = 0
 
         self.p_max_whisker = 0.
         self.dir_max_val = 0.
@@ -145,7 +148,8 @@ class RM3Pathfinder(Node):
         self.whisker_pressures_avg = {}
         self.whisker_pressures_max = {}
 
-        self.direction_pid = self.create_pid("Direction")
+        self.direction_wall_pid = self.create_pid("DirectionWall")
+        self.direction_path_pid = self.create_pid("DirectionPath")
         self.horizontal_pid = self.create_pid("Horizontal")
         self.x_axis_pid = self.create_pid("XAxis")
         self.x_axis_turning_pid = self.create_pid("XAxisTurning")
@@ -164,21 +168,28 @@ class RM3Pathfinder(Node):
 
         self.robot_speed_pub = self.create_publisher(TwistStamped, '/move_cmd_vel', 10)
 
-        # self.create_timer(5, self.log_surroundings)  # every 5 seconds
+        if LOG_SURROUNDINGS:
+            self.create_timer(5, self.log_surroundings)  # every 5 seconds
 
         # For monitoring only
-        self.publisher_error_direction = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
-        self.publisher_output_direction = self.create_publisher(Float64, '/whiskerErrors/direction_out', 10)
+        self.publisher_error_direction_wall = self.create_publisher(Float64, '/whiskerErrors/direction_wall', 10)
+        self.publisher_output_direction_wall = self.create_publisher(Float64, '/whiskerErrors/direction_wall_out', 10)
         self.publisher_error_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis', 10)
         self.publisher_output_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis_out', 10)
         self.publisher_error_x_axis = self.create_publisher(Float64, '/whiskerErrors/x_axis', 10)
         self.publisher_output_x_axis = self.create_publisher(Float64, '/whiskerErrors/x_axis_out', 10)
-        self.publisher_weight = self.create_publisher(Float64, '/whiskerErrors/direction', 10)
+        self.publisher_error_direction_path = self.create_publisher(Float64, '/whiskerErrors/direction_path', 10)
+        self.publisher_output_direction_path = self.create_publisher(Float64, '/whiskerErrors/direction_path_out', 10)
+        self.publisher_error_translated_dist = self.create_publisher(Float64, '/whiskerErrors/dist_path', 10)
+
+        self.publisher_angle_between_pos = self.create_publisher(Float64, '/whiskerErrors/angle_between_pos', 10)
+        self.publisher_abs_angle = self.create_publisher(Float64, '/whiskerErrors/abs_angle_robot', 10)
 
         self.pub_fac_zero = self.create_publisher(Float64, '/factor/zero', 10)
         self.pub_fac_forward = self.create_publisher(Float64, '/factor/forward', 10)
         self.pub_fac_wall_distance = self.create_publisher(Float64, '/factor/wall_distance', 10)
-        self.pub_fac_wall_direction = self.create_publisher(Float64, '/factor/wall_direction', 10)
+        self.pub_fac_direction_wall = self.create_publisher(Float64, '/factor/wall_direction', 10)
+        self.pub_fac_direction_path = self.create_publisher(Float64, '/factor/direction_path', 10)
         self.pub_fac_forward_coll_handle = self.create_publisher(Float64, '/factor/forward_coll_handle', 10)
         self.pub_fac_hard_coll_handle = self.create_publisher(Float64, '/factor/hard_coll_handle', 10)
         self.pub_fac_calibration = self.create_publisher(Float64, '/factor/calibration', 10)
@@ -217,7 +228,12 @@ class RM3Pathfinder(Node):
         """
         Orientation.z is approximately -1 to 1, likely ]-1;1].
         """
-        return self.curr_pose.orientation.z * 180
+        orient = [self.curr_pose.orientation.x, self.curr_pose.orientation.y,
+                  self.curr_pose.orientation.z, self.curr_pose.orientation.w]
+
+        _, _, yaw = euler_from_quaternion(orient)
+        
+        return yaw * 180 / np.pi 
     
     def on_algorithm_select(self, msg: String):
         try:
@@ -239,6 +255,14 @@ class RM3Pathfinder(Node):
         except ValueError:
             self.get_logger().error("Invalid algorithm passed with value: " + msg.data)
 
+    def curr_pathfinding_func(self) -> Callable:
+        if self.curr_algorithm == PathfinderAlgorithm.A_STAR:
+            return a_star
+        elif self.curr_algorithm == PathfinderAlgorithm.THETA_STAR:
+            return theta_star
+        
+        return None
+
     def on_velocity(self, msg: Float32):
         self.control_vel = msg.data
         self.get_logger().info("Velocity changed to: " + str(self.control_vel))
@@ -251,7 +275,10 @@ class RM3Pathfinder(Node):
         self.get_logger().info("Destination changed to: " + str(self.destination))
 
         # recalculate path
-        self.path = a_star(self.graph, self.curr_node_position, self.destination)
+        algo_func = self.curr_pathfinding_func()
+        if algo_func is None:
+            return
+        self.path = algo_func(self.graph, self.curr_node_position, self.destination)
 
     def apply_kalman_to_whiskers(self, whisker_matrix):
         """
@@ -327,13 +354,9 @@ class RM3Pathfinder(Node):
 
         self.assign_whisker_pressures_for_directions()
 
-        # self.get_logger().error("Max avg: " + str(max(self.whisker_pressures_avg.values())) + ", Max Max: " + str(max(self.whisker_pressures_max.values())))
-
         self.mark_collision_points()
 
         self.calculate_errors()
-
-        # self.get_logger().error("Y AXIS MOVEMENT {:.2f}; X AXIS MOVEMENT {:.2f}".format(self.y_axis_movement, self.x_axis_movement))
 
         self.determine_and_publish_movement()
 
@@ -397,18 +420,22 @@ class RM3Pathfinder(Node):
                 # self.get_logger().error("Detected max : " + str(whisker_pressures_max_tmp[direction]) + " " + str(direction))
 
     def calculate_errors(self):
-        direction = self.get_direction_error()
+        direction_wall = self.get_direction_error()
+        direction_path = self.get_path_following_angle_error()
         y_axis_movement = self.calc_axis_error(self.publisher_error_y_axis, self.tracked_wall_direction, 0.7, 0.3)
         x_axis_movement = self.calc_axis_error(self.publisher_error_x_axis, Direction.FORWARD, 0.7, 0.3)
 
-        self.assign_pid_values(direction, y_axis_movement, x_axis_movement)
+        self.assign_pid_values(direction_wall, direction_path, y_axis_movement, x_axis_movement)
 
-    def assign_pid_values(self, direction, y_axis_movement, x_axis_movement):
-        if (direction > 0) == (self.direction > 0): # and abs(direction - self.direction) > 5:  # Avoid wind-up, set to zero when crossing 0
-            self.direction_pid.set_auto_mode(False)
-            self.direction_pid.set_auto_mode(True, self.direction)
-        pid_dir = self.direction_pid(direction)
-        self.direction = pid_dir if pid_dir is not None else direction
+    def assign_pid_values(self, direction_wall, direction_path, y_axis_movement, x_axis_movement):
+        if (direction_wall > 0) == (self.direction_wall > 0):  # Avoid wind-up, set to zero when crossing 0
+            self.direction_wall_pid.set_auto_mode(False)
+            self.direction_wall_pid.set_auto_mode(True, self.direction_wall)
+        pid_dir_wall = self.direction_wall_pid(direction_wall)
+        self.direction_wall = pid_dir_wall if pid_dir_wall is not None else direction_wall
+
+        pid_dir_path = self.direction_path_pid(direction_path)
+        self.direction_path = pid_dir_path if pid_dir_path is not None else direction_path
 
         pid_y = self.horizontal_pid(y_axis_movement)
         self.y_axis_movement = pid_y if pid_y is not None else y_axis_movement
@@ -416,7 +443,8 @@ class RM3Pathfinder(Node):
         pid_x = self.x_axis_pid(x_axis_movement)
         self.x_axis_movement = pid_x if pid_x is not None else x_axis_movement
 
-        self.publisher_output_direction.publish(Float64(data=float(self.direction)))
+        self.publisher_output_direction_wall.publish(Float64(data=float(self.direction_wall)))
+        self.publisher_output_direction_path.publish(Float64(data=float(self.direction_path)))
         self.publisher_output_y_axis.publish(Float64(data=float(self.y_axis_movement)))
         self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
         
@@ -466,7 +494,7 @@ class RM3Pathfinder(Node):
             
             # Recalculate due to new position
             if self.destination and (self.path is None or self.path is not None and collision_point in self.path):
-                self.path = a_star(self.graph, self.curr_node_position, self.destination)
+                self.path = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
 
     def get_direction_error(self):
         """
@@ -497,7 +525,7 @@ class RM3Pathfinder(Node):
             self.dir_max_val = abs(direction)
             # self.get_logger().info("Max direction: {:.2f}".format(self.dir_max_val))
             
-        self.publisher_error_direction.publish(Float64(data=float(direction)))
+        self.publisher_error_direction_wall.publish(Float64(data=float(direction)))
 
         return direction
 
@@ -524,13 +552,14 @@ class RM3Pathfinder(Node):
     def activate_movement(self):
         self.get_logger().info("Movement activated")
         self.active = True
-        self.direction_pid.set_auto_mode(True, 0)
+        self.direction_wall_pid.set_auto_mode(True, 0)
+        self.direction_path_pid.set_auto_mode(True, 0)
         self.horizontal_pid.set_auto_mode(True, 0)
         self.x_axis_pid.set_auto_mode(True, 0)
         self.x_axis_turning_pid.set_auto_mode(True, 0)
 
-        if self.curr_algorithm == PathfinderAlgorithm.A_STAR and self.destination is not None:
-            self.path = a_star(self.graph, self.curr_node_position, self.destination)
+        if self.curr_algorithm in [PathfinderAlgorithm.A_STAR, PathfinderAlgorithm.THETA_STAR] and self.destination is not None:
+            self.path = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
         else:
             self.path = []
 
@@ -539,11 +568,12 @@ class RM3Pathfinder(Node):
         self.active = False
         self.inactivate_pids()
 
-        if self.curr_algorithm == PathfinderAlgorithm.A_STAR:
+        if self.curr_algorithm in [PathfinderAlgorithm.A_STAR, PathfinderAlgorithm.THETA_STAR]:
             self.path = []
 
     def inactivate_pids(self):
-        self.direction_pid.set_auto_mode(False, self.direction)
+        self.direction_wall_pid.set_auto_mode(False, self.direction_wall)
+        self.direction_path_pid.set_auto_mode(False, self.direction_path)
         self.horizontal_pid.set_auto_mode(False, self.y_axis_movement)
         self.x_axis_pid.set_auto_mode(False, self.x_axis_movement)
         self.x_axis_turning_pid.set_auto_mode(False, self.x_axis_movement)
@@ -551,10 +581,10 @@ class RM3Pathfinder(Node):
     def publish_errors(self):
         self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
         self.publisher_output_y_axis.publish(Float64(data=float(self.y_axis_movement)))
-        self.publisher_output_direction.publish(Float64(data=float(self.direction)))
+        self.publisher_output_direction_wall.publish(Float64(data=float(self.direction_wall)))
 
     def log_surroundings(self):
-        self.get_logger().info(self.graph.get_surroundings(self.curr_node_position, 20, self.path))
+        self.get_logger().info(self.graph.get_surroundings(self.curr_node_position, 20, self.path, log_line_of_sight=LOG_LINE_OF_SIGHT))
         self.get_logger().info('Pos: ' + str(self.curr_node_position))
         self.get_logger().info('Path: ' + str([str(n) for n in self.path]))
     
@@ -582,20 +612,33 @@ class RM3Pathfinder(Node):
 
     def get_path_following_angle_error(self):
         if self.path is None or len(self.path) == 0:
-            return None
+            return 0
 
         translated_curr_pos = self.graph.translate_position_to_graph_pos_unrounded(self.curr_pose.position)
+
+        dist = distance(translated_curr_pos.x, translated_curr_pos.y, self.path[0].x, self.path[0].y)
         
-        if distance(translated_curr_pos.x, translated_curr_pos.y, self.path[0].x, self.path[0].y) < 0.5:
+        if dist < 0.5:
             # self.get_logger().warn('Removed first!')
             self.path.pop(0)
+            if len(self.path) == 0:
+                return 0
 
         step_p = Point()
         step_p.x, step_p.y = float(self.path[0].x), float(self.path[0].y)
 
-        translated_curr_pos = self.graph.translate_position_to_graph_pos_unrounded(self.curr_pose.position)
+        self.publisher_abs_angle.publish(Float64(data=float(self.abs_angle)))
 
-        return angle_between_positions(translated_curr_pos, step_p) - self.abs_angle
+        translated_dist = distance(translated_curr_pos.x, translated_curr_pos.y, step_p.x, step_p.y)
+        self.publisher_error_translated_dist.publish(Float64(data=float(translated_dist)))
+
+        angle_between_pos = angle_between_positions(translated_curr_pos, step_p)
+        self.publisher_angle_between_pos.publish(Float64(data=float(angle_between_pos)))
+
+        angle_error = (angle_between_pos - self.abs_angle) * np.clip(translated_dist / 0.7, 0.05, 1)
+        self.publisher_error_direction_path.publish(Float64(data=float(angle_error)))
+        
+        return angle_error
 
     def determine_movement(self) -> np.ndarray:
         """
@@ -603,8 +646,8 @@ class RM3Pathfinder(Node):
         """
         if self.curr_algorithm == PathfinderAlgorithm.NONE:
             return NO_MOVEMENT
-        elif self.curr_algorithm == PathfinderAlgorithm.A_STAR:
-            return self.determine_movement_a_star()
+        elif self.curr_algorithm in [PathfinderAlgorithm.A_STAR, PathfinderAlgorithm.THETA_STAR]:
+            return self.determine_movement_path_planning()
         elif self.curr_algorithm == PathfinderAlgorithm.LEFT_WALL_FOLLOWER:
             return self.determine_movement_wall_follower(Direction.LEFT)
         elif self.curr_algorithm == PathfinderAlgorithm.RIGHT_WALL_FOLLOWER:
@@ -613,44 +656,72 @@ class RM3Pathfinder(Node):
             self.get_logger().error("Invalid pathfinder algorithm: " + str(self.curr_algorithm))
             return NO_MOVEMENT
 
-    def determine_movement_a_star(self):
-        # http://idm-lab.org/bib/abstracts/papers/aaai10b.pdf
-        # http://idm-lab.org/bib/abstracts/papers/ijcai09d.pdf
-
+    def determine_movement_path_planning(self):
         if self.curr_node_position == self.destination or self.destination is None:
+            if self.path:
+                self.path = []
             return NO_MOVEMENT
 
         collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.4, hard_collision_max_threshold=0.8, 
                                                                               tracking_direction=None)
-        if collision_prevention_system_part != None:
-            #self.log_movement('Hard collision avoidance')
-            return collision_prevention_system_part
+        if collision_prevention_system_part is not None:
+            self.log_movement('Hard collision avoidance')
+            self.publish_factors(hard_coll=1)
+            return collision_prevention_system_part * 3
+        
+        if self.calibration_initiated:
+            self.log_movement('Calibration')
+            calibration_movement = self.calibration_movement()
+            if calibration_movement is not None:
+                self.publish_factors(calibration=1)
+                return calibration_movement
+        
+        self.log_movement('Weight factor-based movement')
+        weight_factors = list()
 
-        if self.path is not None and len(self.path) != 0:
-            angle_error = self.get_path_following_angle_error()
+        weight_factors.append(Factor(
+            'Base normalisation factor',
+            1,
+            NO_MOVEMENT
+        ))
 
-            if abs(angle_error) > 2:
-                #self.log_movement('A-star rotate')
-                return DirectionTwist.TURN_RIGHT.twist if angle_error >= 0 else DirectionTwist.TURN_LEFT.twist
+        weight_factors.append(Factor(
+            'Turn to keep level with path',
+            abs(self.direction_path),
+            DirectionTwist.TURN_RIGHT.twist if self.direction_path >= 0 else DirectionTwist.TURN_LEFT.twist
+        ))
 
-            #self.log_movement('A-star forward')
-            return DirectionTwist.MOVE_FORWARD.twist
+        MAX_FORWARD_MOVEMENT = 1.0
+        forward_weight = MAX_FORWARD_MOVEMENT # * np.clip(1 - abs(self.direction_path) / 10, 0, 1)
+        weight_factors.append(Factor(
+            'Forward movement factor',
+            forward_weight,
+            Direction.FORWARD.move_twist()
+        ))
 
-        #self.log_movement('A-star avoidance')
-        return DirectionTwist.MOVE_BACKWARD.twist
+        if LOG_FACTORS:
+            self.get_logger().info(str(weight_factors))
+
+        normalize_factor_weights(weight_factors)
+        
+        self.publish_factors(weight_factors)
+
+        return self.calculate_movement_from_factors(weight_factors)
 
     def publish_factors(self, factors = [], hard_coll = 0., calibration = 0.):
         for factor in factors:
-            if factor.description == 'Zero-factor for normalization':
+            if factor.description == 'Base normalisation factor':
                 self.pub_fac_zero.publish(Float64(data=factor.weight))
             elif factor.description == 'Wall tracking PID (push L/R)':
                 self.pub_fac_wall_distance.publish(Float64(data=factor.weight))
             elif factor.description == 'Forward movement factor':
                 self.pub_fac_forward.publish(Float64(data=factor.weight))
             elif factor.description == 'Turn to keep level with the side walls':
-                self.pub_fac_wall_direction.publish(Float64(data=factor.weight))
+                self.pub_fac_direction_wall.publish(Float64(data=factor.weight))
             elif factor.description == 'Handle forward pressure':
                 self.pub_fac_forward_coll_handle.publish(Float64(data=factor.weight))
+            elif factor.description == 'Turn to keep level with path':
+                self.pub_fac_direction_path.publish(Float64(data=factor.weight))
                 
         self.pub_fac_hard_coll_handle.publish(Float64(data=float(hard_coll)))
         self.pub_fac_calibration.publish(Float64(data=float(calibration)))
@@ -712,7 +783,7 @@ class RM3Pathfinder(Node):
         #forward_movespeed_percentage_y = np.clip(1 - abs(self.y_axis_movement) / (1.25 * setpoint_y_axis_val), 0, 1)
 
         forward_movespeed_percentage_y = np.clip(1 - abs(self.y_axis_movement) / 0.5, 0, 1)
-        forward_movespeed_percentage_dir = np.clip(1 - abs(self.direction) / 0.8, 0, 1)
+        forward_movespeed_percentage_dir = np.clip(1 - abs(self.direction_wall) / 0.8, 0, 1)
 
         MAX_FORWARD_MOVEMENT = 1.0
         forward_weight = MAX_FORWARD_MOVEMENT * forward_movespeed_percentage_y * forward_movespeed_percentage_dir
@@ -724,8 +795,8 @@ class RM3Pathfinder(Node):
             
         weight_factors.append(Factor(
             'Turn to keep level with the side walls',
-            abs(self.direction),
-            DirectionTwist.TURN_LEFT.twist if self.direction >= 0 else DirectionTwist.TURN_RIGHT.twist
+            abs(self.direction_wall),
+            DirectionTwist.TURN_LEFT.twist if self.direction_wall >= 0 else DirectionTwist.TURN_RIGHT.twist
         ))
 
         # movement_left = tracked_wall_direction == Direction.LEFT  # positive
