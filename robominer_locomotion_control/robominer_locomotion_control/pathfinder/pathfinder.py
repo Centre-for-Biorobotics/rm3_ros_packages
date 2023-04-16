@@ -83,6 +83,8 @@ WHISKER_ROW_DICT = {  # default, if every row is present
     Direction.BACKWARD: [3]
 }
 
+CYCLES_UNTIL_RECALIBRATION = 1000
+
 class RM3Pathfinder(Node):
     def __init__(self, pathfinder_config_params : dict, sim_params : dict):
         super().__init__('RM3Pathfinder')
@@ -119,6 +121,7 @@ class RM3Pathfinder(Node):
         self.final_bias_matrix = None
         self.bias_matrices = deque(maxlen=self.pathfinder_params["Whiskers"]["BiasNoiseSamples"])
 
+        self.curr_cycles_until_calibration = 0
         self.calibration_initiated = True
         self.directions_calibrated = set()
 
@@ -382,6 +385,12 @@ class RM3Pathfinder(Node):
         Process whisker output for movement input.
         """
         self.whiskers = msg.whiskers
+
+        if self.curr_cycles_until_calibration == 0:
+            self.calibration_initiated = True
+        else:
+            self.curr_cycles_until_calibration -= 1
+
         self.whisker_matrix = self.preprocess_whiskers(msg.whiskers)
 
         if self.whisker_matrix is None:
@@ -911,8 +920,11 @@ class RM3Pathfinder(Node):
             self.log_movement('Calibration')
             calibration_movement = self.calibration_movement()
             if calibration_movement is not None:
+                self.inactivate_wall_following_pids()
                 self.publish_factors(calibration=1)
                 return calibration_movement
+            else:
+                self.activate_wall_following_pids()
         
         self.log_movement('Weight factor-based movement')
         weight_factors = list()
@@ -1038,7 +1050,7 @@ class RM3Pathfinder(Node):
             or np.array(self.calibration_p_max_deque).std() > 2 * NOISE_STD_DEV:
             if direction in [Direction.BACKWARD, Direction.FORWARD]:
                 return direction.opposite().move_twist() * .2
-            return direction.opposite().move_twist() * .1
+            return direction.opposite().move_twist() * .05
 
         self.bias_matrices.append(create_bias_matrix(self.whiskers))
         if len(self.bias_matrices) == self.bias_matrices.maxlen:
@@ -1065,6 +1077,8 @@ class RM3Pathfinder(Node):
                 return mov_lst
 
         self.calibration_initiated = False
+        self.curr_cycles_until_calibration = CYCLES_UNTIL_RECALIBRATION
+        self.directions_calibrated = set()
         return None
 
     def hard_collision_reverse_system(self, hard_collision_avg_threshold, hard_collision_max_threshold, tracking_direction: Direction):
