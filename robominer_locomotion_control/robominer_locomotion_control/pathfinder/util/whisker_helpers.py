@@ -6,18 +6,33 @@ from robominer_msgs.msg import Whisker
 
 import numpy as np
 import math
+import os
+import yaml
 
+from ament_index_python.packages import get_package_share_directory
+
+def is_simulation():
+    pathf_param_from_yaml = os.path.join(
+        get_package_share_directory('robominer_locomotion_control'),
+        'config',
+        'pathfinder_parameters.yaml'
+        )
+    
+    with open(pathf_param_from_yaml, 'r') as pathfinder_file:
+        pathfinder_parameters = yaml.load(pathfinder_file, Loader=yaml.FullLoader)
+
+    return pathfinder_parameters["Pathfinder"]["Simulation"] == "enabled"
 
 WHISKER_ROW_AMOUNT = 10
 WHISKERS_PER_ROW_AMOUNT = 8
 
-SIMULATION = True  # uses non-polar coordinates and different noise due to differences from real-world sensors
+SIMULATION = is_simulation()  # uses non-polar coordinates and different noise due to differences from real-world sensors
 
+NOISE_STD_DEV = .002 if SIMULATION else .217
 
 def whiskers_add_noise(whiskers: List[Whisker], min_total_value, max_total_value) -> None:
-    scale = .002 if SIMULATION else .217
 
-    random_matrix = np.random.normal(loc=0, scale=scale, size=(len(whiskers), 3))
+    random_matrix = np.random.normal(loc=0, scale=NOISE_STD_DEV, size=(len(whiskers), 3))
 
     for i in range(len(whiskers)):
         whisker = whiskers[i]
@@ -90,13 +105,16 @@ def directional_whisker_weight(col_num: int, whiskers_in_row: int):
     return col_num - whiskers_in_row // 2 - 1
 
 
-def calc_whiskers_inclination_euclid(whiskers : List[Whisker]):
+def calc_whiskers_inclination_euclid(whisker_rows : List[List[Whisker]]):
     """
     Calculate an inclination for a whisker array, taking into account the position of the whiskers.
     Positive if higher columns have higher values, negative if lower columns have higher values.
     Values are between [-10; 10]
     """
-    return sum([whisker_pressure(w) * directional_whisker_weight(w.pos.col_num, len(whiskers)) for w in whiskers]) / (2 * sum(range(1, len(whiskers) // 2)))
+    total_sum = 0
+    for whisker_row in whisker_rows:
+        total_sum += sum([whisker_pressure(w) * directional_whisker_weight(w.pos.col_num, len(whisker_row)) for w in whisker_row]) / (2 * sum(range(1, len(whisker_row) // 2)))
+    return total_sum / len(whisker_rows)
 
 
 def calc_whisker_pressure_max(whiskers: List[Whisker]):

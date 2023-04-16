@@ -14,8 +14,9 @@ class PrioritizedItem:
 
 
 def theta_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[NodePosition]:
+    info = ""
     if graph is None or start is None or goal is None:
-        return []
+        return [], info
     
     frontier: PriorityQueue[PrioritizedItem] = PriorityQueue()
     frontier.put(PrioritizedItem(0, start))
@@ -35,9 +36,18 @@ def theta_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[No
             parent = came_from[current]
             if parent is None:
                 parent = current
-            elif parent is not None and not all([graph.node_passable(pos) for pos in graph.line_of_sight_nodes(parent, next)]):
-                # no line of sight, revert to current parent
-                parent = current
+            else:
+                #info += "LOS between {}-{}".format(str(parent), str(next)) + "\n"
+                los_nodes, nf = graph.line_of_sight_nodes(parent, next)
+                info += nf + "\n"
+                for pos in los_nodes:
+                    # no line of sight, revert to current parent
+                    if not graph.node_passable(pos):
+                        #info += "REVERTING, NOT PASSABLE: {}".format(str(pos)) + "\n"
+                        parent = current
+                        break
+                    #else:
+                    #    info += "PASSABLE: {}".format(str(pos)) + "\n"
                 
             new_cost = cost_so_far[parent] + heuristic(parent, next)
             if next not in cost_so_far or new_cost < cost_so_far[next]:
@@ -47,13 +57,26 @@ def theta_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[No
                 frontier.put(PrioritizedItem(priority, next))
 
     if goal not in came_from:
-        return []
+        return [], info
 
     path = [goal]
     while path[-1] != start and path[-1] != None:
         path.append(came_from[path[-1]])
 
-    return list(reversed(path))  # Exclude start from path
+        if len(came_from) >= 2:
+            info += "LOS between {}-{}".format(str(path[-1]), str(path[-2])) + "\n"
+            los_nodes, nf = graph.line_of_sight_nodes(path[-1], path[-2])
+            info += nf + "\n"
+            for pos in los_nodes:
+                # no line of sight, revert to current parent
+                if not graph.node_passable(pos):
+                    info += "REVERTING, NOT PASSABLE: {}".format(str(pos)) + "\n"
+                    parent = current
+                    break
+                else:
+                    info += "PASSABLE: {}".format(str(pos)) + "\n"
+
+    return list(reversed(path)), info  # Exclude start from path
 
 def heuristic(goal: NodePosition, next: NodePosition):
     return ((goal.x - next.x)**2 + (goal.y - next.y)**2)**0.5

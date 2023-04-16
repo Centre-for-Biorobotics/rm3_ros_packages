@@ -7,7 +7,7 @@ Node that can do wall-following or A* pathfinding to a goal
 """
 
 from __future__ import annotations
-from typing import Callable
+from typing import Callable, List
 from tf_transformations import euler_from_quaternion
 
 import math
@@ -17,12 +17,11 @@ import yaml
 
 import rclpy
 from rclpy.node import Node
-from typing import List
 from collections import deque
 
 from ament_index_python.packages import get_package_share_directory
 
-from geometry_msgs.msg import Point, Point32, Pose, TwistStamped
+from geometry_msgs.msg import Point, Point32, PoseStamped, TwistStamped
 from robominer_msgs.msg import WhiskerArray, Whisker, WhiskerPosInGrid
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64, Float32, String
@@ -55,7 +54,8 @@ from .util.whisker_helpers import (
     whiskers_create_simulated_bias_matrix,
     whiskers_apply_simulated_bias,
     WHISKER_ROW_AMOUNT,
-    WHISKERS_PER_ROW_AMOUNT
+    WHISKERS_PER_ROW_AMOUNT,
+    NOISE_STD_DEV
 )
 
 @dataclass
@@ -67,6 +67,8 @@ class Factor:
 
 NO_MOVEMENT = np.array([0, 0, 0], dtype=float)
 
+CALBIRATION_P_MAX_STD_DEV_MEASUREMENT_CYCLE_LENGTH = 10
+
 # Debugging toggles
 LOG_FACTORS = False
 LOG_HIGHEST_P = False
@@ -74,17 +76,37 @@ USE_KALMAN_FILTER = False
 LOG_SURROUNDINGS = True
 LOG_LINE_OF_SIGHT = True # shows L for line of sight to objective in surroundings log
 
+WHISKER_ROW_DICT = {  # default, if every row is present
+    Direction.LEFT: [0],
+    Direction.RIGHT: [1],
+    Direction.FORWARD: [2],
+    Direction.BACKWARD: [3]
+}
+
 class RM3Pathfinder(Node):
     def __init__(self, pathfinder_config_params : dict, sim_params : dict):
         super().__init__('RM3Pathfinder')
         self.pathfinder_params = pathfinder_config_params  # parameters related to the navigation algorithm
         self.sim_params = sim_params  # parameters related to the robot
 
-        self.direction_to_whisker_row_map = get_direction_to_whisker_row_dict(self.sim_params)
+        self.is_simulation = self.pathfinder_params["Pathfinder"]["Simulation"] == "enabled"
+
+        self.direction_to_whisker_row_map = WHISKER_ROW_DICT
+        for key, item in self.direction_to_whisker_row_map.items():
+            self.get_logger().info("{}: {}".format(str(key), str(item)))
 
         self.active = False
         self.curr_node_position = None
         self.curr_pose = None
+
+        self.lined_up_with_wall = False
+        self.lining_up_initialised = False
+
+        self.curr_max_contact_dir = None
+        self.curr_max_contact_val = 0
+        self.curr_max_contact_threshold = 0.1
+
+        self.path_planning_wall_following_mode = False
 
         self.whisker_matrix = None
         self.std_err44 = list()
@@ -100,7 +122,7 @@ class RM3Pathfinder(Node):
         self.calibration_initiated = True
         self.directions_calibrated = set()
 
-        self.calibration_p_max_deque = deque(maxlen=10)
+        self.calibration_p_max_deque = deque(maxlen=CALBIRATION_P_MAX_STD_DEV_MEASUREMENT_CYCLE_LENGTH)
 
         self.control_vel : float = 1.
         self.pub_vel = self.create_subscription(Float32, '/cmd_pathfinder_vel', self.on_velocity, 10)
@@ -109,13 +131,13 @@ class RM3Pathfinder(Node):
         self.pub_algo = self.create_subscription(String, '/cmd_pathfinder_algorithm', self.on_algorithm_select, 10)
 
         # TODO get rid of
-        self.tracked_wall_direction = Direction.RIGHT
+        self.tracked_wall_direction = None
 
         self.destination : Point32 = None
         self.pub_dest = self.create_subscription(Point32, '/cmd_pathfinder_destination', self.on_destination, 10)
 
         self.direction_wall = 0
-        self.direction_path = 0
+        self.direction_path_error = 0
 
         self.p_max_whisker = 0.
         self.dir_max_val = 0.
@@ -157,7 +179,7 @@ class RM3Pathfinder(Node):
         ref_frame = self.pathfinder_params["Pathfinder"]["ReferenceFrame"]
         self.sub_odom = self.create_subscription(Odometry, ref_frame, self.on_odometry, 10)
         # for real-world use
-        self.sub_odom = self.create_subscription(Pose, 'robot_pose_filtered', self.on_pose, 10)
+        self.sub_odom = self.create_subscription(PoseStamped, 'robot_pose_filtered', self.on_pose_stamped, 10)
 
         self.sub_whisker = self.create_subscription(WhiskerArray, '/whiskers', self.on_whisker, 10)
         # Duplicate for simulation
@@ -196,11 +218,14 @@ class RM3Pathfinder(Node):
         self.pub_fac_hard_coll_handle = self.create_publisher(Float64, '/factor/hard_coll_handle', 10)
         self.pub_fac_calibration = self.create_publisher(Float64, '/factor/calibration', 10)
     
-    def whisker_row(self, direction : Direction):
-        return self.whisker_matrix[self.direction_to_whisker_row_map[direction]]
+    def rows(self, matrix, direction : Direction):
+        rows = []
+        for i in self.direction_to_whisker_row_map[direction]:
+            rows.append(matrix[i])
+        return rows
     
-    def row(self, matrix, direction : Direction):
-        return matrix[self.direction_to_whisker_row_map[direction]]
+    def whisker_rows(self, direction : Direction):
+        return self.rows(self.whisker_matrix, direction)
     
     def stop(self):
         self.publish_movement(NO_MOVEMENT)
@@ -217,11 +242,14 @@ class RM3Pathfinder(Node):
         )
 
     def on_odometry(self, msg: Odometry):
-        self.on_pose(msg.pose)
+        self.curr_pose = msg.pose.pose
+        self.perform_pose_based_calculations()
 
-    def on_pose(self, msg: Pose):
-        self.curr_pose = msg
+    def on_pose_stamped(self, msg: PoseStamped):
+        self.curr_pose = msg.pose
+        self.perform_pose_based_calculations()
 
+    def perform_pose_based_calculations(self):
         self.abs_angle = self.calc_abs_angle()
 
         self.curr_node_position = self.graph.translate_position_to_graph_pos(self.curr_pose.position)
@@ -255,6 +283,8 @@ class RM3Pathfinder(Node):
                 self.tracked_wall_direction = Direction.LEFT
             elif self.curr_algorithm == PathfinderAlgorithm.RIGHT_WALL_FOLLOWER:
                 self.tracked_wall_direction = Direction.RIGHT
+            else:
+                self.tracked_wall_direction = None
 
             self.get_logger().info("Algorithm changed to: " + str(self.curr_algorithm))
         except ValueError:
@@ -283,7 +313,8 @@ class RM3Pathfinder(Node):
         algo_func = self.curr_pathfinding_func()
         if algo_func is None:
             return
-        self.path = algo_func(self.graph, self.curr_node_position, self.destination)
+        self.path, info = algo_func(self.graph, self.curr_node_position, self.destination)
+        #self.get_logger().info(info)
 
     def apply_kalman_to_whiskers(self, whisker_matrix):
         """
@@ -366,10 +397,10 @@ class RM3Pathfinder(Node):
         self.determine_and_publish_movement()
 
     def preprocess_whiskers(self, whiskers: WhiskerArray):
-        if self.pathfinder_params["Whiskers"]["Simulation"]["AddNoise"] == "enabled":
+        if self.is_simulation and self.pathfinder_params["Whiskers"]["Simulation"]["AddNoise"] == "enabled":
             whiskers_add_noise(whiskers, -np.pi / 2, np.pi /2)
 
-        if self.pathfinder_params["Whiskers"]["Simulation"]["AddSimulatedBias"] == "enabled":
+        if self.is_simulation and self.pathfinder_params["Whiskers"]["Simulation"]["AddSimulatedBias"] == "enabled":
             if self.simulated_bias_matrix is None:
                 self.simulated_bias_matrix = whiskers_create_simulated_bias_matrix()
             whiskers_apply_simulated_bias(whiskers, self.simulated_bias_matrix)
@@ -386,15 +417,29 @@ class RM3Pathfinder(Node):
 
         whisker_matrix = create_adjusted_whisker_matrix(whiskers, self.final_bias_matrix)
 
-        for whisker_row in whisker_matrix:
+        curr_max_contact_row = None
+        curr_max_contact_val = 0
+
+        for row_ind in range(len(whisker_matrix)):
+            whisker_row = whisker_matrix[row_ind]
             if whisker_row is None:
                 continue
             for whisker in whisker_row:
                 dist = whisker_pressure(whisker)
 
+                if dist > curr_max_contact_val:
+                    curr_max_contact_row = row_ind
+                    curr_max_contact_val = dist
+
                 if LOG_HIGHEST_P and dist > self.p_max_whisker:
                     self.p_max_whisker = dist
                     self.get_logger().info("highest pressure value (should be 1 for high values): {:.2f}".format(self.p_max_whisker))
+
+        if curr_max_contact_val >= self.curr_max_contact_threshold:
+            for key, num_lst in self.direction_to_whisker_row_map.items():
+                if curr_max_contact_row in num_lst:
+                    self.curr_max_contact_dir = key
+                    self.curr_max_contact_val = curr_max_contact_val
 
         self.publish_filtered_whiskers(whisker_matrix, self.pub_whisker_pre_kalman)
 
@@ -408,21 +453,41 @@ class RM3Pathfinder(Node):
         whisker_pressures_avg_tmp = {}
         whisker_pressures_max_tmp = {}
         for direction in [Direction.LEFT, Direction.RIGHT, Direction.FORWARD, Direction.BACKWARD]:
-            if self.whisker_row(direction) is None:
-                continue
+            existing = [v for v in self.whisker_rows(direction) if v is not None]
 
-            whisker_pressures_avg_tmp[direction] = calc_whisker_pressure_avg(self.whisker_row(direction))
-            whisker_pressures_max_tmp[direction] = calc_whisker_pressure_max(self.whisker_row(direction))
+            if len(existing) > 0:
+                whisker_pressures_avg_tmp[direction] = 0
+                whisker_pressures_max_tmp[direction] = 0
+
+            existing: np.ndarray
+            for lst in existing:
+                whisker_pressures_avg_tmp[direction] += calc_whisker_pressure_avg(lst) / len(existing)
+
+            # flatten list for getting a maximum
+            whisker_pressures_max_tmp[direction] = calc_whisker_pressure_max([item for sublist in existing if sublist is not None for item in sublist])
 
         self.whisker_pressures_avg = whisker_pressures_avg_tmp
         self.whisker_pressures_max = whisker_pressures_max_tmp
 
     def mark_collision_points(self):
+        dirs = list()
         for direction in [Direction.LEFT, Direction.RIGHT, Direction.FORWARD, Direction.BACKWARD]:
-            if abs(self.whisker_pressures_max[direction]) > 0.1:
-                self.mark_graph_point_after_collision(direction)
+            if abs(self.whisker_pressures_max[direction]) > 0.2:
+                self.mark_graph_point_after_collision({direction})
+                dirs.append(direction)
 
-                # self.get_logger().error("Detected max : " + str(whisker_pressures_max_tmp[direction]) + " " + str(direction))
+        # Do corners as well
+        if Direction.LEFT in dirs and Direction.FORWARD in dirs:
+            self.mark_graph_point_after_collision({Direction.LEFT, Direction.FORWARD})
+
+        if Direction.RIGHT in dirs and Direction.FORWARD in dirs:
+            self.mark_graph_point_after_collision({Direction.RIGHT, Direction.FORWARD})
+
+        if Direction.LEFT in dirs and Direction.BACKWARD in dirs:
+            self.mark_graph_point_after_collision({Direction.LEFT, Direction.BACKWARD})
+
+        if Direction.RIGHT in dirs and Direction.BACKWARD in dirs:
+            self.mark_graph_point_after_collision({Direction.RIGHT, Direction.BACKWARD})
 
     def calculate_errors(self):
         direction_wall = self.get_direction_error()
@@ -432,15 +497,18 @@ class RM3Pathfinder(Node):
 
         self.assign_pid_values(direction_wall, direction_path, y_axis_movement, x_axis_movement)
 
-    def assign_pid_values(self, direction_wall, direction_path, y_axis_movement, x_axis_movement):
+    def assign_pid_values(self, direction_wall, direction_path_error, y_axis_movement, x_axis_movement):
         if (direction_wall > 0) == (self.direction_wall > 0):  # Avoid wind-up, set to zero when crossing 0
             self.direction_wall_pid.set_auto_mode(False)
             self.direction_wall_pid.set_auto_mode(True, self.direction_wall)
         pid_dir_wall = self.direction_wall_pid(direction_wall)
         self.direction_wall = pid_dir_wall if pid_dir_wall is not None else direction_wall
 
-        pid_dir_path = self.direction_path_pid(direction_path)
-        self.direction_path = pid_dir_path if pid_dir_path is not None else direction_path
+        if (direction_path_error > 0) == (self.direction_path_error > 0):  # Avoid wind-up, set to zero when crossing 0
+            self.direction_path_pid.set_auto_mode(False)
+            self.direction_path_pid.set_auto_mode(True, 0)
+        pid_dir_path = self.direction_path_pid(direction_path_error)
+        self.direction_path_error = pid_dir_path if pid_dir_path is not None else direction_path_error
 
         pid_y = self.horizontal_pid(y_axis_movement)
         self.y_axis_movement = pid_y if pid_y is not None else y_axis_movement
@@ -449,23 +517,16 @@ class RM3Pathfinder(Node):
         self.x_axis_movement = pid_x if pid_x is not None else x_axis_movement
 
         self.publisher_output_direction_wall.publish(Float64(data=float(self.direction_wall)))
-        self.publisher_output_direction_path.publish(Float64(data=float(self.direction_path)))
+        self.publisher_output_direction_path.publish(Float64(data=float(self.direction_path_error)))
         self.publisher_output_y_axis.publish(Float64(data=float(self.y_axis_movement)))
         self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
         
-    def mark_graph_point_after_collision(self, collision_direction: Direction):
-        if self.curr_node_position is None:
-            return
 
-        collision_angle_modification = 0
-        if collision_direction == Direction.RIGHT:
-            collision_angle_modification = -90
-        elif collision_direction == Direction.BACKWARD:
-            collision_angle_modification = 180
-        elif collision_direction == Direction.LEFT:
-            collision_angle_modification = 90
-
-        collision_angle = add_angles(self.abs_angle, collision_angle_modification)
+    def mark_graph_point_after_collision_angle(self, collision_angle):
+        """
+        Collision angle is relative to the robot
+        """
+        collision_angle = add_angles(self.abs_angle, collision_angle)
 
         x, y = self.curr_node_position.x, self.curr_node_position.y
 
@@ -498,8 +559,39 @@ class RM3Pathfinder(Node):
             self.graph.mark_node_unpassable(collision_point)
             
             # Recalculate due to new position
-            if self.destination and (self.path is None or self.path is not None and collision_point in self.path):
+            if not self.destination:
+                return
+
+            if self.curr_algorithm == PathfinderAlgorithm.THETA_STAR and collision_point in self.graph.line_of_sight_nodes(self.curr_node_position, self.path[0]):
+                self.path, info = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
+                #self.get_logger().info(info)
+                self.get_logger().info("Recalculated due to collision!")
+                return
+
+            if self.curr_algorithm == PathfinderAlgorithm.A_STAR and collision_point in self.path:
                 self.path = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
+                #self.get_logger().info(info)
+                self.get_logger().info("Recalculated due to collision!")
+                return
+
+        
+    def mark_graph_point_after_collision(self, collision_directions: set[Direction]):
+        if self.curr_node_position is None:
+            return
+
+        collision_angle_modification = 0
+        if Direction.RIGHT in collision_directions:
+            collision_angle_modification = -90
+        elif Direction.BACKWARD in collision_directions:
+            collision_angle_modification = 180
+        elif Direction.LEFT in collision_directions:
+            collision_angle_modification = 90
+
+        collision_angle_modification /= len(collision_directions)
+
+        self.mark_graph_point_after_collision_angle(collision_angle_modification)
+
+        
 
     def get_direction_error(self):
         """
@@ -508,14 +600,14 @@ class RM3Pathfinder(Node):
         """
         # 
         direction = 0
-        if self.whisker_row(Direction.RIGHT) is not None:
-            direction += calc_whiskers_inclination_euclid(self.whisker_row(Direction.RIGHT))
+        if self.whisker_rows(Direction.RIGHT) is not None:
+            direction += calc_whiskers_inclination_euclid(self.whisker_rows(Direction.RIGHT))
 
-        if self.whisker_row(Direction.LEFT) is not None:
-            direction -= calc_whiskers_inclination_euclid(self.whisker_row(Direction.LEFT))
+        if self.whisker_rows(Direction.LEFT) is not None:
+            direction -= calc_whiskers_inclination_euclid(self.whisker_rows(Direction.LEFT))
         
-        if self.whisker_row(Direction.FORWARD) is not None:
-            perpendicular_direction = .3 * calc_whisker_pressure_avg(self.whisker_row(Direction.FORWARD)) + .7 * calc_whisker_pressure_max(self.whisker_row(Direction.FORWARD))
+        if self.whisker_rows(Direction.FORWARD) is not None:
+            perpendicular_direction = .3 * self.whisker_pressures_avg[Direction.FORWARD] + .7 * self.whisker_pressures_max[Direction.FORWARD]
             if perpendicular_direction > .2:
                 direction += -perpendicular_direction * 2 if self.tracked_wall_direction == Direction.LEFT else perpendicular_direction * 2
         
@@ -538,6 +630,10 @@ class RM3Pathfinder(Node):
         """
         As pressures are [0, 1], then avg and max whisker pressures are also [0, 1], so each axis total error is also [0, 1].
         """
+        if addDirection is None:
+            input_publisher.publish(Float64(data=0.))
+            return 0.
+
         # TODO implement axis errors in a way that addDirection isn't needed (instead change PID targets)
         avg_component, max_component = 0., 0.
         if addDirection in self.whisker_pressures_avg and addDirection in self.whisker_pressures_max:
@@ -564,7 +660,8 @@ class RM3Pathfinder(Node):
         self.x_axis_turning_pid.set_auto_mode(True, 0)
 
         if self.curr_algorithm in [PathfinderAlgorithm.A_STAR, PathfinderAlgorithm.THETA_STAR] and self.destination is not None:
-            self.path = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
+            self.path, info = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
+            #self.get_logger().info(info)
         else:
             self.path = []
 
@@ -578,10 +675,22 @@ class RM3Pathfinder(Node):
 
     def inactivate_pids(self):
         self.direction_wall_pid.set_auto_mode(False, self.direction_wall)
-        self.direction_path_pid.set_auto_mode(False, self.direction_path)
+        self.direction_path_pid.set_auto_mode(False, self.direction_path_error)
         self.horizontal_pid.set_auto_mode(False, self.y_axis_movement)
         self.x_axis_pid.set_auto_mode(False, self.x_axis_movement)
         self.x_axis_turning_pid.set_auto_mode(False, self.x_axis_movement)
+
+    def inactivate_wall_following_pids(self):
+        self.direction_wall_pid.set_auto_mode(False)
+        self.horizontal_pid.set_auto_mode(False)
+        self.x_axis_pid.set_auto_mode(False)
+        self.x_axis_turning_pid.set_auto_mode(False)
+
+    def activate_wall_following_pids(self):
+        self.direction_wall_pid.set_auto_mode(True, self.direction_wall)
+        self.horizontal_pid.set_auto_mode(True, self.y_axis_movement)
+        self.x_axis_pid.set_auto_mode(True, self.x_axis_movement)
+        self.x_axis_turning_pid.set_auto_mode(True, self.x_axis_movement)
 
     def publish_errors(self):
         self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
@@ -621,13 +730,15 @@ class RM3Pathfinder(Node):
 
         translated_curr_pos = self.graph.translate_position_to_graph_pos_unrounded(self.curr_pose.position)
 
-        dist = distance(translated_curr_pos.x, translated_curr_pos.y, self.path[0].x, self.path[0].y)
-        
-        if dist < 0.5:
-            # self.get_logger().warn('Removed first!')
-            self.path.pop(0)
-            if len(self.path) == 0:
-                return 0
+        while True:
+            dist = distance(translated_curr_pos.x, translated_curr_pos.y, self.path[0].x, self.path[0].y)
+            if self.curr_node_position == self.path[0] or dist < 0.5:
+                self.path.pop(0)
+                if len(self.path) == 0:
+                    self.get_logger().info("Zero path left")
+                    return 0
+            else:
+                break
 
         step_p = Point()
         step_p.x, step_p.y = float(self.path[0].x), float(self.path[0].y)
@@ -640,7 +751,7 @@ class RM3Pathfinder(Node):
         angle_between_pos = angle_between_positions(translated_curr_pos, step_p)
         self.publisher_angle_between_pos.publish(Float64(data=float(angle_between_pos)))
 
-        angle_error = (angle_between_pos - self.abs_angle) * np.clip(translated_dist / 0.7, 0.05, 1)
+        angle_error = (self.abs_angle - angle_between_pos) * np.clip(translated_dist / 0.7, 0.05, 1)
         self.publisher_error_direction_path.publish(Float64(data=float(angle_error)))
         
         return angle_error
@@ -672,6 +783,7 @@ class RM3Pathfinder(Node):
         if collision_prevention_system_part is not None:
             self.log_movement('Hard collision avoidance')
             self.publish_factors(hard_coll=1)
+            self.inactivate_wall_following_pids()
             return collision_prevention_system_part * 3
         
         if self.calibration_initiated:
@@ -679,31 +791,83 @@ class RM3Pathfinder(Node):
             calibration_movement = self.calibration_movement()
             if calibration_movement is not None:
                 self.publish_factors(calibration=1)
+                self.inactivate_wall_following_pids()
                 return calibration_movement
+            
+        DIR_THRESHOLD = 2
+        if self.path_planning_wall_following_mode:
+            if self.tracked_wall_direction == Direction.LEFT and self.direction_path_error < -DIR_THRESHOLD \
+                or self.tracked_wall_direction == Direction.RIGHT and self.direction_path_error < DIR_THRESHOLD:
+                    self.tracked_wall_direction = None
+                    self.path_planning_wall_following_mode = False
+            
+            self.activate_wall_following_pids()
+            return self.determine_movement_wall_follower(self.tracked_wall_direction)
         
         self.log_movement('Weight factor-based movement')
         weight_factors = list()
-
         weight_factors.append(Factor(
             'Base normalisation factor',
             1,
             NO_MOVEMENT
         ))
 
-        weight_factors.append(Factor(
-            'Turn to keep level with path',
-            abs(self.direction_path),
-            DirectionTwist.TURN_RIGHT.twist if self.direction_path >= 0 else DirectionTwist.TURN_LEFT.twist
-        ))
-
         MAX_FORWARD_MOVEMENT = 1.0
-        forward_weight = MAX_FORWARD_MOVEMENT # * np.clip(1 - abs(self.direction_path) / 10, 0, 1)
+        forward_weight = MAX_FORWARD_MOVEMENT * np.clip(1 - self.whisker_pressures_max[Direction.FORWARD] / 0.75, 0, 1)  #  * np.clip(1 - abs(self.direction_path) / 10, 0, 1)
+
+        if forward_weight == 0:
+            self.get_logger().info('Marking point!')
+            self.mark_graph_point_after_collision_angle(collision_angle=0)
+        
+        if forward_weight < 0.5 or self.tracked_wall_direction is not None:
+            if self.tracked_wall_direction == Direction.RIGHT:
+                if self.direction_path_error < -DIR_THRESHOLD:
+                    self.tracked_wall_direction = None
+                    self.path_planning_wall_following_mode = False
+                elif self.whisker_pressures_max[self.tracked_wall_direction] < 0.1:
+                    pass
+                else:
+                    self.path_planning_wall_following_mode = True
+                    self.activate_wall_following_pids()
+                    return self.determine_movement_wall_follower(Direction.RIGHT)
+            elif self.tracked_wall_direction == Direction.LEFT:
+                if self.direction_path_error < -DIR_THRESHOLD:
+                    self.tracked_wall_direction = None
+                elif self.whisker_pressures_max[self.tracked_wall_direction] < 0.1:
+                    pass
+                else:
+                    self.tracked_wall_direction = Direction.LEFT
+                    self.path_planning_wall_following_mode = True
+                    self.activate_wall_following_pids()
+                    return self.determine_movement_wall_follower(Direction.LEFT)
+            else:
+                if self.direction_path_error >= 0:
+                    self.tracked_wall_direction = Direction.RIGHT
+                else:
+                    self.tracked_wall_direction = Direction.LEFT
+                
+            if self.tracked_wall_direction is None:
+                pass
+            elif self.whisker_pressures_max[Direction.FORWARD] < 0.05:
+                return Direction.FORWARD.move_twist() * 0.2
+            elif self.whisker_pressures_max[Direction.FORWARD] >= 0.05:
+                self.get_logger().info('Rotation until no forward!')
+                return self.tracked_wall_direction.turn_twist()
+
+        self.inactivate_wall_following_pids()
+
         weight_factors.append(Factor(
             'Forward movement factor',
             forward_weight,
             Direction.FORWARD.move_twist()
         ))
 
+        weight_factors.append(Factor(
+            'Turn to keep level with path',
+            abs(self.direction_path_error),
+            DirectionTwist.TURN_RIGHT.twist if self.direction_path_error >= 0 else DirectionTwist.TURN_LEFT.twist
+        ))
+        
         if LOG_FACTORS:
             self.get_logger().info(str(weight_factors))
 
@@ -735,9 +899,6 @@ class RM3Pathfinder(Node):
         if tracked_wall_direction not in [Direction.LEFT, Direction.RIGHT]:
             self.get_logger().error("Tracked direction is " + str(tracked_wall_direction) + ", not left or right")
             return NO_MOVEMENT
-
-        #if not self.active:
-        #    return tracked_wall_direction.move_twist() if self.curr_pose is not None else NO_MOVEMENT
 
         collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.4, hard_collision_max_threshold=0.8, 
                                                                               tracking_direction=tracked_wall_direction)
@@ -797,7 +958,7 @@ class RM3Pathfinder(Node):
             forward_weight,
             Direction.FORWARD.move_twist()
         ))
-            
+
         weight_factors.append(Factor(
             'Turn to keep level with the side walls',
             abs(self.direction_wall),
@@ -874,8 +1035,10 @@ class RM3Pathfinder(Node):
         self.calibration_p_max_deque.append(self.whisker_pressures_max[direction])
         
         if len(self.calibration_p_max_deque) < self.calibration_p_max_deque.maxlen \
-            or np.array(self.calibration_p_max_deque).std() > 0.01:
-            return direction.opposite().move_twist() * .03
+            or np.array(self.calibration_p_max_deque).std() > 2 * NOISE_STD_DEV:
+            if direction in [Direction.BACKWARD, Direction.FORWARD]:
+                return direction.opposite().move_twist() * .2
+            return direction.opposite().move_twist() * .1
 
         self.bias_matrices.append(create_bias_matrix(self.whiskers))
         if len(self.bias_matrices) == self.bias_matrices.maxlen:
@@ -883,8 +1046,8 @@ class RM3Pathfinder(Node):
             self.get_logger().info("Calibratable standard dev: " + str(np.array(self.calibration_p_max_deque).std()))
             
             avg_bias_matrix = create_averaged_bias_matrix(self.bias_matrices)
-            row = self.direction_to_whisker_row_map[direction]
-            self.final_bias_matrix[row] = avg_bias_matrix[row]
+            for row_num in self.direction_to_whisker_row_map[direction]:
+                self.final_bias_matrix[row_num] = avg_bias_matrix[row_num]
             
             self.directions_calibrated.add(direction)
             
@@ -914,17 +1077,14 @@ class RM3Pathfinder(Node):
 
             if self.whisker_pressures_avg[max_avg_pressure_direction] > hard_collision_avg_threshold:
                 moveDirection = max_avg_pressure_direction.opposite()
-                # self.get_logger().info("avg: " + str(max(self.whisker_pressures_avg.values())))
             elif self.whisker_pressures_max[max_max_pressure_direction] > hard_collision_max_threshold:
                 moveDirection = max_max_pressure_direction.opposite()
-                # self.get_logger().info("max: " + str(max(self.whisker_pressures_max.values())))
             else:
                 return None
-            
             # Fix getting stuck front-back when wall-following
             if tracking_direction is not None and moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
-                and (self.whisker_pressures_max[Direction.FORWARD] >= (hard_collision_max_threshold - 0.2) or self.whisker_pressures_avg[Direction.FORWARD] >= (hard_collision_avg_threshold)  - 0.2) \
-                and (self.whisker_pressures_max[Direction.BACKWARD] >= (hard_collision_max_threshold - 0.2) or self.whisker_pressures_avg[Direction.BACKWARD] >= (hard_collision_avg_threshold - 0.2)):
+                and self.whisker_pressures_max[Direction.FORWARD] >= hard_collision_max_threshold - 0.3 or self.whisker_pressures_avg[Direction.FORWARD] >= hard_collision_avg_threshold - 0.3 \
+                and self.whisker_pressures_max[Direction.BACKWARD] >= hard_collision_max_threshold - 0.3 or self.whisker_pressures_avg[Direction.BACKWARD] >= hard_collision_avg_threshold - 0.3:
                 mov_lst = tracking_direction.opposite().move_twist() * 0.05
                 mov_lst[2] = -0.3 if tracking_direction == Direction.LEFT else 0.3
                 return mov_lst
@@ -965,28 +1125,6 @@ def distance(x1: float, y1: float, x2: float, y2: float):
 
 def within_threshold(p1, p2, threshold):
     return distance(p1.x, p1.y, p2.x, p2.y) < threshold
-
-
-def get_direction_to_whisker_row_dict(sim_params):
-    whisker_rows = {  # default, if every row is present
-        Direction.LEFT: 0,
-        Direction.RIGHT: 1,
-        Direction.FORWARD: 2,
-        Direction.BACKWARD: 3
-    }
-
-    """
-    if sim_params['sensors']['whiskers']['enable_bottom_whiskers'] != 'enable':
-        for dir in whisker_rows:
-            whisker_rows[dir] -= 6
-
-    if sim_params['sensors']['whiskers']['enable_side_whiskers'] != 'enable':
-        for dir in whisker_rows:
-            whisker_rows[dir] -= 2
-    """
-
-    return whisker_rows
-
 
 def main(args=None):
     pathf_param_from_yaml = os.path.join(
