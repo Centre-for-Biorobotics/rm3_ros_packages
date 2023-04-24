@@ -574,6 +574,7 @@ class RM3Pathfinder(Node):
 
         collision_point = NodePosition(x, y)
         if self.graph.node_passable(collision_point):
+            self.get_logger().info('Marking new collision!')
             # New collision
             self.graph.mark_node_unpassable(collision_point)
             
@@ -746,7 +747,7 @@ class RM3Pathfinder(Node):
 
         while True:
             dist = distance(translated_curr_pos.x, translated_curr_pos.y, self.path[0].x, self.path[0].y)
-            if self.curr_node_position == self.path[0] or dist < 0.5:
+            if dist < 0.5:
                 self.path.pop(0)
                 if len(self.path) == 0:
                     self.get_logger().info("Zero path left")
@@ -765,7 +766,7 @@ class RM3Pathfinder(Node):
         angle_between_pos = angle_between_positions(translated_curr_pos, step_p)
         self.publisher_angle_between_pos.publish(Float64(data=float(angle_between_pos)))
 
-        angle_error = (self.abs_angle - angle_between_pos) * np.clip(translated_dist / 0.7, 0.05, 1)
+        angle_error = (self.abs_angle - angle_between_pos)
         self.publisher_error_direction_path.publish(Float64(data=float(angle_error)))
         
         return angle_error
@@ -831,7 +832,6 @@ class RM3Pathfinder(Node):
         forward_weight = MAX_FORWARD_MOVEMENT * np.clip(1 - self.whisker_pressures_max[Direction.FORWARD] / 0.75, 0, 1)  #  * np.clip(1 - abs(self.direction_path) / 10, 0, 1)
 
         if forward_weight == 0:
-            self.get_logger().info('Marking point!')
             self.mark_graph_point_after_collision_angle(collision_angle=0)
         
         if forward_weight < 0.5 or self.tracked_wall_direction is not None:
