@@ -8,8 +8,8 @@ class DirectionTwist(Enum):
     MOVE_RIGHT      = auto(), np.array([  0, -50,  0], dtype=float)
     MOVE_FORWARD    = auto(), np.array([ 50,   0,  0], dtype=float)
     MOVE_BACKWARD   = auto(), np.array([-50,   0,  0], dtype=float)
-    TURN_LEFT       = auto(), np.array([  0,   0, -1], dtype=float)
-    TURN_RIGHT      = auto(), np.array([  0,   0,  1], dtype=float)
+    TURN_LEFT       = auto(), np.array([  0,   0, -2], dtype=float)
+    TURN_RIGHT      = auto(), np.array([  0,   0,  2], dtype=float)
 
     def __new__(cls, *args, **kwds):
         value = len(cls.__members__) + 1

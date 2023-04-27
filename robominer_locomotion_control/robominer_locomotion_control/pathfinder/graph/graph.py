@@ -86,6 +86,9 @@ class Graph:
             
         return los_nodes
     
+    def cost(a, b):
+        return 1
+    
     def _line_of_sight_nodes(self, n1: NodePosition, n2: NodePosition, c: float) -> Set[NodePosition]:
         """
         Construct a line between two node positions and get all the 

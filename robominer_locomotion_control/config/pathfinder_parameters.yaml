@@ -17,11 +17,11 @@ Control:
             Ki: 0.5
             Kd: 0.2
             Setpoint: 0.2
-            Saturation: [-5, 5]
+            Saturation: [-0.5, 0.5]
         DirectionWall:
-            Kp: 5 #20
-            Ki: 1 #10, 5 now
-            Kd: 0
+            Kp: 7.5
+            Ki: 1.5
+            Kd: 0.5
             Setpoint: 0
             Saturation: [-5, 5]
         DirectionPath:
