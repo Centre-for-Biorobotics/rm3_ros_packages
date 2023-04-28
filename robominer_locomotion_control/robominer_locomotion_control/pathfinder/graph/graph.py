@@ -11,11 +11,12 @@ import math
 
 from geometry_msgs.msg import Point
 
-GRAPH_NODE_SIZE = 1
-ROBOT_NODE_SIZE = 0.8  # How big should a robot be compared to a graph node when measuring line of sight
-
 class Graph:
     nodes = {}
+
+    def __init__(self, node_size, robot_size):
+        self.node_size = node_size
+        self.robot_size = robot_size
 
     def node_exists(self, position: NodePosition):
         return position in self.nodes.keys()
@@ -65,7 +66,7 @@ class Graph:
         """
         if n1 == n2:
             return {n1}
-        c = ROBOT_NODE_SIZE
+        c = self.robot_size
         if abs(c) <= 1.4:
             los_nodes = self._line_of_sight_nodes(n1, n2, -c)
             los_nodes_plus = self._line_of_sight_nodes(n1, n2, c)
@@ -236,16 +237,14 @@ class Graph:
             txt += str([str(los_node) for los_node in los_nodes]) + "\n"
         return txt
 
-    @classmethod
-    def translate_position_to_graph_pos(cls, position: Point) -> NodePosition:
-        x_temp = round(position.x / GRAPH_NODE_SIZE)
-        y_temp = round(position.y / GRAPH_NODE_SIZE)
+    def translate_position_to_graph_pos(self, position: Point) -> NodePosition:
+        x_temp = round(position.x / self.node_size)
+        y_temp = round(position.y / self.node_size)
         return NodePosition(x_temp, y_temp)
 
-    @classmethod
-    def translate_position_to_graph_pos_unrounded(cls, position: Point) -> Point:
+    def translate_position_to_graph_pos_unrounded(self, position: Point) -> Point:
         p = Point()
-        p.x = position.x / GRAPH_NODE_SIZE
-        p.y = position.y / GRAPH_NODE_SIZE
+        p.x = position.x / self.node_size
+        p.y = position.y / self.node_size
         return p
         
