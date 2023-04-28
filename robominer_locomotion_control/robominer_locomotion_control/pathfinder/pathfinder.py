@@ -71,7 +71,6 @@ CALIBRATION_P_MAX_STD_DEV_MEASUREMENT_CYCLE_LENGTH = 10
 
 # Debugging toggles
 LOG_FACTORS = False
-LOG_HIGHEST_FACTOR = False
 LOG_HIGHEST_P = False
 USE_KALMAN_FILTER = False
 LOG_SURROUNDINGS = True
@@ -120,7 +119,6 @@ class RM3Pathfinder(Node):
         self.align_with_next_path_node = False
 
         self.whisker_matrix = None
-        self.std_err44 = list()
 
         self.not_touched_wall = True
         self.not_touched_wall_times = 0
@@ -897,8 +895,7 @@ class RM3Pathfinder(Node):
         self.activate_path_planning_pids()
         self.deactivate_wall_following_pids()
 
-        if not LOG_HIGHEST_FACTOR:
-            self.log_movement('Weight factor-based movement in path planning')
+        self.log_movement('Weight factor-based movement in path planning')
 
         weight_factors = list()
         weight_factors.append(Factor(
@@ -927,14 +924,6 @@ class RM3Pathfinder(Node):
         normalize_factor_weights(weight_factors)
         
         self.publish_factors(weight_factors)
-
-        if LOG_HIGHEST_FACTOR:
-            highest : Factor = None
-            for factor in weight_factors:
-                if highest is None or factor.weight > highest.weight:
-                    highest = factor
-            self.log_movement(highest.description)
-            self.get_logger().info(str(highest.weight))
 
         return self.calculate_movement_from_factors(weight_factors)
 
@@ -1044,9 +1033,8 @@ class RM3Pathfinder(Node):
 
             # return tracked_wall_direction.move_twist() * smoothing * max_speed
         
-        if not LOG_HIGHEST_FACTOR:
-            pass
-            #self.log_movement('Weight factor-based movement')
+
+        #self.log_movement('Weight factor-based movement')
         weight_factors = list()
         
         #if self.not_touched_wall:
@@ -1097,14 +1085,6 @@ class RM3Pathfinder(Node):
         normalize_factor_weights(weight_factors)
         
         self.publish_factors(weight_factors)
-
-        if LOG_HIGHEST_FACTOR:
-            highest : Factor = None
-            for factor in weight_factors:
-                if highest is None or factor.weight > highest.weight:
-                    highest = factor
-            self.log_movement(highest.description)
-            self.get_logger().info(str(highest.weight))
 
         return self.calculate_movement_from_factors(weight_factors)
 
