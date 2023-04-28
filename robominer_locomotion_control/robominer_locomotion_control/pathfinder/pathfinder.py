@@ -130,6 +130,7 @@ class RM3Pathfinder(Node):
 
         self.curr_cycles_until_calibration = 0
         self.calibration_initiated = True
+        self.calibration_direction_cancelled_due_to_collision = False
         self.directions_calibrated = set()
 
         self.calibration_p_max_deque = deque(maxlen=CALIBRATION_P_MAX_STD_DEV_MEASUREMENT_CYCLE_LENGTH)
@@ -291,6 +292,7 @@ class RM3Pathfinder(Node):
                 self.activate_movement()
 
             self.not_touched_wall = True
+            self.use_wall_following = False
             self.not_touched_wall_times = 0
 
             if self.curr_algorithm == PathfinderAlgorithm.LEFT_WALL_FOLLOWER:
@@ -851,15 +853,17 @@ class RM3Pathfinder(Node):
         collision_prevention_system_part = self.hard_collision_reverse_system(hard_collision_avg_threshold=0.4, hard_collision_max_threshold=0.8, 
                                                                               tracked_wall_direction=tracked_wall_direction)
         if collision_prevention_system_part is not None:
+            if self.calibration_initiated:
+                self.calibration_direction_cancelled_due_to_collision = True
             # self.log_movement('Hard collision avoidance')
             self.publish_factors(hard_coll=1)
             self.deactivate_pids()
             return collision_prevention_system_part
         
         if self.calibration_initiated:
-            self.log_movement('Calibration')
             calibration_movement = self.calibration_movement()
             if calibration_movement is not None:
+                self.log_movement('Calibration')
                 self.publish_factors(calibration=1)
                 self.deactivate_pids()
                 return calibration_movement
@@ -1014,37 +1018,20 @@ class RM3Pathfinder(Node):
                 return pre_movement
         
         if self.whisker_pressures_avg[tracked_wall_direction] < 0.05:
-            #self.not_touched_wall_times += 1
-            #if self.not_touched_wall_times + 1 >= self.not_touched_wall_threshold:
-            #    self.deactivate_pids()
-            #    self.not_touched_wall = True
             self.publish_factors(move_back_to_contact=1.)
             self.log_movement('Touching wall')
-            
-            #max_speed = .1 if self.is_simulation else .15
-            #smoothing = np.clip(1 - self.whisker_pressures_avg[tracked_wall_direction] * 20, 0.3, 1)
             
             skip_forward = True
 
             self.horizontal_pid.set_auto_mode(False)
             # disregard i and d terms to not overshoot during initial phase of moving to the wall
             self.y_axis_movement, _, _ = self.horizontal_pid.components
-            self.y_axis_movement * 0.2
-
-            # return tracked_wall_direction.move_twist() * smoothing * max_speed
-        
 
         #self.log_movement('Weight factor-based movement')
         weight_factors = list()
-        
-        #if self.not_touched_wall:
-        #    #self.activate_movement()  # reset PID controllers
-        #    self.not_touched_wall = False
-        #    self.not_touched_wall_times = 0
 
         self.activate_wall_following_pids()
 
-        # Factors are in the order of tuning
         weight_factors.append(Factor(
             'Base normalisation factor',
             1 if not skip_forward else 2,
@@ -1063,10 +1050,10 @@ class RM3Pathfinder(Node):
         forward_movespeed_percentage_dir = np.clip(1 - abs(self.direction_wall) / 0.8, 0, 1)
 
         MAX_FORWARD_MOVEMENT = 1.0
-        forward_weight = MAX_FORWARD_MOVEMENT * forward_movespeed_percentage_y * forward_movespeed_percentage_dir if not skip_forward else 0
+        forward_weight = MAX_FORWARD_MOVEMENT * forward_movespeed_percentage_y * forward_movespeed_percentage_dir
         weight_factors.append(Factor(
             'Forward movement factor',
-            forward_weight,
+            forward_weight if not skip_forward else 0,
             Direction.FORWARD.move_twist()
         ))
 
@@ -1101,8 +1088,9 @@ class RM3Pathfinder(Node):
 
         self.calibration_p_max_deque.append(self.whisker_pressures_max[direction])
         
-        if len(self.calibration_p_max_deque) < self.calibration_p_max_deque.maxlen \
-            or np.array(self.calibration_p_max_deque).std() > 0.015:
+        if not self.calibration_direction_cancelled_due_to_collision and \
+            (len(self.calibration_p_max_deque) < self.calibration_p_max_deque.maxlen \
+            or np.array(self.calibration_p_max_deque).std() > 0.015):
             if direction in [Direction.BACKWARD, Direction.FORWARD]:
                 return direction.opposite().move_twist() * (.35 if not self.is_simulation else .25)
             return direction.opposite().move_twist() * (.2 if not self.is_simulation else .05)
@@ -1118,8 +1106,10 @@ class RM3Pathfinder(Node):
             
             self.directions_calibrated.add(direction)
             
+            # reset for next direction
             self.calibration_p_max_deque.clear()
             self.bias_matrices.clear()
+            self.calibration_cancelled_due_to_collision = False
             
             return None
 
@@ -1135,9 +1125,9 @@ class RM3Pathfinder(Node):
             mov_lst = self.calibration_movement_dir(direction)
             if mov_lst is not None:
                 return mov_lst
-            
-        if (self.curr_algorithm in [PathfinderAlgorithm.LEFT_WALL_FOLLOWER, PathfinderAlgorithm.RIGHT_WALL_FOLLOWER] \
-             or self.use_wall_following) and self.whisker_pressures_avg[self.tracked_wall_direction] < 0.05:
+        
+        # move back to wall if it was previously used
+        if self.use_wall_following and self.whisker_pressures_avg[self.tracked_wall_direction] < 0.05:
                 max_speed = .05 if self.is_simulation else .15
                 smoothing = np.clip(1 - self.whisker_pressures_avg[self.tracked_wall_direction] * 20, 0.5, 1)
                 return self.tracked_wall_direction.move_twist() * smoothing * max_speed
@@ -1161,6 +1151,14 @@ class RM3Pathfinder(Node):
                 moveDirection = max_max_pressure_direction.opposite()
             else:
                 return None
+            
+            # rotate towards tracked wall if no pressure on that side
+            if tracked_wall_direction is not None and moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
+                and self.whisker_pressures_max[tracked_wall_direction] < 0.05 and not self.whisker_pressures_max[tracked_wall_direction.opposite()] < 0.05:
+                mov_lst = tracked_wall_direction.opposite().move_twist() * (0.025 if self.is_simulation else 0.15)
+                mov_lst[2] = -0.3 if tracked_wall_direction == Direction.LEFT else 0.3
+                return mov_lst
+
             # Fix getting stuck front-back when wall-following   
             if tracked_wall_direction is not None and moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
                 and (self.whisker_pressures_max[Direction.FORWARD] >= hard_collision_max_threshold - 0.3 or self.whisker_pressures_avg[Direction.FORWARD] >= hard_collision_avg_threshold - 0.3) \
