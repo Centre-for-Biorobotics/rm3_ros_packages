@@ -10,7 +10,7 @@ from rclpy.node import Node
 
 import sys
 
-from geometry_msgs.msg import Point32
+from geometry_msgs.msg import Point
 from std_msgs.msg import String, Float32
 
 from .control.algorithm import PathfinderAlgorithm
@@ -48,10 +48,10 @@ class PathfinderControl(Node):
         self.curr_algorithm : PathfinderAlgorithm = PathfinderAlgorithm.NONE
         self.pub_algo = self.create_publisher(String, '/cmd_pathfinder_algorithm', 10)
 
-        self.destination : Point32 = None
-        self.pub_dest = self.create_publisher(Point32, '/cmd_pathfinder_destination', 10)
+        self.destination : Point = None
+        self.pub_dest = self.create_publisher(Point, '/cmd_pathfinder_destination', 10)
 
-    def parse_command(self, inp : str):
+    def parse_command(self, inp : str) -> None:
         inp = inp.lower().strip()
         
         # sanitize multiple spaces/whitespaces into one
@@ -85,10 +85,10 @@ class PathfinderControl(Node):
         else:
             self.get_logger().error("Invalid!")
 
-    def all_algorithms_string(self):
+    def all_algorithms_string(self) -> str:
         return ", ".join(PathfinderAlgorithm._value2member_map_.keys())
 
-    def parse_algorithm(self, inp: str):
+    def parse_algorithm(self, inp: str) -> None:
         if inp == "":
             self.get_logger().info("Current algorithm: " + str(self.curr_algorithm.value) + "\nAvailable algorithms: " + self.all_algorithms_string())
             return
@@ -102,7 +102,7 @@ class PathfinderControl(Node):
         except Exception as e:
             self.get_logger().error("Invalid algorithm. Algorithm has to be one of the following (case-insensitive): " + self.all_algorithms_string())
     
-    def parse_destination(self, inp: str):
+    def parse_destination(self, inp: str) -> None:
         if inp == "":
             self.get_logger().info("Current destination: " + str(self.destination))
             return
@@ -118,7 +118,7 @@ class PathfinderControl(Node):
 
             x, y = inp_split
             
-            destination = Point32()
+            destination = Point()
             destination.x, destination.y = float(x), float(y)
 
             self.pub_dest.publish(destination)
@@ -128,7 +128,7 @@ class PathfinderControl(Node):
         except ValueError:
             self.get_logger().error("Invalid destination input. Please pass destination as 'X,Y', 'X Y' or 'X, Y'. Floats are also accepted, e.g.: '1.234, 4.3'")
 
-    def parse_speed(self, inp: str):
+    def parse_speed(self, inp: str) -> None:
         if inp == "":
             self.get_logger().info("Current velocity: " + str(self.vel))
             return
@@ -147,11 +147,11 @@ class PathfinderControl(Node):
         self.get_logger().info("Removed movement algorithm")
 
 
-def is_string_or_continues_with_space(s: str, check):
-    return s == check or s.startswith(check + " ")
+def is_string_or_continues_with_space(s: str, check_str: str) -> bool:
+    return s == check_str or s.startswith(check_str + " ")
 
 
-def remove_prefix(text, prefix):
+def remove_prefix(text: str, prefix: str) -> str:
     return text[text.startswith(prefix) and len(prefix):].strip()
 
 

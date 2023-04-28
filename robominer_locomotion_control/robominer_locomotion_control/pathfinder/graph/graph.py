@@ -14,23 +14,23 @@ from geometry_msgs.msg import Point
 class Graph:
     nodes = {}
 
-    def __init__(self, node_size, robot_size):
-        self.node_size = node_size
-        self.robot_size = robot_size
+    def __init__(self, node_size: float, robot_size: float):
+        self.node_size: float = node_size
+        self.robot_size: float = robot_size
 
-    def node_exists(self, position: NodePosition):
+    def node_exists(self, position: NodePosition) -> bool:
         return position in self.nodes.keys()
 
-    def node_passable(self, position: NodePosition):
+    def node_passable(self, position: NodePosition) -> bool:
         return position not in self.nodes.keys() or self.nodes[position].passable
 
-    def add_node(self, position: NodePosition, passable: bool=True):
+    def add_node(self, position: NodePosition, passable: bool=True) -> None:
         if position in self.nodes:
             raise RuntimeError('Node already existed!')
 
         self.nodes[position] = GraphNode(position, passable)
 
-    def mark_node_unpassable(self, position: NodePosition):
+    def mark_node_unpassable(self, position: NodePosition) -> None:
         if position in self.nodes:
             if self.nodes[position].passable:
                 self.nodes[position].passable = False
@@ -87,8 +87,8 @@ class Graph:
             
         return los_nodes
     
-    def cost(a, b):
-        return 1
+    def cost(a, b) -> float:
+        return 1.0
     
     def _line_of_sight_nodes(self, n1: NodePosition, n2: NodePosition, c: float) -> Set[NodePosition]:
         """
@@ -145,20 +145,20 @@ class Graph:
 
         return positions
     
-    def round_lower(self, x):
+    def round_lower(self, x) -> int:
         if x >= 0.0:
             return math.floor(x)
         else:
             return math.floor(x - 0.5)
         
-    def add_one_abs(self, x, signed):
+    def add_one_abs(self, x, signed) -> int:
         if signed >= 0.0:
             return x + 1
         else:
             return x - 1
     
     def _line_of_sight_zero_check(self, n1: NodePosition, n2:NodePosition, c, 
-                                  x_diff, y_diff, dx_min, dx_max, dy_min, dy_max):
+                                  x_diff, y_diff, dx_min, dx_max, dy_min, dy_max) -> Set[NodePosition]:
         if x_diff != 0 and y_diff != 0:
             return None
 
@@ -188,12 +188,6 @@ class Graph:
             dx = self.add_one_abs(dx, x_diff)
             pot_node_x, pot_node_y = dx + n1.x, dy + n1.y
         return positions
-
-    def _add_or_ceil(self, num) -> int:
-        if int(num) != math.ceil(num):
-            return math.ceil(num)
-        
-        return num + 1
 
     def get_surroundings(self, center : NodePosition, distance : int, path : List[NodePosition] = None, log_line_of_sight=False) -> str:
         if center is None:
@@ -247,4 +241,3 @@ class Graph:
         p.x = position.x / self.node_size
         p.y = position.y / self.node_size
         return p
-        

@@ -11,7 +11,7 @@ import yaml
 
 from ament_index_python.packages import get_package_share_directory
 
-def is_simulation():
+def is_simulation() -> bool:
     pathf_param_from_yaml = os.path.join(
         get_package_share_directory('robominer_locomotion_control'),
         'config',
@@ -76,7 +76,7 @@ def whiskers_apply_simulated_bias(whiskers: List[Whisker], simulated_bias_matrix
         w.z += simulated_bias_matrix[w.pos.row_num][w.pos.col_num][2]
 
 
-def create_adjusted_whisker_matrix(whiskers: List[Whisker], offset_whisker_matrix: np.array):
+def create_adjusted_whisker_matrix(whiskers: List[Whisker], offset_whisker_matrix: np.array) -> List[List[Whisker]]:
     whisker_matrix = [[None for _ in range(WHISKERS_PER_ROW_AMOUNT)] for _ in range(WHISKER_ROW_AMOUNT)]
 
     for whisker in whiskers:
@@ -90,7 +90,7 @@ def create_adjusted_whisker_matrix(whiskers: List[Whisker], offset_whisker_matri
     return [_list if any(_list) else None for _list in whisker_matrix]
 
 
-def directional_whisker_weight(col_num: int, whiskers_in_row: int):
+def directional_whisker_weight(col_num: int, whiskers_in_row: int) -> float:
     """
     Assumed that whiskers are spaced roughly equally and there's an even amount.
     Convert 4-7 to 1..4 and 0-3 to -4..-1 for finding appropriate turning radius
@@ -105,7 +105,7 @@ def directional_whisker_weight(col_num: int, whiskers_in_row: int):
     return col_num - whiskers_in_row // 2 - 1
 
 
-def calc_whiskers_inclination_euclid(whisker_rows : List[List[Whisker]]):
+def calc_whiskers_inclination_euclid(whisker_rows : List[List[Whisker]]) -> float:
     """
     Calculate an inclination for a whisker array, taking into account the position of the whiskers.
     Positive if higher columns have higher values, negative if lower columns have higher values.
@@ -117,21 +117,21 @@ def calc_whiskers_inclination_euclid(whisker_rows : List[List[Whisker]]):
     return total_sum / len(whisker_rows)
 
 
-def calc_whisker_pressure_max(whiskers: List[Whisker]):
+def calc_whisker_pressure_max(whiskers: List[Whisker]) -> float:
     """
     Get the maximum pressure of the whisker with most pressure in the list.
     """
     return max([whisker_pressure(w) for w in whiskers])
 
 
-def calc_whisker_pressure_avg(whiskers: List[Whisker]):
+def calc_whisker_pressure_avg(whiskers: List[Whisker]) -> float:
     """
     Get the average pressure of all whiskers in the list.
     """
     return mean([whisker_pressure(w) for w in whiskers])
 
 
-def whisker_pressure(whisker: Whisker):
+def whisker_pressure(whisker: Whisker) -> float:
     """
     Calculate the euclidean distance of the whisker's x and y displacement.
     Normalized to [0, 1]
