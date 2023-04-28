@@ -223,9 +223,6 @@ class RM3Pathfinder(Node):
             self.kalman_filter_r = 3
 
         self.y_axis_movement = 0
-        self.x_axis_movement = 0
-
-        self.x_axis_turning = 0
 
         self.abs_angle = 0.0
 
@@ -241,8 +238,6 @@ class RM3Pathfinder(Node):
         self.direction_wall_pid = self.create_pid("DirectionWall")
         self.direction_path_pid = self.create_pid("DirectionPath")
         self.horizontal_pid = self.create_pid("Horizontal")
-        self.x_axis_pid = self.create_pid("XAxis")
-        self.x_axis_turning_pid = self.create_pid("XAxisTurning")
 
         ref_frame = self.pathfinder_params["Pathfinder"]["ReferenceFrame"]
         self.sub_odom = self.create_subscription(Odometry, ref_frame, self.on_odometry, 10)
@@ -269,8 +264,6 @@ class RM3Pathfinder(Node):
         self.publisher_output_direction_wall = self.create_publisher(Float64, '/whiskerErrors/direction_wall_out', 10)
         self.publisher_error_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis', 10)
         self.publisher_output_y_axis = self.create_publisher(Float64, '/whiskerErrors/y_axis_out', 10)
-        self.publisher_error_x_axis = self.create_publisher(Float64, '/whiskerErrors/x_axis', 10)
-        self.publisher_output_x_axis = self.create_publisher(Float64, '/whiskerErrors/x_axis_out', 10)
         self.publisher_error_direction_path = self.create_publisher(Float64, '/whiskerErrors/direction_path', 10)
         self.publisher_output_direction_path = self.create_publisher(Float64, '/whiskerErrors/direction_path_out', 10)
         self.publisher_error_translated_dist = self.create_publisher(Float64, '/whiskerErrors/dist_path', 10)
@@ -568,11 +561,10 @@ class RM3Pathfinder(Node):
         direction_path = self.get_path_following_angle_error()
         self.correct_path_angle_error = direction_path
         y_axis_movement = self.calc_axis_error(self.publisher_error_y_axis, self.tracked_wall_direction, Y_AXIS_ERROR_AVG_WEIGHT, Y_AXIS_ERROR_MAX_WEIGHT)
-        x_axis_movement = self.calc_axis_error(self.publisher_error_x_axis, Direction.FORWARD, 0.7, 0.3)
 
-        self.assign_pid_values(direction_wall, direction_path, y_axis_movement, x_axis_movement)
+        self.assign_pid_values(direction_wall, direction_path, y_axis_movement)
 
-    def assign_pid_values(self, direction_wall, direction_path_error, y_axis_movement, x_axis_movement):
+    def assign_pid_values(self, direction_wall, direction_path_error, y_axis_movement):
         if (direction_wall > 0) == (self.direction_wall > 0):  # Avoid wind-up, set to zero when crossing 0
             p, i, d = self.direction_wall_pid.components
             if i > 2:
@@ -596,13 +588,9 @@ class RM3Pathfinder(Node):
         pid_y = self.horizontal_pid(y_axis_movement)
         self.y_axis_movement = pid_y if pid_y is not None else y_axis_movement
 
-        pid_x = self.x_axis_pid(x_axis_movement)
-        self.x_axis_movement = pid_x if pid_x is not None else x_axis_movement
-
         self.publisher_output_direction_wall.publish(Float64(data=float(self.direction_wall)))
         self.publisher_output_direction_path.publish(Float64(data=float(self.direction_path_error)))
         self.publisher_output_y_axis.publish(Float64(data=float(self.y_axis_movement)))
-        self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
         
 
     def mark_graph_point_after_collision_angle(self, collision_angle):
@@ -744,8 +732,6 @@ class RM3Pathfinder(Node):
         self.direction_wall_pid.set_auto_mode(True)
         self.direction_path_pid.set_auto_mode(True)
         self.horizontal_pid.set_auto_mode(True)
-        self.x_axis_pid.set_auto_mode(True)
-        self.x_axis_turning_pid.set_auto_mode(True)
 
         if self.curr_algorithm in [PathfinderAlgorithm.A_STAR, PathfinderAlgorithm.THETA_STAR] and self.destination is not None:
             self.path = self.curr_pathfinding_func()(self.graph, self.curr_node_position, self.destination)
@@ -764,14 +750,10 @@ class RM3Pathfinder(Node):
         self.direction_wall_pid.set_auto_mode(False)
         self.direction_path_pid.set_auto_mode(False)
         self.horizontal_pid.set_auto_mode(False)
-        self.x_axis_pid.set_auto_mode(False)
-        self.x_axis_turning_pid.set_auto_mode(False)
 
     def deactivate_wall_following_pids(self):
         self.direction_wall_pid.set_auto_mode(False)
         self.horizontal_pid.set_auto_mode(False)
-        self.x_axis_pid.set_auto_mode(False)
-        self.x_axis_turning_pid.set_auto_mode(False)
 
     def deactivate_path_planning_pids(self):
         self.direction_path_pid.set_auto_mode(False)
@@ -780,20 +762,15 @@ class RM3Pathfinder(Node):
         self.direction_wall_pid.set_auto_mode(True)
         self.direction_path_pid.set_auto_mode(True)
         self.horizontal_pid.set_auto_mode(True)
-        self.x_axis_pid.set_auto_mode(True)
-        self.x_axis_turning_pid.set_auto_mode(True)
 
     def activate_wall_following_pids(self):
         self.direction_wall_pid.set_auto_mode(True)
         self.horizontal_pid.set_auto_mode(True)
-        self.x_axis_pid.set_auto_mode(True)
-        self.x_axis_turning_pid.set_auto_mode(True)
 
     def activate_path_planning_pids(self):
         self.direction_path_pid.set_auto_mode(True)
 
-    def publish_errors(self):
-        self.publisher_output_x_axis.publish(Float64(data=float(self.x_axis_movement)))
+    def publish_whisker_errors(self):
         self.publisher_output_y_axis.publish(Float64(data=float(self.y_axis_movement)))
         self.publisher_output_direction_wall.publish(Float64(data=float(self.direction_wall)))
 
