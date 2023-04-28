@@ -40,8 +40,6 @@ from .graph.graph import Graph
 
 from .control.algorithm import PathfinderAlgorithm
 
-from filterpy import kalman
-
 from .util.whisker_helpers import (
     calc_whisker_pressure_avg,
     calc_whisker_pressure_max,
@@ -126,7 +124,6 @@ HARD_COLLISION_STUCK_FIX_THRESHOLD_REDUCTION = 0.3
 # Debugging toggles
 LOG_FACTORS = False
 LOG_HIGHEST_P = False
-USE_KALMAN_FILTER = False
 LOG_SURROUNDINGS = True
 LOG_LINE_OF_SIGHT = True # shows L for line of sight to objective in surroundings log
 
@@ -211,16 +208,8 @@ class RM3Pathfinder(Node):
 
         self.whisker_amount = WHISKER_ROW_AMOUNT * WHISKERS_PER_ROW_AMOUNT
 
-        if USE_KALMAN_FILTER:
-            self.kalman_filter_whiskers_full = kalman.KalmanFilter(dim_x=self.whisker_amount * 3, dim_z=self.whisker_amount * 3)
-            self.kalman_filter_whiskers_full.x = np.eye(self.whisker_amount * 3)  # current value
-            self.kalman_filter_whiskers_full.F = np.eye(self.whisker_amount * 3)
-            self.kalman_filter_whiskers_full.H = np.eye(self.whisker_amount * 3)
-            self.kalman_filter_whiskers_full.R = 0 * np.eye(self.whisker_amount * 3)
-            self.kalman_filter_whiskers_full.alpha = 1.0
-        else:
-            self.kalman_filter_whiskers : np.ndarray = np.zeros(self.whisker_amount * 3)  # Initialise
-            self.kalman_filter_r = 3
+        self.filtered_whiskers : np.ndarray = np.zeros(self.whisker_amount * 3)  # Initialise
+        self.filter_r = 3
 
         self.y_axis_movement = 0
 
@@ -248,8 +237,8 @@ class RM3Pathfinder(Node):
         # Duplicate for simulation
         self.sub_whisker_sim = self.create_subscription(WhiskerArray, '/WhiskerStates', self.on_whisker, 10)
 
-        self.pub_whisker_pre_kalman = self.create_publisher(WhiskerArray, '/whiskers_unfiltered', 10)
-        self.pub_whisker_kalman = self.create_publisher(WhiskerArray, '/whiskers_filtered', 10)
+        self.pub_whisker_unfiltered = self.create_publisher(WhiskerArray, '/whiskers_unfiltered', 10)
+        self.pub_whisker_filtered = self.create_publisher(WhiskerArray, '/whiskers_filtered', 10)
 
         self.get_logger().info('Initialized')
 
@@ -378,9 +367,9 @@ class RM3Pathfinder(Node):
             return
         self.path = algo_func(self.graph, self.curr_node_position, self.destination)
 
-    def apply_kalman_to_whiskers(self, whisker_matrix):
+    def apply_filtering_to_whiskers(self, whisker_matrix):
         """
-        Applies Kalman in-place.
+        Filters whiskers in-place
         """
         whisker_amount = len(whisker_matrix) * len(whisker_matrix[0])
 
@@ -395,28 +384,18 @@ class RM3Pathfinder(Node):
                 update_matrix[curr_whisker_num + whisker_amount] = whisker_matrix[i][j].y
                 update_matrix[curr_whisker_num + whisker_amount * 2] = whisker_matrix[i][j].z
 
-        if USE_KALMAN_FILTER:
-            self.kalman_filter_whiskers_full.predict()
-            self.kalman_filter_whiskers_full.update(update_matrix)
-        else:
-            self.kalman_filter_whiskers += (1 / self.kalman_filter_r) * (update_matrix - self.kalman_filter_whiskers)
+        self.filtered_whiskers += (1 / self.filter_r) * (update_matrix - self.filtered_whiskers)
 
-        # Populate whisker matrix with the new kalman filter values
+        # Populate whisker matrix with the new filtered
         for i in range(len(whisker_matrix)):
             if whisker_matrix[i] is None:
                 continue
-            if USE_KALMAN_FILTER:
-                for j in range(len(whisker_matrix[i])):
-                    curr_whisker_num = i * WHISKERS_PER_ROW_AMOUNT + j
-                    whisker_matrix[i][j].x = self.kalman_filter_whiskers_full.x[curr_whisker_num][0]
-                    whisker_matrix[i][j].y = self.kalman_filter_whiskers_full.x[curr_whisker_num + whisker_amount][0]
-                    whisker_matrix[i][j].z = self.kalman_filter_whiskers_full.x[curr_whisker_num + whisker_amount * 2][0]
-            else:
-                for j in range(len(whisker_matrix[i])):
-                    curr_whisker_num = i * WHISKERS_PER_ROW_AMOUNT + j
-                    whisker_matrix[i][j].x = self.kalman_filter_whiskers[curr_whisker_num]
-                    whisker_matrix[i][j].y = self.kalman_filter_whiskers[curr_whisker_num + whisker_amount]
-                    whisker_matrix[i][j].z = self.kalman_filter_whiskers[curr_whisker_num + whisker_amount * 2]
+
+            for j in range(len(whisker_matrix[i])):
+                curr_whisker_num = i * WHISKERS_PER_ROW_AMOUNT + j
+                whisker_matrix[i][j].x = self.filtered_whiskers[curr_whisker_num]
+                whisker_matrix[i][j].y = self.filtered_whiskers[curr_whisker_num + whisker_amount]
+                whisker_matrix[i][j].z = self.filtered_whiskers[curr_whisker_num + whisker_amount * 2]
 
         return whisker_matrix
     
@@ -485,17 +464,23 @@ class RM3Pathfinder(Node):
 
         whisker_matrix = create_adjusted_whisker_matrix(whiskers, self.final_bias_matrix)
 
-        #self.publish_filtered_whiskers(whisker_matrix, self.pub_whisker_pre_kalman)
+        # self.publish_filtered_whiskers(whisker_matrix, self.pub_whisker_unfiltered)
 
-        filtered_whiskers = self.apply_kalman_to_whiskers(whisker_matrix)
+        filtered_whiskers = self.apply_filtering_to_whiskers(whisker_matrix)
 
-        #self.publish_filtered_whiskers(kalman_filtered_whiskers, self.pub_whisker_kalman)
+        # self.publish_filtered_whiskers(filtered_whiskers, self.pub_whisker_filtered)
 
+        if LOG_HIGHEST_P:
+            self.log_highest_p(filtered_whiskers)
+
+        return filtered_whiskers
+    
+    def log_highest_p(self, whisker_matrix):
         curr_max_contact_row = None
         curr_max_contact_val = 0
 
-        for row_ind in range(len(filtered_whiskers)):
-            whisker_row = filtered_whiskers[row_ind]
+        for row_ind in range(len(whisker_matrix)):
+            whisker_row = whisker_matrix[row_ind]
             if whisker_row is None:
                 continue
             for whisker in whisker_row:
@@ -514,8 +499,6 @@ class RM3Pathfinder(Node):
                     self.curr_max_contact_dir = key
                     self.curr_max_contact_val = curr_max_contact_val
 
-        return filtered_whiskers
-    
     def assign_whisker_pressures_for_directions(self):
         whisker_pressures_avg_tmp = {}
         whisker_pressures_max_tmp = {}
@@ -999,10 +982,6 @@ class RM3Pathfinder(Node):
             self.path_planning_wall_following_mode(greater_contact_side)
             return self.determine_movement_wall_follower(self.tracked_wall_direction, skip_pre_movement=True)
         
-        # Sides not within thresholds
-        #self.align_with_next_path_node = True
-        #return None
-        
         # if not within threshold
         if self.use_wall_following or self.tracked_wall_direction is not None and side_contact:
             self.use_wall_following = False
@@ -1107,7 +1086,6 @@ class RM3Pathfinder(Node):
 
         return self.calculate_movement_from_factors(weight_factors)
 
-    
     def calculate_movement_from_factors(self, factors: List[Factor]):
         output = np.zeros(3)
         for factor in factors:
