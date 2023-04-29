@@ -30,16 +30,3 @@ Control:
             Kd: 0.2
             Setpoint: 0
             Saturation: [-40, 40]
-        XAxis:
-            Kp: 20
-            Ki: 0
-            Kd: 0
-            Setpoint: 0
-            Saturation: [-40, 40]
-
-        XAxisTurning:
-            Kp: 40
-            Ki: 0
-            Kd: 0
-            Setpoint: 0
-            Saturation: [-40, 40]

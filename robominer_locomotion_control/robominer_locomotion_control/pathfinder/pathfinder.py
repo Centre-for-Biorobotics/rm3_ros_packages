@@ -125,6 +125,7 @@ HARD_COLLISION_ROTATION_VELOCITY = 0.3
 HARD_COLLISION_STUCK_FIX_THRESHOLD_REDUCTION = 0.3
 
 HARD_COLLISION_MOVEMENT_SPEED = 0.03 if SIMULATION else 0.2
+HARD_COLLISION_TURN_SPEED = 0.2
 
 RECALCULATE_PATH_WHEN_STUCK_THRESHOLD_SECONDS = 30
 
@@ -317,7 +318,6 @@ class RM3Pathfinder(Node):
         elif pid_name == "DirectionPath":
             self.error_dir_path = p
         
-
     def enable_all_pid_components(self, pid: PID, pid_name):
         if pid_name not in ["DirectionWall", "DirectionPath", "Horizontal"]:
             self.get_logger().error("No PID named " + str(pid_name))
@@ -363,10 +363,13 @@ class RM3Pathfinder(Node):
                 self.calculate_new_path()
                 self.curr_node_position_start_time = 0
 
-        self.curr_node_position = new_pos
+        if self.curr_node_position != new_pos:
+            self.curr_node_position = new_pos
 
-        if not self.graph.node_exists(self.curr_node_position):
-            self.graph.add_node(self.curr_node_position, passable=True)
+            if not self.graph.node_exists(self.curr_node_position):
+                self.graph.add_node(self.curr_node_position, passable=True)
+                if self.use_wall_following:
+                    self.calculate_new_path()
 
     def calc_abs_angle_from_pose(self) -> float:
         """
@@ -688,7 +691,7 @@ class RM3Pathfinder(Node):
                 return
 
             if self.algorithm == PathfinderAlgorithm.THETA_STAR and (len(self.path) == 0 or collision_point in self.graph.line_of_sight_nodes(self.curr_node_position, self.path[0]) \
-                or len(self.path) >= 1 and collision_point in self.graph.line_of_sight_nodes(self.curr_node_position, self.path[1])):
+                or len(self.path) > 1 and collision_point in self.graph.line_of_sight_nodes(self.curr_node_position, self.path[1])):
                 self.calculate_new_path()
 
             elif self.algorithm == PathfinderAlgorithm.A_STAR and collision_point in self.path:
@@ -856,7 +859,8 @@ class RM3Pathfinder(Node):
 
         while True:
             dist = distance_points(translated_curr_pos, self.path[0])
-            if len(self.path) > 1 and dist < NODE_REMOVAL_DISTANCE or dist < DESTINATION_REACHED_DISTANCE:
+            if dist < DESTINATION_REACHED_DISTANCE or len(self.path) > 1 and (dist < NODE_REMOVAL_DISTANCE \
+                                                                               or self.use_wall_following and dist < WALL_FOLLOW_NODE_REMOVAL_DISTANCE):
                 self.path.pop(0)
                 if len(self.path) == 0:
                     self.get_logger().info("Zero path left")
@@ -1070,7 +1074,7 @@ class RM3Pathfinder(Node):
             self.log_movement("cancel wall following, " + str(self.tracked_wall_dir) + " " + str(self.error_dir_path_unclipped))
             return None
 
-        """
+        
         # TODO: Do I even need the front contact part??? As the algorithm sort of could do this for me?
         front_contact = self.dir_p_max[Direction.FORWARD] >= SOFT_COLLISION_MAX_P_THRESHOLD
         
@@ -1082,7 +1086,7 @@ class RM3Pathfinder(Node):
         # Navigate to an appropriate place for wall following if it resulted from front weight
         if self.tracked_wall_dir is not None:
             if self.goal_orientation is None:
-                self.goal_orientation = add_angles(self.abs_angle, 15 if self.tracked_wall_dir == Direction.RIGHT else -15)
+                self.goal_orientation = add_angles(self.abs_angle, 30 if self.tracked_wall_dir == Direction.RIGHT else -30)
 
             error_goal_orientation = add_angles(-self.abs_angle, self.goal_orientation)
             if error_goal_orientation < -NAVIGATION_ALIGN_ANGLE_MAX_ERROR or error_goal_orientation > NAVIGATION_ALIGN_ANGLE_MAX_ERROR:
@@ -1095,14 +1099,17 @@ class RM3Pathfinder(Node):
                                 
                 self.deactivate_pids()
 
-                self.get_logger().info("Error goal orientation: " + str(error_goal_orientation) \
-                        + ", goal orientation: " + str(self.goal_orientation) + ", " + \
-                        "tracked_wall_dir: " + str(self.tracked_wall_dir) + ", " \
-                            + "out vector: " + str(self.tracked_wall_dir.opposite().turn_twist() * (1 if error_goal_orientation >= 0 else -1)))
+                #self.get_logger().info("Error goal orientation: " + str(error_goal_orientation) \
+                #        + ", goal orientation: " + str(self.goal_orientation) + ", " + \
+                #        "tracked_wall_dir: " + str(self.tracked_wall_dir) + ", " \
+                #            + "out vector: " + str(self.tracked_wall_dir.opposite().turn_twist() * (1 if error_goal_orientation >= 0 else -1)))
 
-                return self.tracked_wall_dir.opposite().turn_twist() * (1 if error_goal_orientation < 0 else -1)
+                return DirectionTwist.TURN_LEFT.twist * (1 if error_goal_orientation < 0 else -1)
             
             if not (self.tracked_wall_dir == Direction.LEFT and left_contact or self.tracked_wall_dir == Direction.RIGHT and right_contact):
+                #self.path_planning_wall_following_mode(self.tracked_wall_dir)
+                # based on turning, assume there's a wall on the other side
+                return self.determine_movement_wall_follower(self.tracked_wall_dir, skip_pre_movement=True)
                 self.deactivate_pids()
                 self.log_movement("Move towards tracked!")
                 self.publish_factors(move_back_to_contact=1.)
@@ -1120,7 +1127,7 @@ class RM3Pathfinder(Node):
 
             #if not tracked_side_within_treshold:
             #    self.tracked_wall_dir = None
-        """
+        
         """
             if self.dir_p_max[Direction.FORWARD] < SOFT_COLLISION_MAX_P_THRESHOLD:
                 self.log_movement("FORWARD")
@@ -1160,12 +1167,10 @@ class RM3Pathfinder(Node):
                 return pre_movement
         
         if self.dir_p_avg[tracked_wall_dir] < SOFT_COLLISION_AVG_P_THRESHOLD:
-            self.publish_factors(move_back_to_contact=1.)
-            self.log_movement('Touching wall')
-            
+            self.publish_factors(move_back_to_contact=1.)            
             skip_forward = True
-
             self.enable_pid_proportional_only(self.pid_y, 'Horizontal')
+
 
         #self.log_movement('Weight factor-based movement')
         weight_factors = list()
