@@ -12,9 +12,8 @@ class PrioritizedItem:
     priority: int
     item: Any=field(compare=False)
 
-
 def theta_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[NodePosition]:
-    if graph is None or start is None or goal is None:
+    if graph is None or start is None or goal is None or not graph.node_passable(goal):
         return []
     
     frontier: PriorityQueue[PrioritizedItem] = PriorityQueue()
@@ -31,6 +30,8 @@ def theta_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[No
             break
         
         for next in graph.neighbors(current):
+            if not graph.node_passable(next):
+                continue
             # check if line of sight is free between parent and next
             parent = came_from[current]
             if parent is None:
@@ -65,7 +66,7 @@ def theta_star(graph: Graph, start: NodePosition, goal: NodePosition) -> List[No
                     parent = current
                     break
 
-    return list(reversed(path))  # Exclude start from path
+    return list(reversed(path))[1:]  # Exclude start from path
 
 def heuristic(goal: NodePosition, next: NodePosition):
     return ((goal.x - next.x)**2 + (goal.y - next.y)**2)**0.5
