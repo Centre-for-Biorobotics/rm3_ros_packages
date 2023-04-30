@@ -179,7 +179,6 @@ class RM3Pathfinder(Node):
 
         self.use_wall_following = False
         self.align_with_next_path_node = False
-        self.towards_wall = False
 
         self.prev_hard_collision = None
 
@@ -966,7 +965,6 @@ class RM3Pathfinder(Node):
         self.tracked_wall_dir = dir
         self.use_wall_following = True
         self.goal_orientation = None
-        self.towards_wall = False
         self.deactivate_path_planning_pids()
         self.log_movement("ASSIGN & Wall follow")        
 
@@ -1035,7 +1033,7 @@ class RM3Pathfinder(Node):
             if self.dir_p_max[Direction.RIGHT] > self.dir_p_max[Direction.LEFT] \
             else Direction.LEFT
 
-        if len(self.path) == 0 and side_contact or self.towards_wall and not self.align_with_next_path_node:
+        if len(self.path) == 0 and side_contact:
             if self.tracked_wall_dir is None or self.dir_p_max[self.tracked_wall_dir] < SOFT_COLLISION_MAX_P_THRESHOLD:
                 self.tracked_wall_dir = greater_contact_side
 
@@ -1076,7 +1074,6 @@ class RM3Pathfinder(Node):
             self.use_wall_following = False
             self.tracked_wall_dir = None
             self.align_with_next_path_node = True
-            self.towards_wall = False
             self.log_movement("cancel wall following, " + str(self.tracked_wall_dir) + " " + str(self.error_dir_path_unclipped))
             return None
 
@@ -1098,32 +1095,19 @@ class RM3Pathfinder(Node):
                 self.publish_factors([Factor(
                     description='Turn to keep level with the side walls',
                     weight=1.0,
-                    movement=Direction.FORWARD.move_twist()
+                    movement=DirectionTwist.TURN_LEFT.twist * (1 if error_goal_orientation < 0 else -1)
                 )])
                                 
                 self.deactivate_pids()
 
-                #self.get_logger().info("Error goal orientation: " + str(error_goal_orientation) \
-                #        + ", goal orientation: " + str(self.goal_orientation) + ", " + \
-                #        "tracked_wall_dir: " + str(self.tracked_wall_dir) + ", " \
-                #            + "out vector: " + str(self.tracked_wall_dir.opposite().turn_twist() * (1 if error_goal_orientation >= 0 else -1)))
-
                 return DirectionTwist.TURN_LEFT.twist * (1 if error_goal_orientation < 0 else -1)
             
             if self.tracked_wall_dir is not None and not (self.tracked_wall_dir == Direction.LEFT and left_contact or self.tracked_wall_dir == Direction.RIGHT and right_contact):
-                self.towards_wall = True
-                #self.path_planning_wall_following_mode(self.tracked_wall_dir)
                 # based on turning, assume there's a wall on the other side
                 self.log_movement("Ready to wall follow (fake): " + str(self.tracked_wall_dir))
                 return self.determine_movement_wall_follower(self.tracked_wall_dir, skip_pre_movement=True)
-                self.deactivate_pids()
-                self.log_movement("Move towards tracked!")
-                self.publish_factors(move_back_to_contact=1.)
-                return self.tracked_wall_dir.move_twist() * HARD_COLLISION_MOVEMENT_SPEED
             
             self.goal_orientation = None
-     
-
 
         return None
 
