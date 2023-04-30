@@ -209,7 +209,7 @@ class Graph:
             return positions
         
         if x_diff == 0:
-            dx = math.ceil(np.clip(c, dx_min, dx_max))
+            dx = math.ceil(c) if c >= 0 else math.floor(c)
             dy = 0
             pot_node_x, pot_node_y = dx + n1.x, n1.y
             while dy_min <= dy <= dy_max and dx_min <= dx <= dx_max:    
@@ -220,7 +220,7 @@ class Graph:
             return positions
 
         # y_diff == 0:
-        dy = math.ceil(np.clip(c, dy_min, dy_max))
+        dy = math.ceil(c) if c >= 0 else math.floor(c)
         dx = 0
         pot_node_x, pot_node_y = n1.x, n1.y + dy
         while dy_min <= dy <= dy_max and dx_min <= dx <= dx_max:    
