@@ -101,6 +101,7 @@ GRAPH_SQUARE_SIZE = 0.5  # compared to odometry information
 GRAPH_ROBOT_SIZE = 2  # compared to graph square size, used to measure line-of-sight to node
 
 NODE_REMOVAL_DISTANCE = 0.5
+WALL_FOLLOW_NODE_REMOVAL_DISTANCE = 2
 DESTINATION_REACHED_DISTANCE = 0.1
 
 # Error weights
@@ -144,10 +145,10 @@ WHISKER_ROW_DICT = {  # default, if every row is present
 }
 
 WHISKER_ROW_DICT_SIM = {
-    Direction.LEFT: [0],
-    Direction.RIGHT: [1],
-    Direction.FORWARD: [2],
-    Direction.BACKWARD: [3]
+    Direction.LEFT: [0, 4],
+    Direction.RIGHT: [1, 5],
+    Direction.FORWARD: [2, 6],
+    Direction.BACKWARD: [3, 7]
 }
 
 CYCLES_UNTIL_RECALIBRATION = 1000
@@ -178,6 +179,9 @@ class RM3Pathfinder(Node):
 
         self.use_wall_following = False
         self.align_with_next_path_node = False
+        self.towards_wall = False
+
+        self.prev_hard_collision = None
 
         self.whisker_matrix = None
 
@@ -962,6 +966,7 @@ class RM3Pathfinder(Node):
         self.tracked_wall_dir = dir
         self.use_wall_following = True
         self.goal_orientation = None
+        self.towards_wall = False
         self.deactivate_path_planning_pids()
         self.log_movement("ASSIGN & Wall follow")        
 
@@ -1030,7 +1035,7 @@ class RM3Pathfinder(Node):
             if self.dir_p_max[Direction.RIGHT] > self.dir_p_max[Direction.LEFT] \
             else Direction.LEFT
 
-        if len(self.path) == 0 and side_contact:
+        if len(self.path) == 0 and side_contact or self.towards_wall and not self.align_with_next_path_node:
             if self.tracked_wall_dir is None or self.dir_p_max[self.tracked_wall_dir] < SOFT_COLLISION_MAX_P_THRESHOLD:
                 self.tracked_wall_dir = greater_contact_side
 
@@ -1071,11 +1076,10 @@ class RM3Pathfinder(Node):
             self.use_wall_following = False
             self.tracked_wall_dir = None
             self.align_with_next_path_node = True
+            self.towards_wall = False
             self.log_movement("cancel wall following, " + str(self.tracked_wall_dir) + " " + str(self.error_dir_path_unclipped))
             return None
 
-        
-        # TODO: Do I even need the front contact part??? As the algorithm sort of could do this for me?
         front_contact = self.dir_p_max[Direction.FORWARD] >= SOFT_COLLISION_MAX_P_THRESHOLD
         
         # Change tracked wall direction based on forward pressure if is None
@@ -1106,9 +1110,11 @@ class RM3Pathfinder(Node):
 
                 return DirectionTwist.TURN_LEFT.twist * (1 if error_goal_orientation < 0 else -1)
             
-            if not (self.tracked_wall_dir == Direction.LEFT and left_contact or self.tracked_wall_dir == Direction.RIGHT and right_contact):
+            if self.tracked_wall_dir is not None and not (self.tracked_wall_dir == Direction.LEFT and left_contact or self.tracked_wall_dir == Direction.RIGHT and right_contact):
+                self.towards_wall = True
                 #self.path_planning_wall_following_mode(self.tracked_wall_dir)
                 # based on turning, assume there's a wall on the other side
+                self.log_movement("Ready to wall follow (fake): " + str(self.tracked_wall_dir))
                 return self.determine_movement_wall_follower(self.tracked_wall_dir, skip_pre_movement=True)
                 self.deactivate_pids()
                 self.log_movement("Move towards tracked!")
@@ -1116,39 +1122,7 @@ class RM3Pathfinder(Node):
                 return self.tracked_wall_dir.move_twist() * HARD_COLLISION_MOVEMENT_SPEED
             
             self.goal_orientation = None
-
-            #self.publish_factors([Factor(
-            #    description='Forward movement factor',
-            #    weight=1.0,
-            #    movement=Direction.FORWARD.move_twist()
-            #)])
-
-            return NO_MOVEMENT
-
-            #if not tracked_side_within_treshold:
-            #    self.tracked_wall_dir = None
-        
-        """
-            if self.dir_p_max[Direction.FORWARD] < SOFT_COLLISION_MAX_P_THRESHOLD:
-                self.log_movement("FORWARD")
-                self.publish_factors([Factor(
-                    description='Forward movement factor',
-                    weight=1.0,
-                    movement=Direction.FORWARD.move_twist()
-                )])
-                self.deactivate_pids()
-                return Direction.FORWARD.move_twist() * 0.2
-            else:  # self.dir_p_max[Direction.FORWARD] >= 0.05:
-                self.log_movement("TURN TO TRACKED")
-                self.publish_factors([Factor(
-                    description='Turn to keep level with the side walls',
-                    weight=1.0,
-                    movement=self.tracked_wall_dir.opposite().turn_twist()
-                )])
-                self.deactivate_pids()
-                return self.tracked_wall_dir.opposite().turn_twist()
-        """
-            
+     
 
 
         return None
@@ -1231,10 +1205,17 @@ class RM3Pathfinder(Node):
             return
 
         self.calibration_p_max_deque.append(self.dir_p_max[direction])
+
+        if self.calibration_direction_cancelled_due_to_collision:
+            self.get_logger().info("Calibration skipped due to hard collision for: " + str(direction))
+            self.directions_calibrated.add(direction)
+            
+            self.calibration_p_max_deque.clear()
+            self.bias_matrices.clear()
+            self.calibration_cancelled_due_to_collision = False
         
-        if not self.calibration_direction_cancelled_due_to_collision and \
-            (len(self.calibration_p_max_deque) < self.calibration_p_max_deque.maxlen \
-            or np.array(self.calibration_p_max_deque).std() > CALIBRATION_P_MAX_STD_DEV):
+        if len(self.calibration_p_max_deque) < self.calibration_p_max_deque.maxlen \
+            or np.array(self.calibration_p_max_deque).std() > CALIBRATION_P_MAX_STD_DEV:
             if direction in [Direction.BACKWARD, Direction.FORWARD]:
                 return direction.opposite().move_twist() * CALIBRATION_MOVEMENT_MULTIPLIER_BACKWARD_AND_FORWARD
             return direction.opposite().move_twist() * CALIBRATION_MOVEMENT_MULTIPLIER_LEFT_AND_RIGHT
@@ -1295,29 +1276,49 @@ class RM3Pathfinder(Node):
                 moveDirection = max_max_pressure_direction.opposite()
             else:
                 return None
-            
-            # rotate towards tracked wall if no pressure on that side
-            if tracked_wall_dir is not None and moveDirection in [Direction.FORWARD, Direction.BACKWARD]:
-                tracked_wall_contact = self.dir_p_max[tracked_wall_dir] < SOFT_COLLISION_MAX_P_THRESHOLD
-                tracked_wall_opposite_contact = self.dir_p_max[tracked_wall_dir.opposite()] < SOFT_COLLISION_MAX_P_THRESHOLD
-
-                if tracked_wall_contact and not tracked_wall_opposite_contact:
-                    mov_lst = tracked_wall_dir.opposite().move_twist() * HARD_COLLISION_MOVEMENT_SPEED
-                    rotation_sign = 1 if tracked_wall_dir == Direction.RIGHT else -1
-                    mov_lst[2] = rotation_sign * HARD_COLLISION_ROTATION_VELOCITY
-                    return mov_lst
-
+                
             # Fix getting stuck front-back when wall-following
             tr = HARD_COLLISION_STUCK_FIX_THRESHOLD_REDUCTION
-            if tracked_wall_dir is not None and moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
+
+            forward_backward_stuck = moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
                 and (self.dir_p_max[Direction.FORWARD] >= HARD_COLLISION_MAX_P_THRESHOLD - tr or self.dir_p_avg[Direction.FORWARD] >= HARD_COLLISION_AVG_P_THRESHOLD - tr) \
-                and (self.dir_p_max[Direction.BACKWARD] >= HARD_COLLISION_MAX_P_THRESHOLD - tr or self.dir_p_avg[Direction.BACKWARD] >= HARD_COLLISION_AVG_P_THRESHOLD - tr):
-                self.log_movement("HARDCOLL: fix getting stuck front/back")
-                mov_lst = tracked_wall_dir.opposite().move_twist() * HARD_COLLISION_MOVEMENT_SPEED
-                rotation_sign = 1 if tracked_wall_dir == Direction.RIGHT else -1
-                mov_lst[2] = rotation_sign * HARD_COLLISION_ROTATION_VELOCITY
+                and (self.dir_p_max[Direction.BACKWARD] >= HARD_COLLISION_MAX_P_THRESHOLD - tr or self.dir_p_avg[Direction.BACKWARD] >= HARD_COLLISION_AVG_P_THRESHOLD - tr)
+            
+            forward_backward_stuck_in_a_row = moveDirection in [Direction.FORWARD, Direction.BACKWARD] \
+                and self.prev_hard_collision in [Direction.FORWARD, Direction.BACKWARD] and moveDirection != self.prev_hard_collision
+            
+            left_right_stuck = moveDirection in [Direction.LEFT, Direction.RIGHT] \
+                and (self.dir_p_max[Direction.LEFT] >= HARD_COLLISION_MAX_P_THRESHOLD - tr or self.dir_p_avg[Direction.LEFT] >= HARD_COLLISION_AVG_P_THRESHOLD - tr) \
+                and (self.dir_p_max[Direction.RIGHT] >= HARD_COLLISION_MAX_P_THRESHOLD - tr or self.dir_p_avg[Direction.RIGHT] >= HARD_COLLISION_AVG_P_THRESHOLD - tr)
+            
+            left_right_stuck_in_a_row = moveDirection in [Direction.LEFT, Direction.RIGHT] \
+                and self.prev_hard_collision in [Direction.LEFT, Direction.RIGHT] and moveDirection != self.prev_hard_collision
+            
+            #self.get_logger().info(str(forward_backward_stuck) + " " + str(forward_backward_stuck_in_a_row) + " " + str(left_right_stuck) + " " + str(left_right_stuck_in_a_row))
+            #self.get_logger().info(str(moveDirection in [Direction.FORWARD, Direction.BACKWARD]) + " " + str(self.prev_hard_collision in [Direction.FORWARD, Direction.BACKWARD]) + " " + str(moveDirection != self.prev_hard_collision) + " " + str(moveDirection) + str(self.prev_hard_collision))
+
+            if forward_backward_stuck or forward_backward_stuck_in_a_row or left_right_stuck or left_right_stuck_in_a_row:
+                # move away from high pressure direction, also rotating if there's a tracked direction
+                if tracked_wall_dir is None:
+                    if forward_backward_stuck or forward_backward_stuck_in_a_row:
+                        total_inclination = calc_whiskers_inclination_euclid(self.whisker_rows(Direction.FORWARD)) + calc_whiskers_inclination_euclid(self.whisker_rows(Direction.BACKWARD))
+                        move_dir = Direction.RIGHT if total_inclination >= 0 else Direction.LEFT
+                    else:  # left-right stuck
+                        total_inclination = calc_whiskers_inclination_euclid(self.whisker_rows(Direction.LEFT)) + calc_whiskers_inclination_euclid(self.whisker_rows(Direction.RIGHT))
+                        move_dir = Direction.BACKWARD if total_inclination >= 0 else Direction.FORWARD
+
+                if forward_backward_stuck_in_a_row and not forward_backward_stuck or left_right_stuck_in_a_row and not left_right_stuck:
+                    self.log_movement("HARDCOLL: fix getting stuck between two sides (in a row!)")
+                else:
+                    self.log_movement("HARDCOLL: fix getting stuck between two sides")
+                mov_lst = tracked_wall_dir.opposite().move_twist() * HARD_COLLISION_MOVEMENT_SPEED if tracked_wall_dir is not None else move_dir.move_twist() * HARD_COLLISION_MOVEMENT_SPEED
+                if tracked_wall_dir is not None:
+                    rotation_sign = 1 if tracked_wall_dir == Direction.RIGHT else -1
+                    mov_lst[2] = rotation_sign * HARD_COLLISION_ROTATION_VELOCITY
                 return mov_lst
+
             self.log_movement("HARDCOLL: regular, to dir" + str(moveDirection))
+            self.prev_hard_collision = moveDirection
             return moveDirection.move_twist() * HARD_COLLISION_MOVEMENT_SPEED
         except ValueError:
             self.log_movement("HARDCOLL: ValError!")
