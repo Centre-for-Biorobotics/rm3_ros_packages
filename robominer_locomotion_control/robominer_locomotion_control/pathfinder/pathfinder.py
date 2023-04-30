@@ -101,8 +101,10 @@ GRAPH_SQUARE_SIZE = 0.5  # compared to odometry information
 GRAPH_ROBOT_SIZE = 2  # compared to graph square size, used to measure line-of-sight to node
 
 NODE_REMOVAL_DISTANCE = 0.5
-WALL_FOLLOW_NODE_REMOVAL_DISTANCE = 2
+WALL_FOLLOW_NODE_REMOVAL_DISTANCE = 3
 DESTINATION_REACHED_DISTANCE = 0.1
+
+WALL_FOLLOW_CYCLES_AFTER_TURN = 10
 
 # Error weights
 DIR_ERROR_FRONT_AND_REAR_AVG_WEIGHT = 0.7
@@ -172,6 +174,7 @@ class RM3Pathfinder(Node):
 
         self.lined_up_with_wall = False
         self.lining_up_initialised = False
+        self.wall_follow_cycles_done_after_turning = 0
 
         self.curr_max_contact_dir = None
         self.curr_max_contact_val = 0
@@ -1036,7 +1039,6 @@ class RM3Pathfinder(Node):
         if len(self.path) == 0 and side_contact:
             if self.tracked_wall_dir is None or self.dir_p_max[self.tracked_wall_dir] < SOFT_COLLISION_MAX_P_THRESHOLD:
                 self.tracked_wall_dir = greater_contact_side
-
             return self.determine_movement_wall_follower(self.tracked_wall_dir, skip_pre_movement=True)
 
         if self.align_with_next_path_node:
@@ -1067,7 +1069,7 @@ class RM3Pathfinder(Node):
         if side_contact and greater_contact_side_within_threshold:
             self.log_movement("side contact within threshold, start wall following on " + str(greater_contact_side_within_threshold))
             self.path_planning_wall_following_mode(greater_contact_side)
-            return self.determine_movement_wall_follower(greater_contact_side_within_threshold, skip_pre_movement=True)
+            return self.determine_movement_wall_follower(greater_contact_side, skip_pre_movement=True)
         
         # if not within threshold
         if self.use_wall_following or self.tracked_wall_dir is not None and side_contact:
@@ -1081,11 +1083,14 @@ class RM3Pathfinder(Node):
         
         # Change tracked wall direction based on forward pressure if is None
         if self.tracked_wall_dir is None and not side_contact and front_contact:
-            front_weight = calc_whiskers_inclination_euclid(self.whisker_rows(Direction.FORWARD))
-            self.tracked_wall_dir = Direction.LEFT if front_weight >= 0 else Direction.RIGHT
+            self.tracked_wall_dir = Direction.RIGHT if self.error_dir_path >= 0 else Direction.LEFT
 
         # Navigate to an appropriate place for wall following if it resulted from front weight
         if self.tracked_wall_dir is not None:
+            if self.wall_follow_cycles_done_after_turning >= WALL_FOLLOW_CYCLES_AFTER_TURN:
+                self.goal_orientation = None
+                self.wall_follow_cycles_done_after_turning = 0
+
             if self.goal_orientation is None:
                 self.goal_orientation = add_angles(self.abs_angle, 30 if self.tracked_wall_dir == Direction.RIGHT else -30)
 
@@ -1100,13 +1105,17 @@ class RM3Pathfinder(Node):
                                 
                 self.deactivate_pids()
 
+                self.wall_follow_cycles_done_after_turning = 0
+
                 return DirectionTwist.TURN_LEFT.twist * (1 if error_goal_orientation < 0 else -1)
             
-            if self.tracked_wall_dir is not None and not (self.tracked_wall_dir == Direction.LEFT and left_contact or self.tracked_wall_dir == Direction.RIGHT and right_contact):
-                # based on turning, assume there's a wall on the other side
+            # try if there's a wall on the tracked side after turning
+            if -NAVIGATION_ALIGN_ANGLE_MAX_ERROR < error_goal_orientation  < NAVIGATION_ALIGN_ANGLE_MAX_ERROR:
+                self.wall_follow_cycles_done_after_turning += 1
                 self.log_movement("Ready to wall follow (fake): " + str(self.tracked_wall_dir))
                 return self.determine_movement_wall_follower(self.tracked_wall_dir, skip_pre_movement=True)
             
+            self.get_logger().info("Mark goal as None")
             self.goal_orientation = None
 
         return None
