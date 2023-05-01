@@ -1050,10 +1050,10 @@ class RM3Pathfinder(Node):
             else:
                 self.align_with_next_path_node = False
 
-        DIR_THRESHOLD = 40
-        DIR_THRESHOLD_CORRECT_WAY = 150
-        left_inside_of_threshold = not (self.error_dir_path_unclipped < -DIR_THRESHOLD_CORRECT_WAY or self.error_dir_path_unclipped > DIR_THRESHOLD)
-        right_inside_of_threshold = not (self.error_dir_path_unclipped > DIR_THRESHOLD_CORRECT_WAY or self.error_dir_path_unclipped <= -DIR_THRESHOLD)
+        DIR_THRESHOLD_OPEN = 40
+        DIR_THRESHOLD_WALL = 150
+        left_inside_of_threshold = not (self.error_dir_path_unclipped < -DIR_THRESHOLD_WALL or self.error_dir_path_unclipped > DIR_THRESHOLD_OPEN)
+        right_inside_of_threshold = not (self.error_dir_path_unclipped > DIR_THRESHOLD_WALL or self.error_dir_path_unclipped <= -DIR_THRESHOLD_OPEN)
 
         tracked_side_within_treshold = self.tracked_wall_dir == Direction.LEFT and left_contact and left_inside_of_threshold \
                 or self.tracked_wall_dir == Direction.RIGHT and right_contact and right_inside_of_threshold
