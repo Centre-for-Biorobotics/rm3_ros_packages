@@ -1004,7 +1004,7 @@ class RM3Pathfinder(Node):
         #    self.mark_graph_point_after_collision_angle(0)
 
         MAX_FORWARD_MOVEMENT = 1.0
-        forward_weight = MAX_FORWARD_MOVEMENT * np.clip(1 - self.dir_p_max[Direction.FORWARD] / HARD_COLLISION_AVG_P_THRESHOLD, 0, 1)  #  * np.clip(1 - abs(self.direction_path) / 10, 0, 1)
+        forward_weight = MAX_FORWARD_MOVEMENT * np.clip(1 - self.dir_p_max[Direction.FORWARD] / HARD_COLLISION_MAX_P_THRESHOLD, 0, 1)  #  * np.clip(1 - abs(self.direction_path) / 10, 0, 1)
         weight_factors.append(Factor(
             'Forward movement factor',
             forward_weight,
