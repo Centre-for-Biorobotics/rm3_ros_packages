@@ -11,30 +11,36 @@ import math
 
 from geometry_msgs.msg import Point
 
-GRAPH_NODE_SIZE = 1
-ROBOT_NODE_SIZE = 0.2  # How big should a robot be compared to a graph node when measuring line of sight
+MAX_MAP_SIZE = 20
 
 class Graph:
     nodes = {}
 
-    def node_exists(self, position: NodePosition):
+    def __init__(self, node_size: float, robot_size: float):
+        self.node_size: float = node_size
+        self.robot_size: float = robot_size
+
+    def node_exists(self, position: NodePosition) -> bool:
         return position in self.nodes.keys()
 
-    def node_passable(self, position: NodePosition):
+    def node_passable(self, position: NodePosition) -> bool:
         return position not in self.nodes.keys() or self.nodes[position].passable
 
-    def add_node(self, position: NodePosition, passable: bool=True):
+    def add_node(self, position: NodePosition, passable: bool=True) -> None:
         if position in self.nodes:
             raise RuntimeError('Node already existed!')
 
         self.nodes[position] = GraphNode(position, passable)
 
-    def mark_node_unpassable(self, position: NodePosition):
+    def mark_node_unpassable(self, position: NodePosition) -> None:
         if position in self.nodes:
             if self.nodes[position].passable:
                 self.nodes[position].passable = False
         else:
             self.add_node(position, False)
+
+    def node_outside_bounds(self, pos: NodePosition) -> bool:
+        return pos.x * self.node_size > MAX_MAP_SIZE and pos.y * self.node_size > MAX_MAP_SIZE
 
     def neighbors(self, position: NodePosition) -> List[NodePosition]:
         neighbors = []
@@ -48,11 +54,11 @@ class Graph:
             NodePosition(x, y + 1),
             #NodePosition(x + 1, y - 1),
             NodePosition(x + 1, y)
-            #NodePosition(x + 1, y + 1),
-        ]
+            #NodePosition(x + 1, y + 1)
+        ] 
 
         for pos in potential_neighbors:
-            if self.node_passable(pos):
+            if self.node_passable(pos) and not self.node_outside_bounds(pos):
                 neighbors.append(pos)
 
         return neighbors
@@ -64,41 +70,35 @@ class Graph:
         Can get slow with big graphs and a c value of over 1. O(1) for c <= 1 and 2*O(n) for values higher than 1.
         """
         if n1 == n2:
-            return {n1}, ""
-        c = ROBOT_NODE_SIZE
-        info = ""
-        if abs(c) <= 1:
-            info += "Line of sight between {} and {}".format(str(n1), str(n2)) + "\n\n"
-            info += "-C" + "\n"
-            los_nodes, nf = self._line_of_sight_nodes(n1, n2, -c)
-            info += nf + "\n\n"
-            info += str([str(los_node) for los_node in los_nodes]) + "\n"
-            info += "+C" + "\n"
-            los_nodes_plus, nf = self._line_of_sight_nodes(n1, n2, c)
-            info += nf + "\n\n"
-            info += str([str(los_node) for los_node in los_nodes_plus]) + "\n"
-            los_nodes = los_nodes.union(los_nodes_plus)
+            return {n1}
+        c = self.robot_size / 2
+        
+        if abs(c) <= 1.4:
+            los_nodes = set(self.line_of_sight_nodes_c(n1, n2, -c))
+            los_nodes_plus = set(self.line_of_sight_nodes_c(n1, n2, c))
+            los_nodes = los_nodes.union(set(los_nodes_plus))
+            if abs(c) >= 0.7:
+                los_nodes_zero = set(self.line_of_sight_nodes_c(n1, n2, 0))
+                los_nodes = los_nodes.union(set(los_nodes_zero))
 
-            if abs(c) == 1:
-                los_nodes_zero, nf = self._line_of_sight_nodes(n1, n2, 0)
-                info += "ZERO" + "\n"
-                info += nf + "\n"
-                info += str([str(los_node) for los_node in los_nodes_zero]) + "\n"
-                los_nodes = los_nodes.union(los_nodes_zero)
-
-        if abs(c) > 1:
+        if abs(c) > 1.4:
             los_nodes = set()
             c_interim = -c
             while c_interim <= c:
-                los_nodes = los_nodes.union(self._line_of_sight_nodes(n1, n2, c_interim))
-                c += 0.5
+                los_nodes = los_nodes.union(set(self.line_of_sight_nodes_c(n1, n2, c_interim)))
+                c += 0.7
 
             # Make sure that the potential blindspot is also hit
-            los_nodes.union(self._line_of_sight_nodes(n1, n2, c))
-            
-        return los_nodes, info
+            los_nodes.union(set(self.line_of_sight_nodes_c(n1, n2, c)))
+
+        # remove origin
+            los_nodes.discard(n1)
+        return los_nodes
     
-    def _line_of_sight_nodes(self, n1: NodePosition, n2: NodePosition, c: float) -> Set[NodePosition]:
+    def cost(a, b) -> float:
+        return 1.0
+    
+    def line_of_sight_nodes_c(self, n1: NodePosition, n2: NodePosition, c: float) -> List[NodePosition]:
         """
         Construct a line between two node positions and get all the 
         NodePositions in the grid that the line touches.
@@ -106,97 +106,129 @@ class Graph:
         Can be expanded to 3D by including z in the check as well.
         """
         # calculate 2D line path
-        dx_max = n2.x - n1.x
-        dy_max = n2.y - n1.y
-
-        nf = ""
+        y_diff = n2.y - n1.y
+        x_diff = n2.x - n1.x
+        dy_min, dy_max = min(0, y_diff), max(0, y_diff)
+        dx_min, dx_max = min(0, x_diff), max(0, x_diff)
         
-        zero_check_result = self._line_of_sight_zero_check(n1, n2, dx_max, dy_max)
+        zero_check_result = self._line_of_sight_zero_check(n1, n2, c, x_diff, y_diff, dx_min, dx_max, dy_min, dy_max)
         if zero_check_result is not None:
-            return zero_check_result, nf
+            return zero_check_result
         
-        positions = {n1, n2}  # Include start and endpoint in line of sight
+        positions = []
 
-        dx_max_abs = abs(dx_max)
-        dy_max_abs = abs(dy_max)
+        a = y_diff / x_diff
 
-        a = dy_max / dx_max
-        a_abs = abs(a)  # construct line y = ax
-
-        dx_sign = 1 if dx_max >= 0 else -1
-        dy_sign = 1 if dy_max >= 0 else -1
-
-        if dy_sign == 1 and c >= 0 or dy_sign == -1 and c < 0:
+        if y_diff >= 0 and c >= 0 or y_diff < 0 and c < 0:
             dx = 0
             dy = c
         else:
             dx = -c / a
             dy = 0
-        
-        dx_abs, dy_abs = abs(dx), abs(dy)
 
-        pot_node_x = int(n1.x + dx)
-        pot_node_y = int(n1.y + dy)
+        # Calculate all intersections for x
+        dx = math.ceil(np.clip(dx, dx_min, dx_max)) if x_diff >= 0 else math.floor(np.clip(dx, dx_min, dx_max))
+        dy = a * dx + c
+        pot_node_x, pot_node_y = dx + n1.x, math.floor(dy) + n1.y
+        # cross all edges
+        while dx_min <= dx <= dx_max and dy_min <= dy <= dy_max:
+            # after crossing an edge, add both sides of the X axis crossing
+            positions.append(NodePosition(pot_node_x, pot_node_y))
 
-        while dx_abs <= dx_max_abs and dy_abs <= dy_max_abs:
-            nf += "dx_abs {:.2f}, dy_abs {:.2f}".format(dx_abs * dx_sign, dy_abs * dy_sign) + "\n"
-            
-            positions.add(NodePosition(math.floor(pot_node_x), math.floor(pot_node_y)))
-            nf += "Added x={} y={}".format(str(pot_node_x), str(pot_node_y)) + "\n"
+            previous_x = n1.x + self.subtract_one_abs(dx, x_diff)
+            if n1.x + dx_min <= previous_x <= n1.x + dx_max:
+                positions.append(NodePosition(previous_x, pot_node_y))
 
-            # check whether x or y axis will touch a point first
-            if (self._add_or_ceil(dy_abs) - c) * a_abs - dx_abs >= self._add_or_ceil(dx_abs) * a_abs + c - dy_abs:
-                dx_abs = self._add_or_ceil(dx_abs)
-                dy_abs = abs(a_abs * dx_abs + c)
-                
-                pot_node_x, pot_node_y = dx_sign * dx_abs + n1.x, dy_sign * int(dy_abs) + n1.y
-            else:
-                dy_abs = self._add_or_ceil(dy_abs)
-                dx_abs = abs((dy_abs - c) / a_abs)
-                pot_node_x, pot_node_y = dx_sign * int(dx_abs) + n1.x, dy_sign * dy_abs + n1.y
+            # If passing a node edge, then add all four around it
+            if abs(round(dx) - dx) < 0.05 and abs(round(dy) - dy) < 0.05:
+                previous_y = n1.y + self.subtract_one_abs(math.floor(dy), y_diff)
 
-        if not (n1.x == -10 and n1.y == 5 and n2.x == -8 and n2.y == 3):
-            nf = ""
+                if n1.y + dy_min <= previous_y <= n1.y + dy_max:
+                    positions.append(NodePosition(pot_node_x, previous_y))
 
-        return positions, nf
+                if n1.x + dx_min <= previous_x <= n1.x + dx_max and n1.y + dy_min <= previous_y <= n1.y + dy_max:
+                    positions.append(NodePosition(previous_x, previous_y))
+
+            dx = self.add_one_abs(dx, x_diff)
+            dy = a * dx + c
+
+            pot_node_x, pot_node_y = dx + n1.x, math.floor(dy) + n1.y
+
+        if y_diff >= 0 and c >= 0 or y_diff < 0 and c < 0:
+            dx = 0
+            dy = c
+        else:
+            dx = -c / a
+            dy = 0
+
+        # Calculate all intersections for y
+        dy = math.ceil(np.clip(dy, dy_min, dy_max)) if y_diff >= 0 else math.floor(np.clip(dy, dy_min, dy_max))
+        dx = (dy - c) / a
+        pot_node_x, pot_node_y = math.floor(dx) + n1.x, dy + n1.y
+        while dy_min <= dy <= dy_max and dx_min <= dx <= dx_max:
+            # after crossing an edge, add both sides of the Y axis crossing
+            positions.append(NodePosition(pot_node_x, pot_node_y))
+
+            second_pot_node_y = n1.y + self.subtract_one_abs(dy, y_diff)
+            if n1.y + dy_min <= second_pot_node_y <= n1.y + dy_max:
+                positions.append(NodePosition(pot_node_x, second_pot_node_y))
+
+            dy = self.add_one_abs(dy, y_diff)
+            dx = (dy - c) / a
+
+            pot_node_x, pot_node_y = math.floor(dx) + n1.x, dy + n1.y
+
+        return positions
     
-    def _line_of_sight_zero_check(self, n1: NodePosition, n2:NodePosition, dx_max, dy_max):
-        if dy_max == 0 and dx_max == 0:
-            return {n1}
+    def round_lower(self, x) -> int:
+        if x >= 0.0:
+            return math.floor(x)
+        else:
+            return math.floor(x - 0.5)
         
-        if dx_max == 0:
-            positions = {n1, n2}
-            dy_abs = 0
-            dy_max_abs = abs(dy_max)
-            dy_sign = np.sign(dy_max)
-            while dy_abs < dy_max_abs: 
-                dy_abs += 1
-                positions.add(NodePosition(n1.x, dy_sign * int(dy_abs) + n1.y))
+    def add_one_abs(self, x, signed) -> int:
+        if signed >= 0.0:
+            return x + 1
+        else:
+            return x - 1
+    
+    def subtract_one_abs(self, x, signed) -> int:
+        if signed >= 0.0:
+            return x - 1
+        else:
+            return x + 1
 
+    def _line_of_sight_zero_check(self, n1: NodePosition, n2:NodePosition, c, 
+                                  x_diff, y_diff, dx_min, dx_max, dy_min, dy_max) -> Set[NodePosition]:
+        if x_diff != 0 and y_diff != 0:
+            return None
+
+        positions = [n1, n2]
+
+        if x_diff == y_diff == 0:
             return positions
         
-        if dy_max == 0:
-            positions = {n1, n2}
-            dx_abs = 0
-            dx_max_abs = abs(dx_max)
-            dx_sign = np.sign(dx_max)
-            while dx_abs < dx_max_abs:
-                dx_abs += 1
-                positions.add(NodePosition(dx_sign * dx_abs + n1.x, n1.y))
+        if x_diff == 0:
+            dx = math.ceil(c) if c >= 0 else math.floor(c)
+            dy = 0
+            pot_node_x, pot_node_y = dx + n1.x, n1.y
+            while dy_min <= dy <= dy_max and dx_min <= dx <= dx_max:    
+                positions.append(NodePosition(pot_node_x, pot_node_y))
+
+                dy = self.add_one_abs(dy, y_diff)
+                pot_node_x, pot_node_y = dx + n1.x, dy + n1.y
             return positions
-        
-        return None
 
+        # y_diff == 0:
+        dy = math.ceil(c) if c >= 0 else math.floor(c)
+        dx = 0
+        pot_node_x, pot_node_y = n1.x, n1.y + dy
+        while dy_min <= dy <= dy_max and dx_min <= dx <= dx_max:    
+            positions.append(NodePosition(pot_node_x, pot_node_y))
 
-    def _add_or_ceil(self, num) -> int:
-        if int(num) != math.ceil(num):
-            return math.ceil(num)
-        
-        return num + 1
-
-
-    def _cost(self, pos1: NodePosition, pos2: NodePosition):
-        return 1
+            dx = self.add_one_abs(dx, x_diff)
+            pot_node_x, pot_node_y = dx + n1.x, dy + n1.y
+        return positions
 
     def get_surroundings(self, center : NodePosition, distance : int, path : List[NodePosition] = None, log_line_of_sight=False) -> str:
         if center is None:
@@ -208,8 +240,7 @@ class Graph:
         txt = "\n"
 
         if log_line_of_sight and path and len(path) >= 1:
-            los_nodes, nf = self.line_of_sight_nodes(center, path[0])
-            txt += nf + "\n"
+            los_nodes = self.line_of_sight_nodes(center, path[0])
         for i in range(distance, -distance - 1, -1):
             for j in range(distance, - distance - 1, -1):
                 this_pos = NodePosition(x + i, y + j)
@@ -231,26 +262,26 @@ class Graph:
                 if path is not None and this_pos in path:
                     txt += 'o'
                     continue
+                if self.node_outside_bounds(this_pos):
+                    txt += 'x'
+                    continue
                 if not self.node_exists(this_pos):
                     txt += '-'
                     continue
 
                 txt += ' '
             txt += "\n"
-        if log_line_of_sight and path and los_nodes:
-            txt += str([str(los_node) for los_node in los_nodes]) + "\n"
+        #if log_line_of_sight and path and los_nodes:
+            #txt += str([str(los_node) for los_node in los_nodes]) + "\n"
         return txt
 
-    @classmethod
-    def translate_position_to_graph_pos(cls, position: Point) -> NodePosition:
-        x_temp = int(round(position.x / GRAPH_NODE_SIZE, 0))
-        y_temp = int(round(position.y / GRAPH_NODE_SIZE, 0))
+    def translate_position_to_graph_pos(self, position: Point) -> NodePosition:
+        x_temp = round(position.x / self.node_size)
+        y_temp = round(position.y / self.node_size)
         return NodePosition(x_temp, y_temp)
 
-    @classmethod
-    def translate_position_to_graph_pos_unrounded(cls, position: Point) -> Point:
+    def translate_position_to_graph_pos_unrounded(self, position: Point) -> Point:
         p = Point()
-        p.x = position.x / GRAPH_NODE_SIZE
-        p.y = position.y / GRAPH_NODE_SIZE
+        p.x = position.x / self.node_size
+        p.y = position.y / self.node_size
         return p
-        
