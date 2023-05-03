@@ -24,7 +24,7 @@ def generate_launch_description():
     
     forwardDynamics_node = Node(
         package="robominer_state_estimation",
-        executable="forward_dynamics",
+        executable="rm3_forward_dynamics",
         output='screen',
                          )
 
