@@ -3,7 +3,6 @@
 Subscribes to robot screw velocities.
 Estimates robot's pose and velocity based on a given dynamical model.
 Publishes robot's estimated odometry and estimated wrenches.
-
 @author: Walid Remmas
 @contact: walid.remmas@taltech.ee
 @date: 12-10-2022

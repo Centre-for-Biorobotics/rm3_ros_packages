@@ -3,7 +3,6 @@
 Subscribes to robot screw velocities.
 Estimates robot's pose and velocity based on a given dynamical model.
 Publishes robot's estimated odometry and estimated wrenches.
-
 @author: Walid Remmas
 @contact: walid.remmas@taltech.ee
 @date: 12-10-2022
@@ -18,7 +17,8 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist, TwistStamped, WrenchStamped, Quaternion
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
-from robominer_msgs.msg import MotorModuleCommand
+
+from robominer_msgs.msg import MotorModuleCommand, MotorModuleFeedback
 from std_msgs.msg import Float64, Float64MultiArray
 
 
@@ -56,10 +56,10 @@ class DynamicsRM3(Node):
             self.create_subscription(Imu, self.robotDynamics.imuTopic, self.imu_callback, 10)
             self.imu_orientation = Quaternion() # to store IMU data
 
-        self.create_subscription(MotorModuleCommand, '/motor0/motor_rpm_setpoint', self.front_right, 10)
-        self.create_subscription(MotorModuleCommand, '/motor1/motor_rpm_setpoint', self.rear_right, 10)
-        self.create_subscription(MotorModuleCommand, '/motor2/motor_rpm_setpoint', self.rear_left, 10)
-        self.create_subscription(MotorModuleCommand, '/motor3/motor_rpm_setpoint', self.front_left, 10)
+        self.create_subscription(MotorModuleFeedback, '/front_right/motor_module', self.front_right, 10)
+        self.create_subscription(MotorModuleFeedback, '/rear_right/motor_module', self.rear_right, 10)
+        self.create_subscription(MotorModuleFeedback, '/rear_left/motor_module', self.rear_left, 10)
+        self.create_subscription(MotorModuleFeedback, '/front_left/motor_module', self.front_left, 10)
 
         self.estimated_odom_pub = self.create_publisher(Odometry, '/estimated_odom_FDynamics', 10)
         self.estimated_wrench_pub = self.create_publisher(WrenchStamped, '/estimated_wrench_FDynamics', 10)
@@ -99,8 +99,8 @@ class DynamicsRM3(Node):
         # Publish odometry message
         odom_msg = Odometry()
         odom_msg.header.stamp = self.get_clock().now().to_msg()
-        odom_msg.header.frame_id = 'world'
-        odom_msg.child_frame_id = 'dynamics'
+        odom_msg.header.frame_id = 'odom'
+        odom_msg.child_frame_id = 'base_link_est_ukf'
         odom_msg.pose.pose.position.x = self.robotDynamics.eta[0]
         odom_msg.pose.pose.position.y = self.robotDynamics.eta[1]
         odom_msg.pose.pose.position.z = self.robotDynamics.eta[2]
@@ -122,7 +122,7 @@ class DynamicsRM3(Node):
 
         wrench_msg = WrenchStamped()
         wrench_msg.header.stamp = self.get_clock().now().to_msg()
-        wrench_msg.header.frame_id = 'base_link'
+        wrench_msg.header.frame_id = 'base_link_est_ukf'
         wrench_msg.wrench.force.x = self.robotDynamics.tau[0]
         wrench_msg.wrench.force.y = self.robotDynamics.tau[1]
         wrench_msg.wrench.force.z = self.robotDynamics.tau[2]
@@ -138,6 +138,7 @@ class DynamicsRM3(Node):
 
             body_vel.linear.x = self.robotDynamics.nu[0]
             body_vel_stamped.twist.linear.x = self.robotDynamics.nu[0]
+
             body_vel.linear.y = self.robotDynamics.nu[1]
             body_vel_stamped.twist.linear.y = self.robotDynamics.nu[1]
             body_vel.angular.z = self.robotDynamics.nu[5]
@@ -158,19 +159,19 @@ class DynamicsRM3(Node):
         self.publisher_screw_rotation.publish(screw_velocities)
 
     def front_right(self, msg):
-        self.screw_velocities[0] = msg.motor_rpm_goal
+        self.screw_velocities[0] = msg.motor_rpm
         # self.get_logger().info(f'front_right: {self.fr_vel}')
 
     def rear_right(self, msg):
-        self.screw_velocities[1] = msg.motor_rpm_goal
+        self.screw_velocities[1] = msg.motor_rpm
         # self.get_logger().info(f'rear_right: {self.rr_vel}')
 
     def rear_left(self, msg):
-        self.screw_velocities[2] = msg.motor_rpm_goal
+        self.screw_velocities[2] = msg.motor_rpm
         # self.get_logger().info(f'rear_left: {self.rl_vel}')
 
     def front_left(self, msg):
-        self.screw_velocities[3] = msg.motor_rpm_goal
+        self.screw_velocities[3] = msg.motor_rpm
 
     def imu_callback(self, msg):
         self.imu_orientation = msg.orientation
