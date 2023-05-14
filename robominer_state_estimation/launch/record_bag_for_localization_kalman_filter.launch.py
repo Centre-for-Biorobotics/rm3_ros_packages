@@ -38,7 +38,7 @@ def generate_launch_description():
             '/pi48_imu/data_raw',
             # '/pi48_imu/data',
             '/pi48_imu/complementary_data',
-            '/camera_jetson/imu',
+            # '/camera_jetson/imu',
 
 
             # '/whiskers',
@@ -56,8 +56,8 @@ def generate_launch_description():
             '/spectrometer_right/reflectance_reading',
             '/spectrometer_right/fluorescence_reading',
 
-            '/camera_jetson/color/image_raw',
-            '/camera_jetson/depth/image_rect_raw',
+            # '/camera_jetson/color/image_raw',
+            # '/camera_jetson/depth/image_rect_raw',
             # '/odom',
             # '/map_data',
             # '/localization_pose',
