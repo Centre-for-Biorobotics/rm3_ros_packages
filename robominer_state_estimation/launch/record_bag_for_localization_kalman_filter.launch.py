@@ -38,7 +38,7 @@ def generate_launch_description():
             '/pi48_imu/data_raw',
             # '/pi48_imu/data',
             '/pi48_imu/complementary_data',
-            '/camera_jetson/imu'
+            '/camera_jetson/imu',
 
 
             # '/whiskers',
@@ -62,7 +62,7 @@ def generate_launch_description():
             # '/map_data',
             # '/localization_pose',
 
-            '/scan/filtered',
+            '/scan_filtered',
             # '/scan',
             
             ],

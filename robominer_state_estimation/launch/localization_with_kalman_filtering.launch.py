@@ -24,7 +24,7 @@ def generate_launch_description():
     
     forwardDynamics_node = Node(
         package="robominer_state_estimation",
-        executable="forward_dynamics",
+        executable="rm3_forward_dynamics",
         output='screen',
                          )
 
@@ -42,7 +42,7 @@ def generate_launch_description():
     
     static_transform3 = Node(package="tf2_ros",
                              executable="static_transform_publisher",
-                             arguments=["0.39", "0", "-0.0915", "0", "0.175", "0",
+                             arguments=["0.39", "0", "-0.0915", "-1.588", "0.0", "-1.571",
                                         "base_link_est_ukf", "camera_jetson_link"]
                              )
     
