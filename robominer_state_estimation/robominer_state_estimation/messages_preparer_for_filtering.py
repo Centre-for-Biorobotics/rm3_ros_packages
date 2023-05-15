@@ -151,7 +151,7 @@ class PublishingSubscriber(Node):
                                            0.0, 0.0, 0.0027]
         msg.linear_acceleration_covariance = [0.09, 0.0, 0.0,
                                               0.0, 0.09, 0.0,
-                                              0.0, 0.0, 0.09]
+                                              0.0, 0.0, 0.01]
         self.publisher_camera_jetson_imu.publish(msg)
 
     def twist_received_kinematics(self, msg):
@@ -159,13 +159,13 @@ class PublishingSubscriber(Node):
         new_msg.header = msg.header
         new_msg.header.frame_id = "base_link_est_ukf"
         new_msg.twist.twist = msg.twist
-        slip_ratio = 0.30
+        slip_ratio = 0.0
         new_msg.twist.twist.linear.x *= (1 - slip_ratio)
         new_msg.twist.twist.linear.y *= (1 - slip_ratio)
         new_msg.twist.twist.angular.z *= (1 - slip_ratio)
         new_msg.twist.covariance = [0.025, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.005, 0.0, 0.0, 0.0, 0.0,
-                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+                                    0.0, 0.0, pow(10, -9), 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.05]
@@ -198,15 +198,15 @@ class PublishingSubscriber(Node):
         new_msg.twist.twist.linear.x *= (1 - slip_ratio)
         new_msg.twist.twist.linear.y *= (1 - slip_ratio)
         new_msg.twist.twist.angular.z *= (1 - slip_ratio)
-        new_msg.pose.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                    0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
-                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+        new_msg.pose.covariance = [20.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 20.0, 0.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, pow(10, -9), 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
-                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.033]
+                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.33]
         new_msg.twist.covariance = [0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.002, 0.0, 0.0, 0.0, 0.0,
-                                    0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
+                                    0.0, 0.0, pow(10, -9), 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, pow(10, -9), 0.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, pow(10, -9), 0.0,
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.033]
