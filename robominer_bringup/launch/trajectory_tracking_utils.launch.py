@@ -37,7 +37,7 @@ def generate_launch_description():
         name='temperature_sensor'
         )
 
-    rm3_inverse_dynamics = launch_ros.actions.Node(
+    rm3_inverse_dynamics = Node(
         package='robominer_state_estimation',
         executable='rm3_inverse_dynamics',
         name='rm3_inverse_dynamics',

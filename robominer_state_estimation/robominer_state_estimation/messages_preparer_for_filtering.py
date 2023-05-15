@@ -193,8 +193,8 @@ class PublishingSubscriber(Node):
 
     def odom_received_dynamics(self, msg):
         new_msg = msg
-        new_msg.header.frame_id = "gt_initial_pose"
-        slip_ratio = 0.0
+        new_msg.header.frame_id = "odom"
+        slip_ratio = 0.30
         new_msg.twist.twist.linear.x *= (1 - slip_ratio)
         new_msg.twist.twist.linear.y *= (1 - slip_ratio)
         new_msg.twist.twist.angular.z *= (1 - slip_ratio)

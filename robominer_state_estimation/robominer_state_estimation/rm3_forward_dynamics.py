@@ -99,7 +99,7 @@ class DynamicsRM3(Node):
         # Publish odometry message
         odom_msg = Odometry()
         odom_msg.header.stamp = self.get_clock().now().to_msg()
-        odom_msg.header.frame_id = 'gt_initial_pose'
+        odom_msg.header.frame_id = 'odom'
         odom_msg.child_frame_id = 'base_link_est_ukf'
         odom_msg.pose.pose.position.x = self.robotDynamics.eta[0]
         odom_msg.pose.pose.position.y = self.robotDynamics.eta[1]
