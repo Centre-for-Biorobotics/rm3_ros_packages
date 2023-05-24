@@ -23,7 +23,7 @@ def generate_launch_description():
     lidartop_static_transform = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments=["0.278", "0", "0.045", "0", "0.26", "0", "robot", "top_laser"])
+        arguments=["0.33", "0", "0.045", "0", "0.56", "0", "robot", "top_laser"])
 
     # transform from the top of the lidar housing to the middle of the lidar 
     # glass (where we assume the beam comes from)
