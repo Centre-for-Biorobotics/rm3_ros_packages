@@ -39,6 +39,7 @@ set(msg_files
   "msg/FiducialTransform.msg"
   "msg/FiducialTransformArray.msg"
   "msg/TrajectoryPoint.msg"
+  "msg/ECMeasurement.msg"
   )
 
 
