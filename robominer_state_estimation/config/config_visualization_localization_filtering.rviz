@@ -55,27 +55,9 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_laser_link:
-          Value: false
         base_link_est_ukf:
           Value: true
         bno_imu_frame:
-          Value: false
-        camera_jetson_accel_frame:
-          Value: false
-        camera_jetson_accel_optical_frame:
-          Value: false
-        camera_jetson_color_frame:
-          Value: false
-        camera_jetson_color_optical_frame:
-          Value: false
-        camera_jetson_depth_frame:
-          Value: false
-        camera_jetson_depth_optical_frame:
-          Value: false
-        camera_jetson_gyro_frame:
-          Value: false
-        camera_jetson_gyro_optical_frame:
           Value: false
         camera_jetson_link:
           Value: false
@@ -95,8 +77,6 @@ Visualization Manager:
           Value: false
         robot_tag:
           Value: false
-        top_laser:
-          Value: false
         world:
           Value: true
       Marker Scale: 1
@@ -113,32 +93,18 @@ Visualization Manager:
           world:
             {}
         gt_initial_pose:
-          base_link_est_ukf:
-            bno_imu_frame:
-              {}
-            camera_jetson_link:
-              camera_jetson_accel_frame:
-                camera_jetson_accel_optical_frame:
-                  {}
-              camera_jetson_color_frame:
-                camera_jetson_color_optical_frame:
-                  {}
-              camera_jetson_depth_frame:
-                camera_jetson_depth_optical_frame:
-                  {}
-              camera_jetson_gyro_frame:
-                camera_jetson_gyro_optical_frame:
-                  {}
-            pi48_imu_frame:
-              {}
-            robot:
-              top_laser:
-                base_laser_link:
-                  {}
           gt_base_link:
             {}
           odom:
-            {}
+            base_link_est_ukf:
+              bno_imu_frame:
+                {}
+              camera_jetson_link:
+                {}
+              pi48_imu_frame:
+                {}
+              robot:
+                {}
       Update Interval: 0
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -255,6 +221,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /estimated_odom_FDynamics
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /marker_array_grounds_classified
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -298,7 +276,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 18.45333480834961
+      Distance: 23.147865295410156
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
