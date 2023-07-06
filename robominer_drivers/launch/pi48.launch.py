@@ -42,10 +42,10 @@ def generate_launch_description():
         arguments = ["0", "0", "0", "0", "0", "0", "map", "pi48"]
     )
 
-    return LaunchDescription(
-        [pi48_imu,
+    return LaunchDescription([
+        pi48_imu,
         complementary_filter,
         # madgwick_filter,
-        static_transform
+        # static_transform
         ]
     )

@@ -56,23 +56,24 @@ Tlv493d::~Tlv493d(void)
 
 void Tlv493d::begin(void)
 {
-	begin(Wire, TLV493D_ADDRESS1, true);
+	begin(Wire, TLV493D_ADDRESS1, false);
+//	begin(Wire, TLV493D_ADDRESS1, true);
 }
 
 void Tlv493d::begin(TwoWire &bus)
 {
-	begin(bus, TLV493D_ADDRESS1, true);
+	begin(bus, TLV493D_ADDRESS1, false);
 }
 
 void Tlv493d::begin(TwoWire &bus, Tlv493d_Address_t slaveAddress, bool reset)
-{	
+{
 	initInterface(&mInterface, &bus, slaveAddress);
 	delay(TLV493D_STARTUPDELAY);
 
 	mInterface.bus->begin();
 
 	if(reset == true)
-	{		
+	{
 		resetSensor(mInterface.adress);
 	}
 	// get all register data from sensor
@@ -285,17 +286,17 @@ float Tlv493d::getPolar(void)
  */
 void Tlv493d::resetSensor(uint8_t adr)     // Recovery & Reset - this can be handled by any uC as it uses bitbanging
 {
+//	mInterface.bus->requestFrom((uint8_t)0x00,1);
 	mInterface.bus->beginTransmission((uint8_t)0x00);
-
 	if (adr == TLV493D_ADDRESS1) {
-		// if the sensor shall be initialized with i2c address 0x1F		
-		mInterface.bus->write(0xFF);
+		// if the sensor shall be initialized with i2c address 0x1F
+		mInterface.bus->write((uint8_t)0xFF);
 	} else {
 		// if the sensor shall be initialized with address 0x5E
 		mInterface.bus->write((uint8_t)0x00);
 	}
-
 	mInterface.bus->endTransmission();
+        ::delay(100);
 }
 
 void Tlv493d::setRegBits(uint8_t regMaskIndex, uint8_t data)

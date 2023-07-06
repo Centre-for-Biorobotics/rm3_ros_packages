@@ -1,0 +1,16 @@
+robot:
+  enableIMU: True # pose filtering to reduce noise
+  imuTopic: /bno080_imu # can be: /pi48_imu/data  -- /bno080_imu --
+dynamics: # see ICRA paper draft for documentation of these parameters
+    dt: 0.01
+    sigma_lat: 0.2457
+    sigma_long: 0.41
+    alpha: 26.5
+    drag: [520.0, 125.0, 200.0, 200.0, 200.0, 7.7]
+    mass: 29.0
+    dimensions:
+        x: 0.95
+        y: 0.8
+        z: 0.3
+        lx: 0.15
+        ly: 0.30
