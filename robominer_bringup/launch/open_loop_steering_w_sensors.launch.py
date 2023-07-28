@@ -47,7 +47,7 @@ def generate_launch_description():
     return launch.LaunchDescription([
         motor_interfaces,
         bno_imu_interface,
-        pi48_imu_interface,
+        # pi48_imu_interface,
         temperature_interface,
         steering_kinematics
         ])

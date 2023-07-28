@@ -66,7 +66,7 @@ class KinematicsInputHandler(Node):
         """
         self.cmd_vel_x = msg.axes[1] * self.joystick_speed_multiplier
         self.cmd_vel_y = msg.axes[0] * self.joystick_speed_multiplier
-        self.cmd_vel_yaw = msg.axes[2] * self.joystick_speed_multiplier
+        self.cmd_vel_yaw = msg.axes[3] * self.joystick_speed_multiplier
         self.turbo_multiplier = (msg.buttons[5] * .01)
 
     def otherInputCallback(self, msg):
