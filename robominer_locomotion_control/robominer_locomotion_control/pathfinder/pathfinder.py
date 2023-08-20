@@ -95,6 +95,8 @@ HARD_COLLISION_MAX_P_THRESHOLD = 0.8
 MIN_PRESSURE_FOR_COLLISION_MARK_ON_GRAPH = 0.1
 
 # Navigation
+ENABLE_WALL_FOLLOWING_IN_PATH_PLANNING = True
+
 NAVIGATION_ALIGN_ANGLE_MAX_ERROR = 5
 
 GRAPH_SQUARE_SIZE = 0.5  # compared to odometry information
@@ -603,15 +605,19 @@ class RM3Pathfinder(Node):
                     if whisker_pressure(lst[i]) > MIN_PRESSURE_FOR_COLLISION_MARK_ON_GRAPH:
                         additional_angle = 0
                         if i == 7:
-                            additional_angle = 45
+                            additional_angle = 40
                         elif i == 0:
-                            additional_angle = -45
+                            additional_angle = -40
                         else:
                             dir_weight = directional_whisker_weight(i, WHISKERS_PER_ROW_AMOUNT)
                             dir_weight_minus_one_abs = dir_weight - 1 if dir_weight >= 0 else dir_weight + 1
                             additional_angle = dir_weight_minus_one_abs * 10
 
                         additional_angle *= additional_angle_multiplier[direction]
+
+                        if not ENABLE_WALL_FOLLOWING_IN_PATH_PLANNING:
+                            # The better angle does not seem to work well for regular wall-following
+                            additional_angle = 0
                         
                         self.mark_graph_point_after_collision({direction}, add_angle=additional_angle)
 
@@ -739,11 +745,11 @@ class RM3Pathfinder(Node):
             if perpendicular_direction > DIR_ERROR_FRONT_AND_REAR_THRESHOLD:
                 direction += -perpendicular_direction * 2 if self.tracked_wall_dir == Direction.LEFT else perpendicular_direction * 2
         
-        if self.whisker_rows(Direction.BACKWARD) is not None:
-            perpendicular_direction = DIR_ERROR_FRONT_AND_REAR_AVG_WEIGHT * self.dir_p_avg[Direction.BACKWARD] \
-                + DIR_ERROR_FRONT_AND_REAR_MAX_WEIGHT * self.dir_p_max[Direction.BACKWARD]
-            if perpendicular_direction > DIR_ERROR_FRONT_AND_REAR_THRESHOLD:
-                direction += perpendicular_direction if self.tracked_wall_dir == Direction.LEFT else -perpendicular_direction
+        #if self.whisker_rows(Direction.BACKWARD) is not None:
+        #    perpendicular_direction = DIR_ERROR_FRONT_AND_REAR_AVG_WEIGHT * self.dir_p_avg[Direction.BACKWARD] \
+        #        + DIR_ERROR_FRONT_AND_REAR_MAX_WEIGHT * self.dir_p_max[Direction.BACKWARD]
+        #    if perpendicular_direction > DIR_ERROR_FRONT_AND_REAR_THRESHOLD:
+        #        direction += perpendicular_direction if self.tracked_wall_dir == Direction.LEFT else -perpendicular_direction
 
         # Normalize to [-1; 1]
         direction = np.clip(direction / 2, -1, 1)
@@ -983,10 +989,11 @@ class RM3Pathfinder(Node):
             if pre_movement is not None:
                 return pre_movement
 
-        wall_following_movement = self.determine_wall_following_movement_in_path_planning()
-        if wall_following_movement is not None:
-            self.deactivate_path_planning_pids()
-            return wall_following_movement
+        if ENABLE_WALL_FOLLOWING_IN_PATH_PLANNING:
+            wall_following_movement = self.determine_wall_following_movement_in_path_planning()
+            if wall_following_movement is not None:
+                self.deactivate_path_planning_pids()
+                return wall_following_movement
         
         self.activate_path_planning_pids()
         self.deactivate_wall_following_pids()
