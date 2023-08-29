@@ -1,8 +1,8 @@
 Pathfinder:
     Dt: 0.01
     ReferenceFrame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom"
-    Simulation: "enabled"
-    SkipInitialBiasMatrixCalculation: "enabled"  # meant for simulation, where there's no bias introduced
+    Simulation: "disabled"
+    SkipInitialBiasMatrixCalculation: "disabled"  # meant for simulation, where there's no bias introduced
 
 Whiskers:
     BiasNoiseSamples: 10  # Whiskers have some bias and noinse, so the robot takes the given number of samples of the whisker messages at the start to set an offset for the whiskers
@@ -25,8 +25,8 @@ Control:
             Setpoint: 0
             Saturation: [-5, 5]
         DirectionPath:
-            Kp: 0.5
-            Ki: 0.1
-            Kd: 0.2
+            Kp: 0.01
+            Ki: 0.002
+            Kd: 0.005
             Setpoint: 0
             Saturation: [-40, 40]
