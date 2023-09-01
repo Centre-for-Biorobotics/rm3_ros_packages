@@ -77,9 +77,9 @@ with open(pathf_param_from_yaml, 'r') as pathfinder_file:
 NO_MOVEMENT = np.array([0, 0, 0], dtype=float)
 
 # Movement
-BASE_SPEED_X = 1 if not SIMULATION else 30
-BASE_SPEED_Y = 2 if not SIMULATION else 10
-BASE_SPEED_TURN = 1 if not SIMULATION else 10
+BASE_SPEED_X = 2 if not SIMULATION else 30
+BASE_SPEED_Y = 3 if not SIMULATION else 10
+BASE_SPEED_TURN = 2 if not SIMULATION else 10
 
 MINIMUM_SLOW_MOVEMENT_VELOCITY = 0.025 if SIMULATION else 0.15
 
@@ -140,12 +140,19 @@ LOG_EXECUTION_TIME = False
 LOG_HIGHEST_P = False
 LOG_SURROUNDINGS = True
 LOG_LINE_OF_SIGHT = True # shows L for line of sight to objective in surroundings log
-
+"""
 WHISKER_ROW_DICT = {  # default, if every row is present
     Direction.LEFT: [0], #4
     Direction.RIGHT: [5], #5 #1
     Direction.FORWARD: [2], #3
     Direction.BACKWARD: [6] #7
+}"""
+
+WHISKER_ROW_DICT = {  # default, if every row is present
+    Direction.LEFT: [6, 7], #4
+    Direction.RIGHT: [2, 3], #5 #1
+    Direction.FORWARD: [0, 4], #3
+    Direction.BACKWARD: [5, 1] #7
 }
 
 WHISKER_ROW_DICT_SIM = {
@@ -850,8 +857,8 @@ class RM3Pathfinder(Node):
     
     def determine_and_publish_movement(self) -> None:
         mov_twist = self.determine_movement() * self.control_vel
-        t = 3
-        t_turn = 1
+        t = 5
+        t_turn = 2
 
         
         if max([abs(y) for y in mov_twist]) < 0.03:
