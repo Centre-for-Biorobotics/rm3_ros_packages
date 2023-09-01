@@ -78,7 +78,7 @@ NO_MOVEMENT = np.array([0, 0, 0], dtype=float)
 
 # Movement
 BASE_SPEED_X = 1 if not SIMULATION else 30
-BASE_SPEED_Y = 1 if not SIMULATION else 10
+BASE_SPEED_Y = 2 if not SIMULATION else 10
 BASE_SPEED_TURN = 1 if not SIMULATION else 10
 
 MINIMUM_SLOW_MOVEMENT_VELOCITY = 0.025 if SIMULATION else 0.15
@@ -89,10 +89,10 @@ SOFT_COLLISION_AVG_P_THRESHOLD = 0.05
 SOFT_COLLISION_MAX_P_THRESHOLD = 0.05
 
 #    Thresholds at which to force pulling away from the wall
-HARD_COLLISION_AVG_P_THRESHOLD = 0.4
-HARD_COLLISION_MAX_P_THRESHOLD = 0.8
+HARD_COLLISION_AVG_P_THRESHOLD = 0.55
+HARD_COLLISION_MAX_P_THRESHOLD = 0.9
 
-MIN_PRESSURE_FOR_COLLISION_MARK_ON_GRAPH = 0.1
+MIN_PRESSURE_FOR_COLLISION_MARK_ON_GRAPH = 0.3
 
 # Navigation
 ENABLE_WALL_FOLLOWING_IN_PATH_PLANNING = True
@@ -118,7 +118,7 @@ Y_AXIS_ERROR_MAX_WEIGHT = (1 - DIR_ERROR_FRONT_AND_REAR_AVG_WEIGHT)
 
 # Calibration constants
 CALIBRATION_P_MAX_STD_DEV = 0.015
-CALIBRATION_P_MAX_STD_DEV_MEASUREMENT_CYCLE_LENGTH = 10
+CALIBRATION_P_MAX_STD_DEV_MEASUREMENT_CYCLE_LENGTH = 30
 
 CALIBRATION_MOVEMENT_MULTIPLIER_BACKWARD_AND_FORWARD = .35 if not SIMULATION else .25
 CALIBRATION_MOVEMENT_MULTIPLIER_LEFT_AND_RIGHT = .2 if not SIMULATION else .05
@@ -142,10 +142,10 @@ LOG_SURROUNDINGS = True
 LOG_LINE_OF_SIGHT = True # shows L for line of sight to objective in surroundings log
 
 WHISKER_ROW_DICT = {  # default, if every row is present
-    Direction.LEFT: [4, 0],
-    Direction.RIGHT: [5, 2],
-    Direction.FORWARD: [1, 3],
-    Direction.BACKWARD: [7, 6]
+    Direction.LEFT: [0], #4
+    Direction.RIGHT: [5], #5 #1
+    Direction.FORWARD: [2], #3
+    Direction.BACKWARD: [6] #7
 }
 
 WHISKER_ROW_DICT_SIM = {
@@ -155,7 +155,7 @@ WHISKER_ROW_DICT_SIM = {
     Direction.BACKWARD: [3, 7]
 }
 
-CYCLES_UNTIL_RECALIBRATION = 1000
+CYCLES_UNTIL_RECALIBRATION = 3000
 
 class RM3Pathfinder(Node):
     def __init__(self, pathfinder_config_params : dict, sim_params : dict):
@@ -600,6 +600,8 @@ class RM3Pathfinder(Node):
             existing = [v for v in self.whisker_rows(direction) if v is not None]
             for lst in existing:
                 for i in range(len(lst)):
+                    if i in (0, 7):
+                        continue
                     lst[i]: float  # whisker
                     
                     if whisker_pressure(lst[i]) > MIN_PRESSURE_FOR_COLLISION_MARK_ON_GRAPH:
@@ -848,6 +850,52 @@ class RM3Pathfinder(Node):
     
     def determine_and_publish_movement(self) -> None:
         mov_twist = self.determine_movement() * self.control_vel
+        t = 3
+        t_turn = 1
+
+        
+        if max([abs(y) for y in mov_twist]) < 0.03:
+            mov_twist[0] = 0.0
+            mov_twist[1] = 0.0
+            mov_twist[2] = 0.0
+            """elif max([abs(y) for y in mov_twist]) < t:
+                if abs(mov_twist[0]) == max([abs(y) for y in mov_twist]):
+                    mov_twist[1] = 0.0
+                    mov_twist[2] = 0.0
+                    if abs(mov_twist[0]) < t:
+                        mov_twist[0] = -t if mov_twist[0] < 0 else t
+                elif abs(mov_twist[1]) == max([abs(y) for y in mov_twist]):
+                    mov_twist[0] = 0.0
+                    mov_twist[2] = 0.0
+                    if abs(mov_twist[1]) < t:
+                        mov_twist[1] = -t if mov_twist[1] < 0 else t
+                else:
+                    mov_twist[0] = 0.0
+                    mov_twist[1] = 0.0
+                    if abs(mov_twist[2]) < t_turn:
+                        mov_twist[2] = -t_turn if mov_twist[2] < 0 else t_turn
+            """
+        elif abs(mov_twist[0]) == max([abs(y) for y in mov_twist]):
+            mov_twist[1] = 0.0
+            mov_twist[2] = 0.0
+            if abs(mov_twist[0]) < t:
+                mov_twist[0] = -t if mov_twist[0] < 0 else t
+        elif abs(mov_twist[1]) == max([abs(y) for y in mov_twist]):
+            mov_twist[0] = 0.0
+            mov_twist[2] = 0.0
+            if abs(mov_twist[1]) < t:
+                mov_twist[1] = -t if mov_twist[1] < 0 else t
+        else:
+            mov_twist[0] = 0.0
+            mov_twist[1] = 0.0
+            if abs(mov_twist[2]) < t_turn:
+                mov_twist[2] = -t_turn if mov_twist[2] < 0 else t_turn
+        
+
+        mov_twist[0] *= BASE_SPEED_X
+        mov_twist[1] *= BASE_SPEED_Y
+        mov_twist[2] *= BASE_SPEED_TURN
+
         self.publish_movement(mov_twist)
 
     def publish_movement(self, mov_lst):
@@ -858,9 +906,9 @@ class RM3Pathfinder(Node):
         twist_msg.header.stamp = self.get_clock().now().to_msg()
         twist_msg.header.frame_id = "base_link"
 
-        twist_msg.twist.linear.x = mov_lst[0] * BASE_SPEED_X
-        twist_msg.twist.linear.y = mov_lst[1] * BASE_SPEED_Y
-        twist_msg.twist.angular.z = mov_lst[2] * BASE_SPEED_TURN
+        twist_msg.twist.linear.x = mov_lst[0]
+        twist_msg.twist.linear.y = mov_lst[1]
+        twist_msg.twist.angular.z = mov_lst[2]
         self.robot_speed_pub.publish(twist_msg)
 
     def get_path_following_angle_error(self) -> float:

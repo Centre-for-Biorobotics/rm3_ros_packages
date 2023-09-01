@@ -13,9 +13,9 @@ Whiskers:
 Control:
     PID:
         Horizontal:
-            Kp: 1
-            Ki: 0.5
-            Kd: 0.2
+            Kp: 0.3
+            Ki: 0.15
+            Kd: 0.05
             Setpoint: 0.2
             Saturation: [-0.5, 0.5]
         DirectionWall:
