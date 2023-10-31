@@ -43,8 +43,8 @@ class pi48Interface(Node):
         self.pi48_packet_length = 108 # characters
 
         # get device parameters and find device
-        self.declare_parameter('device_name')
-        self.declare_parameter('device_hwid')
+        self.declare_parameter('device_name', 'imu_name')
+        self.declare_parameter('device_hwid', 'imu_hwid')
 
         self.which_device = self.get_parameter('device_name').value
         self.device_hwid = self.get_parameter('device_hwid').value

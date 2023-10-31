@@ -41,8 +41,8 @@ class SerialInterface(Node):
         super().__init__('serial_interface')
 
         # use parameters defined in launch file (directly or yaml)
-        self.declare_parameter('motor_name')
-        self.declare_parameter('arduino_sn')
+        self.declare_parameter('motor_name', 'default_motor')
+        self.declare_parameter('arduino_sn', 'default_sn')
         self.which_motor = self.get_parameter('motor_name').value
         self.which_arduino = self.get_parameter('arduino_sn').value
 
