@@ -10,7 +10,7 @@ Publishes robot's estimated odometry and estimated wrenches.
 
 import rclpy
 from rclpy.parameter import Parameter
-import tf_transformations
+import transforms3d
 
 from rclpy.node import Node
 
@@ -81,8 +81,8 @@ class DynamicsRM3(Node):
         # to update the Jacobian
         # ----------------------------------------
         if self.robotDynamics.useImu:
-            orientation = tf_transformations.euler_from_quaternion([self.imu_orientation.x, self.imu_orientation.y,
-                                            self.imu_orientation.z, self.imu_orientation.w])
+            orientation = transforms3d.euler.quat2euler([self.imu_orientation.w, self.imu_orientation.x, self.imu_orientation.y,
+                                            self.imu_orientation.z])
             # self.get_logger().info(f'YAW from IMU: {orientation[2]}')
         else:
             orientation = self.robotDynamics.eta[3:6]
@@ -107,11 +107,12 @@ class DynamicsRM3(Node):
         if self.robotDynamics.useImu:
             odom_msg.pose.pose.orientation = self.imu_orientation
         else:
-            q = tf_transformations.quaternion_from_euler(self.robotDynamics.eta[3], self.robotDynamics.eta[4], self.robotDynamics.eta[5])
-            odom_msg.pose.pose.orientation.x = q[0]
-            odom_msg.pose.pose.orientation.y = q[1]
-            odom_msg.pose.pose.orientation.z = q[2]
-            odom_msg.pose.pose.orientation.w = q[3]
+            q = transforms3d.euler.euler2quat(self.robotDynamics.eta[3], self.robotDynamics.eta[4], self.robotDynamics.eta[5])
+            odom_msg.pose.pose.orientation.w = q[0]
+            odom_msg.pose.pose.orientation.x = q[1]
+            odom_msg.pose.pose.orientation.y = q[2]
+            odom_msg.pose.pose.orientation.z = q[3]
+            
         odom_msg.twist.twist.linear.x = self.robotDynamics.nu[0]
         odom_msg.twist.twist.linear.y = self.robotDynamics.nu[1]
         odom_msg.twist.twist.linear.z = self.robotDynamics.nu[2]

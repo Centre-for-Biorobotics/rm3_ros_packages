@@ -17,7 +17,7 @@ from geometry_msgs.msg import PoseStamped
 from robominer_msgs.msg import TrajectoryPoint
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
-import tf_transformations
+import transforms3d
 
 
 import yaml
@@ -192,11 +192,11 @@ class TrajectoryManager(Node):
         traj_msg.pose.position.y = self.traj_pos[1]
         traj_msg.pose.position.z = 0.0
 
-        q = tf_transformations.quaternion_from_euler(0.0, 0.0, self.traj_pos[2])
-        traj_msg.pose.orientation.x = q[0]
-        traj_msg.pose.orientation.y = q[1]
-        traj_msg.pose.orientation.z = q[2]
-        traj_msg.pose.orientation.w = q[3]
+        q = transforms3d.euler.euler2quat(0.0, 0.0, self.traj_pos[2])
+        traj_msg.pose.orientation.w = q[0]
+        traj_msg.pose.orientation.x = q[1]
+        traj_msg.pose.orientation.y = q[2]
+        traj_msg.pose.orientation.z = q[3]
 
         traj_msg.twist.linear.x = self.traj_vel[0]
         traj_msg.twist.linear.y = self.traj_vel[1]
@@ -219,8 +219,8 @@ class TrajectoryManager(Node):
 
     def updatePose(self, msg):
         orientation_q = msg.pose.orientation
-        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-        (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list)
+        orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+        (roll, pitch, yaw) = transforms3d.euler.quat2euler(orientation_list)
         self.traj_x_pos = msg.pose.position.x
         self.traj_y_pos = msg.pose.position.y
         self.traj_yaw_pos = yaw

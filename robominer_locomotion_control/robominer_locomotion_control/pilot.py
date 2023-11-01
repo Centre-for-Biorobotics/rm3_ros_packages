@@ -16,7 +16,7 @@ from sensor_msgs.msg import Joy, Imu
 from geometry_msgs.msg import Twist, TwistStamped
 from nav_msgs.msg import Odometry
 from robominer_msgs.msg import TrajectoryPoint
-import tf_transformations
+import transforms3d
 
 
 import yaml
@@ -31,7 +31,7 @@ class Pilot(Node):
         super().__init__('Pilot')
         self.pilot_parameters = config_params
         self.dt = config_params["Pilot"]["dt"]
-        type = config_params["Pilot"]["controller_type"]
+        controller_type = config_params["Pilot"]["controller_type"]
 
         self.declare_parameter('in_simulation', False)
         self.in_simulation = self.get_parameter('in_simulation').value
@@ -48,9 +48,9 @@ class Pilot(Node):
         self.p_prev = np.zeros(6)
         self.v = np.zeros(6)
 
-        if type == "PID":
+        if controller_type == "PID":
             self.controller = PIDController(config_params)
-        elif type == "SMC":
+        elif controller_type == "SMC":
             self.controller = SMController(config_params)
 
         self.sub_reference = self.create_subscription(
@@ -102,16 +102,16 @@ class Pilot(Node):
     def onTrajectory(self, msg):
         # update desired trajectory
         orientation_q = msg.pose.orientation
-        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-        (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list)
+        orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+        (roll, pitch, yaw) = transforms3d.euler.quat2euler(orientation_list)
         self.pos_d = [msg.pose.position.x, msg.pose.position.y, yaw]
         self.vel_d = [msg.twist.linear.x, msg.twist.linear.y, msg.twist.angular.z]
         self.acc_d = [msg.acceleration.linear.x, msg.acceleration.linear.y, msg.acceleration.angular.z]
 
     def onImu(self, msg):
         orientation_q = msg.orientation
-        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-        (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list)
+        orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+        (roll, pitch, yaw) = transforms3d.euler.quat2euler(orientation_list)
 
         if not self.fixed_offset:
             self.imu_offset = yaw
@@ -127,8 +127,8 @@ class Pilot(Node):
         # Update odom position
         if self.in_simulation:
             orientation_q = msg.pose.pose.orientation
-            orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
-            (roll, pitch, yaw) = tf_transformations.euler_from_quaternion(orientation_list)
+            orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+            (roll, pitch, yaw) = transforms3d.euler.quat2euler(orientation_list)
             self.pos[5] = yaw
             self.vel = [msg.twist.twist.linear.x, msg.twist.twist.linear.y, 0.0, 0.0, 0.0, msg.twist.twist.angular.z]
 
@@ -144,7 +144,7 @@ class Pilot(Node):
 
         if not self.in_simulation:
             self.updateJacobian(0.0, 0.0, self.pos[5])
-            self.vel[0:2] = (self.p[0:2] - self.p_prev[0:2]) / self.dt
+            self.vel[:2] = (self.p[:2] - self.p_prev[:2]) / self.dt
             self.v = np.dot(self.J_inv, np.array([self.vel[0], self.vel[1], 0.0, 0.0, 0.0, self.vel[5]]))
 
         else:
@@ -177,11 +177,12 @@ class Pilot(Node):
         odom_msg.pose.position.y = self.p[1]
         odom_msg.pose.position.z = 0.0
 
-        q = tf_transformations.quaternion_from_euler(0.0, 0.0, self.p[5])
-        odom_msg.pose.orientation.x = q[0]
-        odom_msg.pose.orientation.y = q[1]
-        odom_msg.pose.orientation.z = q[2]
-        odom_msg.pose.orientation.w = q[3]
+        q = transforms3d.euler.euler2quat(0.0, 0.0, self.p[5])
+        odom_msg.pose.orientation.w = q[0]
+        odom_msg.pose.orientation.x = q[1]
+        odom_msg.pose.orientation.y = q[2]
+        odom_msg.pose.orientation.z = q[3]
+        
 
         odom_msg.twist.linear.x = self.v[0]
         odom_msg.twist.linear.y = self.v[1]
