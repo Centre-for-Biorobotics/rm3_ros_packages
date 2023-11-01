@@ -41,7 +41,7 @@ def generate_launch_description():
             os.path.join(
                 get_package_share_directory('robominer_locomotion_control'),
                 'launch',
-                'open_loop_steering.launch.py')
+                'open_loop_kinematics_steering.launch.py')
         ))
 
     return launch.LaunchDescription([
