@@ -12,8 +12,6 @@ Definition of controllers that can be used for autonomous / semi-autonomous cont
 import rclpy
 from rclpy.node import Node
 
-import tf_transformations
-
 import yaml
 import os
 from ament_index_python.packages import get_package_share_directory
@@ -70,7 +68,7 @@ class PIDController():
         # Control function (for PID)
         e1 = np.dot(self.robotDynamics.J_inv, (pI -p))
         e2 = np.dot(self.robotDynamics.J_inv, vI) - v
-
+        print((pI -p))
         while e1[5] > np.pi:
             e1[5] -= 2.0 * np.pi
         while e1[5] < -np.pi:
@@ -78,7 +76,7 @@ class PIDController():
 
         self.int_position_error += e1
 
-        for i in range(0,6):
+        for i in range(6):
             if self.int_position_error[i] < -self.windup[i]:
                 self.int_position_error[i] = -self.windup[i]
             elif self.int_position_error[i] > self.windup[i]:
@@ -95,12 +93,12 @@ class PIDController():
 
             PID = np.dot(M, PID + dyn_comp)
 
-        # saturation of control output
-        for i in range(6):
-            if PID[i] < -self.saturation[i]:
-                PID[i] = -self.saturation[i]
-            elif PID[i] > self.saturation[i]:
-                PID[i] = self.saturation[i]
+        # # saturation of control output
+        # for i in range(6):
+        #     if PID[i] < -self.saturation[i]:
+        #         PID[i] = -self.saturation[i]
+        #     elif PID[i] > self.saturation[i]:
+        #         PID[i] = self.saturation[i]
 
         return PID
 

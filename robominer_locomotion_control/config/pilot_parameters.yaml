@@ -1,6 +1,6 @@
 Pilot:
     dt: 0.01
-    reference_frame: "odom/unfiltered" # "odom/unfiltered", "estimated_odom", "robot_pose_filtered"
+    reference_frame: "odom" # "odom", "estimated_odom", "robot_pose_filtered"
     imu_topic: "bno080_imu/data" # bno080_imu, bno080_imu/data
     controller_type: "SMC" # "PID" , "SMC"
 Control:

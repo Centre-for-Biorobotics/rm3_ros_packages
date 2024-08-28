@@ -18,7 +18,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Joy
 
 from geometry_msgs.msg import Twist, TwistStamped
-from robominer_msgs.msg import MotorModuleCommand
+from robominer_msgs.msg import MotorModuleCommand, MotorModuleFeedback
 from std_msgs.msg import Float64
 from robominer_state_estimation.rm3_dynamics import RobotDynamics
 
@@ -48,11 +48,21 @@ motors_dict = {
 class RM3InverseDynamics(Node):
     def __init__(self):
         super().__init__('rm3_inverse_kinematics')
+
+        self.declare_parameter('in_simulation', False)
+        self.in_simulation = self.get_parameter('in_simulation').value
+
         self.radpersec_to_rpm = 60.0 / (2*pi)
         self.cmd_vel_x = 0.0
         self.cmd_vel_y = 0.0
         self.cmd_vel_yaw = 0.0
 
+        if self.in_simulation:
+            self.publisher_motor0_feedback = self.create_publisher(MotorModuleFeedback, '/front_right/motor_module', 10)
+            self.publisher_motor1_feedback = self.create_publisher(MotorModuleFeedback, '/rear_right/motor_module', 10)
+            self.publisher_motor2_feedback = self.create_publisher(MotorModuleFeedback, '/rear_left/motor_module', 10)
+            self.publisher_motor3_feedback = self.create_publisher(MotorModuleFeedback, '/front_left/motor_module', 10)
+        
         self.publisher_motor0_commands = self.create_publisher(MotorModuleCommand, '/motor0/motor_rpm_setpoint', 10)
         self.publisher_motor1_commands = self.create_publisher(MotorModuleCommand, '/motor1/motor_rpm_setpoint', 10)
         self.publisher_motor2_commands = self.create_publisher(MotorModuleCommand, '/motor2/motor_rpm_setpoint', 10)
@@ -111,16 +121,32 @@ class RM3InverseDynamics(Node):
         '''
         # if self.on_robot or self.which_sim=='gazebo':
         self.motor_cmd = [MotorModuleCommand() for i in range(4)]
+
+        if self.in_simulation:
+            self.motor_feedback = [MotorModuleFeedback() for i in range(4)]
+
         for m in range(4):
             self.motor_cmd[m].header.stamp = self.get_clock().now().to_msg()
             self.motor_cmd[m].header.frame_id = motors[m]
             self.motor_cmd[m].motor_id = motors_dict[motors[m]]
             self.motor_cmd[m].motor_rpm_goal = int(self.screw_speeds[m])
 
+            if self.in_simulation:
+                self.motor_feedback[m].header.stamp = self.get_clock().now().to_msg()
+                self.motor_feedback[m].header.frame_id = motors[m]
+                self.motor_feedback[m].motor_id = motors_dict[motors[m]]
+                self.motor_feedback[m].motor_rpm = self.screw_speeds[m]
+
         self.publisher_motor0_commands.publish(self.motor_cmd[0])
         self.publisher_motor1_commands.publish(self.motor_cmd[1])
         self.publisher_motor2_commands.publish(self.motor_cmd[2])
         self.publisher_motor3_commands.publish(self.motor_cmd[3])
+
+        if self.in_simulation:
+            self.publisher_motor0_feedback.publish(self.motor_feedback[0])
+            self.publisher_motor1_feedback.publish(self.motor_feedback[1])
+            self.publisher_motor2_feedback.publish(self.motor_feedback[2])
+            self.publisher_motor3_feedback.publish(self.motor_feedback[3])
 
 
 def main(args=None):

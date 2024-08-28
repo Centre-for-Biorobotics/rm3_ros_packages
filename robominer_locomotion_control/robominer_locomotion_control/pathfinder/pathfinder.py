@@ -8,8 +8,7 @@ Node that can do wall-following or A* pathfinding to a goal
 
 from __future__ import annotations
 from typing import Callable, List
-from tf_transformations import euler_from_quaternion
-
+import transforms3d
 import math
 import numpy as np
 import os
@@ -383,10 +382,10 @@ class RM3Pathfinder(Node):
         """
         Returns value in range ]-180; 180]
         """
-        orient = [self.curr_pose.orientation.x, self.curr_pose.orientation.y,
-                  self.curr_pose.orientation.z, self.curr_pose.orientation.w]
+        orient = [self.curr_pose.orientation.w, self.curr_pose.orientation.x, self.curr_pose.orientation.y,
+                  self.curr_pose.orientation.z]
 
-        _, _, yaw = euler_from_quaternion(orient)
+        _, _, yaw = transforms3d.euler.quat2euler(orient)
         
         return yaw * 180 / np.pi
     
