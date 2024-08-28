@@ -2,11 +2,11 @@
 
 
 # ROS 2 Packages for ROBOMINER (RM3)
-The following is a list of the packages used with the RM3 small-scale prototype. 
+The following is a list of the packages used with the RM3 small-scale ROBOMINERS prototype. 
 
 
 Requirements:
-|Ubuntu 20.04 LTS (Focal Fossa)| ROS 2 Foxy Fitzroy |
+|Ubuntu 22.04 LTS (Jammy Jellyfish)| ROS 2 Humble Hawksbill |
 |:---:|:---:|
 
 
@@ -16,18 +16,13 @@ Requirements:
 - [robominer_drivers](#robominer_drivers)
 - [robominer_msgs](#robominer_msgs)
 - [robominer_locomotion_control](#robominer_locomotion_control)
+- [robominer_state_estimation](#robominer_state_estimation)
 
 ---
 
 ## robominer_bringup
 This is a high-level Python package that contains only launch files. Lower level launch files also exist in other packages.
 
-- *open_loop_steering.launch.py:* launches nodes that interface with all motor modules, a node that handles body velocity commands, and an inverse kinematics node. A desired velocity from a joystick, keyboard, or other source is used to calculate and pass RPM setpoints to all four motor modules.
-- *open_loop_steering_w_sensors.launch.py:* all the above, plus interfacing an IMU and a temperature sensor.
-- *imu_and_whiskers.launch.py:* launches interface nodes for whisker sensors and a bno080 imu.
-- *bag_record.launch.py:* recording a bag file with all topics in the ros2 network. File is saved in the launch location with the start time encoded in the filename.
-- *sim_open_loop_steering.launch.py:* **(outdated)** launches open_loop_steering node and teleop_twist_keyboard for vortex studio simulations.
-- *sim_open_loop_steering_joy.launch.py:* **(outdated)** launches open_loop_steering node and teleop_twist_joy for gazebo simulations.
 ---
 
 ## robominer_drivers
@@ -39,7 +34,7 @@ Currently included interfaces to:
 - MCP9808 temperature sensor,
 - Whisker sensor array,
 - Pacific Inertial Wheel Motion Sensor **(not used)**,
-- Pacific Inertial PI-48 IMU.
+- Pacific Inertial PI-48 IMU **(not used)**
 
 ### whisker sensors interface
 - *whiskers_launch.py* launches the node under the name 'whiskers_publisher' to interface a total of 64 sensors. Set parameters:
@@ -48,7 +43,7 @@ Currently included interfaces to:
 
 - When running the node using `ros2 run robominer_drivers tlv493d_tca9548a_whiskers`, both parameters are initialized as `true`.
 
-### PI WMS (not used)
+<!-- ### PI WMS (not used)
 The C++ node that interfaces the PI WMS device uses the [serial port library](https://github.com/wjwwood/serial). To use it, clone this ROS2 version:
 
 ```
@@ -57,7 +52,7 @@ git clone https://github.com/RoverRobotics-forks/serial-ros2
 ```
 
 ### PI-48 IMU
-Python node that interfaces the device using pyserial. Two identical devices appear in the list of serial ports, the second one is used.
+Python node that interfaces the device using pyserial. Two identical devices appear in the list of serial ports, the second one is used. -->
 
 ### motors interface
 The nodes that interface the arduinos in the motor modules identify them by their FTDI's serial number. The launch file creates parameters containing this information for each node. The current configuration is:
@@ -80,8 +75,17 @@ colcon build --packages-select robominer_msgs
 ---
 
 ## robominer_state_estimation
-Python package that contains state estimation for RM3, including forward and inverse kinematics, a forward dynamic model, data fusion tools, etc.
+Python package that contains state estimation for RM3, including forward and inverse kinematics and dynamics, data fusion tools, etc.
 
+---
 ## robominer_locomotion_control
-Python package that contains control software for the RM3 locomotion, including trajectory tracking, closed-loop pose control, etc.
+Python package that contains control software for the RM3 locomotion, including trajectory tracking, path-finding (a-star, theta-star), closed-loop pose control, etc.
 
+---
+# References
+The following publications contain work from this repository:
+
+- Gkliva, R., Remmas, W., Godon, S., Rebane, J., Ochs, K., Kruusmaa, M., & Ristolainen, A. (2024). [A Multi-Terrain Robot Prototype with Archimedean Screw Actuators: Design, Realisation, Modelling, and Control](https://doi.org/10.1109/ACCESS.2024.3426105). IEEE Access.
+- Kossas, T., Remmas, W., Gkliva, R., Ristolainen, A., & Kruusmaa, M. (2024, May). [Whisker-based tactile navigation algorithm for underground robots](https://doi.org/10.1109/ICRA57147.2024.10610762). In 2024 IEEE International Conference on Robotics and Automation (ICRA) (pp. 13164-13170). IEEE.
+
+Find more information in our [webpage](https://taltech.ee/en/biorobotics)
