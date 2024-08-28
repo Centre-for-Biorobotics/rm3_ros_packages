@@ -85,7 +85,9 @@ Python package that contains control software for the RM3 locomotion, including 
 # References
 The following publications contain work from this repository:
 
-- Gkliva, R., Remmas, W., Godon, S., Rebane, J., Ochs, K., Kruusmaa, M., & Ristolainen, A. (2024). [A Multi-Terrain Robot Prototype with Archimedean Screw Actuators: Design, Realisation, Modelling, and Control](https://doi.org/10.1109/ACCESS.2024.3426105). IEEE Access.
-- Kossas, T., Remmas, W., Gkliva, R., Ristolainen, A., & Kruusmaa, M. (2024, May). [Whisker-based tactile navigation algorithm for underground robots](https://doi.org/10.1109/ICRA57147.2024.10610762). In 2024 IEEE International Conference on Robotics and Automation (ICRA) (pp. 13164-13170). IEEE.
+| Title | accompanying video |
+| -- | -- |
+| Gkliva, R., Remmas, W., Godon, S., Rebane, J., Ochs, K., Kruusmaa, M., & Ristolainen, A. (2024). [A Multi-Terrain Robot Prototype with Archimedean Screw Actuators: Design, Realisation, Modelling, and Control](https://doi.org/10.1109/ACCESS.2024.3426105). IEEE Access. | [![CfB on YouTube](http://img.youtube.com/vi/etZ-jDItyA0/0.jpg)](https://www.youtube.com/watch?v=etZ-jDItyA0 "A multi-terrain robot prototype with archimedean screw actuators") |
+| Kossas, T., Remmas, W., Gkliva, R., Ristolainen, A., & Kruusmaa, M. (2024, May). [Whisker-based tactile navigation algorithm for underground robots](https://doi.org/10.1109/ICRA57147.2024.10610762). In 2024 IEEE International Conference on Robotics and Automation (ICRA) (pp. 13164-13170). IEEE. | [![CfB on YouTube](http://img.youtube.com/vi/-EIxSckOMZ0/0.jpg)](https://www.youtube.com/watch?v=-EIxSckOMZ0 "Whisker-based tactile navigation algorithm for underground robots") |
 
 Find more information in our [webpage](https://taltech.ee/en/biorobotics)
