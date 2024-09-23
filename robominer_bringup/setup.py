@@ -1,5 +1,6 @@
 import os
 from glob import glob
+
 from setuptools import setup
 
 package_name = 'robominer_bringup'
@@ -19,7 +20,7 @@ setup(
     maintainer='Roza Gkliva',
     maintainer_email='roza.gkliva@ttu.ee',
     description='ROS2 launch scripts for starting the robominer',
-    license='TODO: License declaration',
+    license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
