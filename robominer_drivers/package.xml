@@ -6,7 +6,9 @@
   <description>C++ and Python drivers that interface to devices</description>
   <maintainer email="jaan.rebane@ttu.ee">Jaan Rebane</maintainer>
   <maintainer email="roza.gkliva@ttu.ee">Roza Gkliva</maintainer>
-  <license>TODO: License declaration</license>
+  <license>Apache-2.0</license>
+  <license>BSD-3-Clause</license>
+  <license>MIT and Creative Commons Share-alike 4.0 International </license>
 
   <depend>rclcpp</depend>
   <depend>rclpy</depend>

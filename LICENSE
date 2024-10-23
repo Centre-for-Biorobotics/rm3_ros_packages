@@ -1,0 +1,21 @@
+# Licensing Information
+
+Portions of this repository are available under one of the following licenses
+
+- MIT and Creative Commons Share-alike 4.0 International (for SparkFun BNO software and hardware respectively)
+- Apache-2.0 (whiskers publisher node in robominer_drivers package)
+- BSD-3-Clause (for the infineon tlv493d arduino library)
+
+The above list covers the package `robominer_drivers`. For all packages please see the package.xml file for specific license information.
+
+Contributions to existing files should be made under the existing license of that file. New files should be created under the existing license listed in the appropriate package.xml file, or explicitly licensed otherwise.
+
+Files not otherwise marked are licensed under Apache-2.0
+
+# List of contributors
+- Jaan Rebane
+- Kilian Ochs
+- Roza Gkliva
+- Simon Godon
+- Tannel Kossas
+- Walid Remmas
