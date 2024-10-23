@@ -8,7 +8,7 @@ Portions of this repository are available under one of the following licenses
 
 The above list covers the package `robominer_drivers`. For all packages please see the package.xml file for specific license information.
 
-Contributions to existing files should be made under the existing license of that file. New files should be created under the existing license listed in the appropriate package.xml file.
+Contributions to existing files should be made under the existing license of that file. New files should be created under the existing license listed in the appropriate package.xml file, or explicitly licensed otherwise.
 
 Files not otherwise marked are licensed under Apache-2.0
 
