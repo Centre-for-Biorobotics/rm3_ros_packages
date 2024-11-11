@@ -29,7 +29,7 @@ This is a high-level Python package that contains only launch files. Lower level
 Contains drivers and other software for interfacing devices, such as motor modules, sensors, etc. This is a mixed C++ and Python package.
 Currently included interfaces to:
 
-- motor modules,
+- motor modules (low level motor control software is [here](https://github.com/Centre-for-Biorobotics/rm3_motor_modules)),
 - BNO080 IMU,
 - MCP9808 temperature sensor,
 - Whisker sensor array,
