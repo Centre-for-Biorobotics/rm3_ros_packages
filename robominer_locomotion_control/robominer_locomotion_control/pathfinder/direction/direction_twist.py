@@ -4,10 +4,10 @@ from enum import Enum, auto
 import numpy as np
 
 class DirectionTwist(Enum):
-    MOVE_LEFT       = auto(), np.array([  0,  50,  0], dtype=float)
-    MOVE_RIGHT      = auto(), np.array([  0, -50,  0], dtype=float)
-    MOVE_FORWARD    = auto(), np.array([ 50,   0,  0], dtype=float)
-    MOVE_BACKWARD   = auto(), np.array([-50,   0,  0], dtype=float)
+    MOVE_LEFT       = auto(), np.array([-50,   0,  0], dtype=float)
+    MOVE_RIGHT      = auto(), np.array([50,    0,  0], dtype=float)
+    MOVE_FORWARD    = auto(), np.array([  0,  50,  0], dtype=float)
+    MOVE_BACKWARD   = auto(), np.array([  0, -50,  0], dtype=float)
     TURN_LEFT       = auto(), np.array([  0,   0, -2], dtype=float)
     TURN_RIGHT      = auto(), np.array([  0,   0,  2], dtype=float)
 
