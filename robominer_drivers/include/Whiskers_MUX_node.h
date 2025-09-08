@@ -42,7 +42,7 @@
 
 // Set I2C bus address
 #ifdef OLIMEX
-    #define I2C_BUS_ID 0
+    #define I2C_BUS_ID 1
 #else
     #define I2C_BUS_ID 8
 #endif    
